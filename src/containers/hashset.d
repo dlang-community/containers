@@ -97,8 +97,16 @@ struct HashSet(T, alias hashFunction)
 			return false;
 		foreach (ref item; buckets[index].range)
 		{
-			if (item.hash == hash && item.value == value)
-				return true;
+			static if (storeHash)
+			{
+				if (item.hash == hash && item.value == value)
+					return true;
+			}
+			else
+			{
+				if (item.value == value)
+					return true;
+			}
 		}
 		return false;
 	}
@@ -115,7 +123,10 @@ struct HashSet(T, alias hashFunction)
 		if (buckets[index].empty)
 		{
 	insert:
-			buckets[index].insert(Node(hash, value));
+			static if (storeHash)
+				buckets[index].insert(Node(hash, value));
+			else
+				buckets[index].insert(Node(value));
 			++_length;
 			if (shouldRehash())
 				rehash();
@@ -123,8 +134,16 @@ struct HashSet(T, alias hashFunction)
 		}
 		foreach (ref item; buckets[index].range)
 		{
-			if (item.hash == hash && item.value == value)
-				return false;
+			static if (storeHash)
+			{
+				if (item.hash == hash && item.value == value)
+					return false;
+			}
+			else
+			{
+				if (item.value == value)
+					return false;
+			}
 		}
 		goto insert;
 	}
@@ -161,9 +180,12 @@ struct HashSet(T, alias hashFunction)
 
 private:
 
-	import std.allocator;
-	import memory.allocators;
 	import containers.slist;
+	import memory.allocators;
+	import std.allocator;
+	import std.traits;
+
+	enum bool storeHash = !isBasicType!T;
 
 	static struct Range
 	{
@@ -234,8 +256,17 @@ private:
 		{
 			foreach (node; bucket.range)
 			{
-				size_t index = hashToIndex(node.hash);
-				buckets[index].put(Node(node.hash, node.value));
+				static if (storeHash)
+				{
+					size_t index = hashToIndex(node.hash);
+					buckets[index].put(Node(node.hash, node.value));
+				}
+				else
+				{
+					size_t hash = generateHash(node.value);
+					size_t index = hashToIndex(hash);
+					buckets[index].put(Node(node.value));
+				}
 			}
 		}
 		foreach (ref bucket; oldBuckets)
@@ -270,7 +301,8 @@ private:
 
 	struct Node
 	{
-		hash_t hash;
+		static if (storeHash)
+			hash_t hash;
 		T value;
 	}
 

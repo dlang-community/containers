@@ -14,8 +14,9 @@ import std.allocator;
  */
 template NodeAllocator(size_t nodeSize, size_t blockSize = 1024)
 {
-	static assert (nodeSize < BlockAllocator!(blockSize).maxAllocationSize);
-	alias NodeAllocator = Freelist!(BlockAllocator!(blockSize), nodeSize, nodeSize);
+	enum ns = nodeSize >= (void*).sizeof ? nodeSize : (void*).sizeof;
+	static assert (ns < BlockAllocator!(blockSize).maxAllocationSize);
+	alias NodeAllocator = Freelist!(BlockAllocator!(blockSize), ns, ns);
 }
 
 ///

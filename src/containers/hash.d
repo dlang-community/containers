@@ -1,6 +1,6 @@
 module containers.hash;
 
-size_t builtinHash(K)(K key)
+size_t builtinHash(K)(K key) nothrow @trusted
 {
 	return typeid(K).getHash(&key);
 }

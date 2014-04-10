@@ -93,7 +93,7 @@ struct HashMap(K, V, alias hashFunction)
 	/**
 	 * Supports $(D key in aa) syntax.
 	 */
-	bool opBinaryRight(string op)(K key) const pure nothrow if (op == "in")
+	bool opBinaryRight(string op)(K key) const nothrow if (op == "in")
 	{
 		import std.algorithm : canFind;
 		size_t index = hashIndex(key);
@@ -182,8 +182,11 @@ struct HashMap(K, V, alias hashFunction)
 private:
 
 	import std.allocator;
+	import std.traits;
 	import memory.allocators;
 	import containers.slist;
+
+	enum bool storeHash = !isBasicType!K;
 
 	void insert(K key, V value)
 	{
@@ -192,13 +195,27 @@ private:
 		size_t index = hashToIndex(hash);
 		foreach (ref item; buckets[index].range)
 		{
-			if (item.hash == hash && item.key == key)
+			static if (storeHash)
 			{
-				item.value = value;
-				return;
+				if (item.hash == hash && item.key == key)
+				{
+					item.value = value;
+					return;
+				}
+			}
+			else
+			{
+				if (item.key == key)
+				{
+					item.value = value;
+					return;
+				}
 			}
 		}
-		buckets[index].put(Node(hash, key, value));
+		static if (storeHash)
+			buckets[index].put(Node(hash, key, value));
+		else
+			buckets[index].put(Node(key, value));
 		_length++;
 		if (shouldRehash)
 			rehash();
@@ -233,8 +250,17 @@ private:
 		{
 			foreach (node; bucket.range)
 			{
-				size_t index = hashToIndex(node.hash);
-				buckets[index].put(Node(node.hash, node.key, node.value));
+				static if (storeHash)
+				{
+					size_t index = hashToIndex(node.hash);
+					buckets[index].put(Node(node.hash, node.key, node.value));
+				}
+				else
+				{
+					size_t hash = generateHash(node.value);
+					size_t index = hashToIndex(hash);
+					buckets[index].put(Node(node.key, node.value));
+				}
 			}
 			typeid(typeof(bucket)).destroy(&bucket);
 		}
@@ -262,14 +288,14 @@ private:
 	/**
 	 * Move the bits a bit to the right. This trick was taken from the JRE
 	 */
-	size_t generateHash(K key) const pure nothrow @safe
+	size_t generateHash(K key) const nothrow @safe
 	{
 		size_t h = hashFunction(key);
 		h ^= (h >>> 20) ^ (h >>> 12);
 		return h ^ (h >>> 7) ^ (h >>> 4);
 	}
 
-	size_t hashIndex(K key) const pure nothrow @safe
+	size_t hashIndex(K key) const nothrow @safe
 	out (result)
 	{
 		assert (result < buckets.length);
@@ -286,7 +312,8 @@ private:
 			return key == this.key;
 		}
 
-		size_t hash;
+		static if (storeHash)
+			size_t hash;
 		K key;
 		V value;
 	}
@@ -323,4 +350,7 @@ unittest
 	assert (hm.keys().length == hm.length);
 	assert (hm.values().length == hm.length);
 	foreach (ref k, ref v; hm) {}
+
+	auto hm2 = HashMap!(char, char)(4);
+	hm2['a'] = 'a';
 }
