@@ -32,7 +32,11 @@ template HashSetAllocatorType(T)
 }
 
 /**
- * Set implementation
+ * Hash Set.
+ * Params:
+ *     T = the element type
+ *     hashFunction = the hash function to use on the elements
+ * $(B Do not store pointers to GC-allocated memory in this container.)
  */
 struct HashSet(T, alias hashFunction)
 {

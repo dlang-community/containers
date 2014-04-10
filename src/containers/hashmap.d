@@ -20,7 +20,12 @@ template HashMap(K, V) if (!is (K == string))
 }
 
 /**
- * Associative array implementation
+ * Associative array / hash map.
+ * Params:
+ *     K = the key type
+ *     V = the value type
+ *     hashFunction = the hash function to use on the keys
+ * $(B Do not store pointers to GC-allocated memory in this container.)
  */
 struct HashMap(K, V, alias hashFunction)
 {

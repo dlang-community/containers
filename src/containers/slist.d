@@ -14,10 +14,11 @@ auto slist(T)()
 }
 
 /**
- * Single-linked allocator-backed list
+ * Single-linked allocator-backed list.
  * Params:
  *     T = the element type
  *     A = the allocator type
+ * $(B Do not store pointers to GC-allocated memory in this container.)
  */
 struct SList(T, A)
 {
