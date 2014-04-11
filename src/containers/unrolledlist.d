@@ -77,6 +77,7 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 	 */
 	enum size_t nodeCapacity = (cacheLineSize - (void*).sizeof - (void*).sizeof
 		- ushort.sizeof) / T.sizeof;
+	static assert (nodeCapacity <= (typeof(Node.registry).sizeof * 8));
 
 
 	Range range()
