@@ -9,7 +9,7 @@ module containers.unrolledlist;
 
 /**
  * Unrolled Linked List. Nodes are (by default) sized to fit within a 64-byte
- * cache line. The number of nodes stored per node can be read from the
+ * cache line. The number of items stored per node can be read from the
  * nodeCapacity field.
  * See_also: $(Link http://en.wikipedia.org/wiki/Unrolled_linked_list)
  * Params:

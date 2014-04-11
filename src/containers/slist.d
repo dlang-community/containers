@@ -106,6 +106,9 @@ struct SList(T, A)
 	}
 
 	/// ditto
+	alias insertFront = insert;
+
+	/// ditto
 	alias put = insert;
 
 	void opOpAssign(string op)(T t) if (op == "~")
