@@ -7,11 +7,13 @@
 
 module containers.btree;
 
+//version = graphviz_debugging;
+version(graphviz_debugging) import std.stdio;
+
 /**
  * B-Tree Nodes are (by default) sized to fit within a 64-byte
  * cache line. The number of items stored per node can be read from the
  * nodeCapacity field.
- * See_also: $(Link http://en.wikipedia.org/wiki/Unrolled_linked_list)
  * Params:
  *     T = the element type
  *     allowDuplicates = if true, duplicate values will be allowed in the tree
@@ -52,13 +54,27 @@ struct BTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 		return _length == 0;
 	}
 
+	version(graphviz_debugging) void print(File f)
+	{
+		f.writeln("digraph g {");
+		root.print(f);
+		f.writeln("}");
+	}
+
 private:
 
 	import std.allocator;
 	import std.algorithm;
 	import std.array;
 
-	Node* allocateNode(ref T value)
+	static Node* allocateNode()
+	{
+		ubyte[] bytes = (cast(ubyte*) Mallocator.it.allocate(Node.sizeof))[0 .. Node.sizeof];
+		bytes[] = 0;
+		return cast(Node*) bytes.ptr;
+	}
+
+	static Node* allocateNode(ref T value)
 	{
 		ubyte[] bytes = (cast(ubyte*) Mallocator.it.allocate(Node.sizeof))[0 .. Node.sizeof];
 		bytes[] = 0;
@@ -84,33 +100,38 @@ private:
 	static assert (Node.sizeof <= cacheLineSize);
 	static struct Node
 	{
-		size_t nextAvailableIndex() const nothrow pure
+		private size_t nextAvailableIndex() const nothrow pure
 		{
 			import core.bitop;
 			return bsf(~registry);
 		}
 
-		void markUsed(size_t index)
+		private void markUsed(size_t index) pure nothrow
 		{
 			registry |= (1 << index);
 		}
 
-		bool isFree(size_t index)
+		private void markUnused(size_t index) pure nothrow
+		{
+			registry &= ~(1 << index);
+		}
+
+		private bool isFree(size_t index) const pure nothrow
 		{
 			return (registry & (1 << index)) == 0;
 		}
 
-		bool isFull()
+		private bool isFull() const pure nothrow
 		{
 			return registry == fullBits!nodeCapacity;
 		}
 
-		bool hasChildren()
+		private bool hasChildren() const nothrow pure
 		{
 			foreach (child; children)
 				if (child !is null)
-					return false;
-			return true;
+					return true;
+			return false;
 		}
 
 		bool contains(ref T value) const nothrow pure
@@ -127,25 +148,147 @@ private:
 			return false;
 		}
 
+		size_t leftmostNonempty() const nothrow pure
+		{
+			foreach (i, child; children)
+			{
+				if (child is null)
+					return size_t.max;
+				if (!child.isFull())
+					return i;
+			}
+			return size_t.max;
+		}
+
+//		invariant()
+//		{
+//			import core.bitop;
+//			size_t index = bsf(~registry);
+//			assert (isSorted(values[0 .. index]));
+//			bool hc;
+//			foreach (child; children)
+//				if (child !is null)
+//					hc = true;
+//			if (hc)
+//				assert (registry == fullBits!nodeCapacity);
+//		}
+
 		bool insert(T value)
 		{
+			immutable size_t index = nextAvailableIndex();
 			if (!isFull())
 			{
-				immutable size_t index = nextAvailableIndex();
 				values[index] = value;
 				markUsed(index);
-				sort(values[]);
+				sort(values[0 .. index + 1]);
 				return true;
 			}
-			else if (!hasChildren)
+			if (!hasChildren())
 			{
 				T[nodeCapacity + 1] temp;
 				temp[0 .. $ - 1] = values[];
 				temp[$ - 1] = value;
 				sort(temp[]);
+				values[] = temp[1 .. $];
+				children[0] = allocateNode(temp[0]);
 				return true;
 			}
+			if (value > values[$ - 1])
+			{
+				size_t i = leftmostNonempty();
+				if (i == size_t.max)
+				{
+					foreach (k, ref child; children)
+					{
+						if (child is null)
+						{
+							i = k;
+							child = allocateNode();
+							goto leftDownShift;
+						}
+					}
+					if (children[$ - 1] is null)
+					{
+						children[$ - 1] = allocateNode(value);
+						return true;
+					}
+					else
+						return children[$ - 1].insert(value);
+				}
+				else if (i + 1 == children.length)
+				{
+					children[i].insert(value);
+					return true;
+				}
+			leftDownShift:
+				T[nodeCapacity + 1] temp; // good
+				immutable size_t rightLength = nodeCapacity - i; // good
+				temp[0 .. rightLength] = values[i .. $]; // good
+				temp[rightLength] = value;
+				sort(temp[0 .. rightLength + 1]);
+				children[i].insert(temp[0]);
+				values[i .. $] = temp[1 .. rightLength + 1];
+				return true;
+			}
+			else
+			{
+				foreach (i, ref v; values)
+				{
+					if (value < v && (value < values[i + 1]))
+					{
+						if (children[i] is null)
+						{
+							children[i] = allocateNode(value);
+							return true;
+						}
+						else
+							return children[i].insert(value);
+					}
+					else
+					{
+						T[nodeCapacity + 1] temp;
+						temp[0 .. $ - i - 1] = values[i .. $];
+						temp[$ - i - 1] = value;
+						sort(temp[0 .. nodeCapacity - i + 1]);
+						values[i .. $] = temp[1 .. nodeCapacity - i + 1];
+						if (children[i] is null)
+						{
+							children[i] = allocateNode(temp[0]);
+							return true;
+						}
+						else
+							return children[i].insert(temp[0]);
+					}
+				}
+			}
 			return false;
+		}
+
+		version(graphviz_debugging) void print(File f)
+		{
+			f.writef("\"%016x\"[shape=record, label=\"", &this);
+			foreach (i; 0 .. nodeCapacity)
+			{
+				f.writef("<f%d> |", (i * 2));
+				f.writef("<f%d> %s|", (i * 2) + 1, values[i]);
+				if (i + 1 == nodeCapacity)
+					f.writef("<f%d> ", (i * 2) + 2);
+
+			}
+			f.writeln("\"];");
+			foreach (i; 0 .. nodeCapacity)
+			{
+				if (children[i] !is null)
+				{
+					f.writefln("\"%016x\":f%d -> \"%016x\";", &this, (i * 2), children[i]);
+					children[i].print(f);
+				}
+				if (i + 1 == nodeCapacity && children[i + 1] !is null)
+				{
+					f.writefln("\"%016x\":f%d -> \"%016x\";", &this, (i * 2) + 2, children[i + 1]);
+					children[i + 1].print(f);
+				}
+			}
 		}
 
 		T[nodeCapacity] values;
@@ -156,12 +299,42 @@ private:
 	Node* root;
 }
 
-//unittest
-//{
-//	BTree!string bt;
-//	bt.insert("A Song Across Wires");
-//	bt.insert("These Hopeful Machines");
-//	bt.insert("Laptop Symphony");
-//	assert (bt.length == 3);
-//	assert (!bt.empty);
-//}
+unittest
+{
+	import std.uuid;
+	import core.memory;
+	import std.string;
+	GC.disable();
+
+	BTree!string bt;
+	auto names = [
+		"A Song Across Wires",
+		"These Hopeful Machines",
+		"Laptop Symphony",
+		"Letting Go",
+		"Tomahawk",
+		"Stem the Tides",
+		"Love Divine",
+		"Skylarking",
+		"Calling Your Name",
+		"City Life",
+		"Lifeline",
+		"This Binary Universe"
+	];
+	version(graphviz_debugging) foreach (i, name; names)
+	{
+		bt.insert(name);
+		auto fn = format("/home/brian/tmp/graph%04d.dot", i);
+		File f = File(fn, "w");
+		bt.print(f);
+	}
+
+//	BTree!int ids;
+//	version(graphviz_debugging) foreach (i; 0 .. 20)
+//	{
+//		assert (ids.insert(i));
+//		auto fn = format("/home/brian/tmp/graph%04d.dot", i);
+//		File f = File(fn, "w");
+//		ids.print(f);
+//	}
+}
