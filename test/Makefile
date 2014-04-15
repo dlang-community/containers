@@ -1,8 +1,7 @@
 .PHONY: test graphs clean
 
-#GRAPHS=$(shell find ~/tmp/ -name "graph*.dot")
 SRC=$(shell find ../src/ -name "*.d")
-FLAGS=-unittest -main -g -I../src/
+FLAGS=-unittest -main -g -I../src/ -version=graphviz_debugging
 
 test:
 	dmd $(FLAGS) $(SRC) -oftests
@@ -11,8 +10,8 @@ test:
 clean:
 	-rm tests
 	-rm *.o
-	-rm ~/tmp/*.dot
-	-rm ~/tmp/*.png
+	-rm *.dot
+	-rm *.png
 
 graphs: clean test
-#	parallel "dot -Tpng {} > {.}.png" ::: $(GRAPHS)
+	parallel "dot -Tpng {} > {.}.png" ::: $(shell find . -name "graph*.dot")

@@ -7,7 +7,7 @@
 
 module containers.btree;
 
-//version = graphviz_debugging;
+version = graphviz_debugging;
 version(graphviz_debugging) import std.stdio;
 
 /**
@@ -160,6 +160,37 @@ private:
 			return size_t.max;
 		}
 
+		int height()
+		{
+			int h = 0;
+			foreach (child; children)
+			{
+				if (child !is null)
+					h = max(h, child.height);
+			}
+			return 1 + h;
+		}
+
+		bool imbalanced()
+		{
+			int mi = int.max;
+			int ma = int.min;
+			bool hasChildren;
+			foreach (child; children)
+			{
+				if (child !is null)
+				{
+					hasChildren = true;
+					mi = min(child.height, mi);
+					ma = max(child.height, ma);
+				}
+			}
+			if (!hasChildren)
+				return false;
+			else
+				return (ma - mi) >= 2;
+		}
+
 //		invariant()
 //		{
 //			import core.bitop;
@@ -183,85 +214,26 @@ private:
 				sort(values[0 .. index + 1]);
 				return true;
 			}
-			if (!hasChildren())
+			foreach (i; 0 .. nodeCapacity)
 			{
-				T[nodeCapacity + 1] temp;
-				temp[0 .. $ - 1] = values[];
-				temp[$ - 1] = value;
-				sort(temp[]);
-				values[] = temp[1 .. $];
-				children[0] = allocateNode(temp[0]);
-				return true;
-			}
-			if (value > values[$ - 1])
-			{
-				size_t i = leftmostNonempty();
-				if (i == size_t.max)
+				if (i > 0 && value < values[i] && value > values[i - 1])
 				{
-					foreach (k, ref child; children)
+					if (children[i] is null)
 					{
-						if (child is null)
-						{
-							i = k;
-							child = allocateNode();
-							goto leftDownShift;
-						}
-					}
-					if (children[$ - 1] is null)
-					{
-						children[$ - 1] = allocateNode(value);
+						children[i] = allocateNode(value);
 						return true;
 					}
 					else
-						return children[$ - 1].insert(value);
+						return children[i].insert(value);
 				}
-				else if (i + 1 == children.length)
-				{
-					children[i].insert(value);
-					return true;
-				}
-			leftDownShift:
-				T[nodeCapacity + 1] temp; // good
-				immutable size_t rightLength = nodeCapacity - i; // good
-				temp[0 .. rightLength] = values[i .. $]; // good
-				temp[rightLength] = value;
-				sort(temp[0 .. rightLength + 1]);
-				children[i].insert(temp[0]);
-				values[i .. $] = temp[1 .. rightLength + 1];
+			}
+			if (children[$ - 1] is null)
+			{
+				children[$ - 1] = allocateNode(value);
 				return true;
 			}
 			else
-			{
-				foreach (i, ref v; values)
-				{
-					if (value < v && (value < values[i + 1]))
-					{
-						if (children[i] is null)
-						{
-							children[i] = allocateNode(value);
-							return true;
-						}
-						else
-							return children[i].insert(value);
-					}
-					else
-					{
-						T[nodeCapacity + 1] temp;
-						temp[0 .. $ - i - 1] = values[i .. $];
-						temp[$ - i - 1] = value;
-						sort(temp[0 .. nodeCapacity - i + 1]);
-						values[i .. $] = temp[1 .. nodeCapacity - i + 1];
-						if (children[i] is null)
-						{
-							children[i] = allocateNode(temp[0]);
-							return true;
-						}
-						else
-							return children[i].insert(temp[0]);
-					}
-				}
-			}
-			return false;
+				return children[$ - 1].insert(value);
 		}
 
 		version(graphviz_debugging) void print(File f)
@@ -270,10 +242,12 @@ private:
 			foreach (i; 0 .. nodeCapacity)
 			{
 				f.writef("<f%d> |", (i * 2));
-				f.writef("<f%d> %s|", (i * 2) + 1, values[i]);
+				if (isFree(i))
+					f.writef("<f%d> |", (i * 2) + 1, values[i]);
+				else
+					f.writef("<f%d> %s|", (i * 2) + 1, values[i]);
 				if (i + 1 == nodeCapacity)
 					f.writef("<f%d> ", (i * 2) + 2);
-
 			}
 			f.writeln("\"];");
 			foreach (i; 0 .. nodeCapacity)
@@ -306,34 +280,43 @@ unittest
 	import std.string;
 	GC.disable();
 
-	BTree!string bt;
-	auto names = [
-		"A Song Across Wires",
-		"These Hopeful Machines",
-		"Laptop Symphony",
-		"Letting Go",
-		"Tomahawk",
-		"Stem the Tides",
-		"Love Divine",
-		"Skylarking",
-		"Calling Your Name",
-		"City Life",
-		"Lifeline",
-		"This Binary Universe"
-	];
-	version(graphviz_debugging) foreach (i, name; names)
+//	BTree!string bt;
+//	auto names = [
+//		"A Song Across Wires",
+//		"These Hopeful Machines",
+//		"Laptop Symphony",
+//		"Letting Go",
+//		"Tomahawk",
+//		"Stem the Tides",
+//		"Love Divine",
+//		"Skylarking",
+//		"Calling Your Name",
+//		"City Life",
+//		"Lifeline",
+//		"This Binary Universe"
+//	];
+//	version(graphviz_debugging) foreach (i, name; names)
+//	{
+//		bt.insert(name);
+//		auto fn = format("graph%04d.dot", i);
+//		File f = File(fn, "w");
+//		bt.print(f);
+//	}
+
+	BTree!string ids;
+	version(graphviz_debugging) foreach (i; 0 .. 100)
 	{
-		bt.insert(name);
-		auto fn = format("/home/brian/tmp/graph%04d.dot", i);
+		assert (ids.insert(randomUUID().toString()[0..8]));
+		auto fn = format("graph%04d.dot", i);
 		File f = File(fn, "w");
-		bt.print(f);
+		ids.print(f);
 	}
 
 //	BTree!int ids;
-//	version(graphviz_debugging) foreach (i; 0 .. 20)
+//	version(graphviz_debugging) foreach (i; 0 .. 100)
 //	{
 //		assert (ids.insert(i));
-//		auto fn = format("/home/brian/tmp/graph%04d.dot", i);
+//		auto fn = format("graph%04d.dot", i);
 //		File f = File(fn, "w");
 //		ids.print(f);
 //	}
