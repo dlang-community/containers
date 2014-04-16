@@ -14,8 +14,9 @@ import std.allocator;
  */
 template NodeAllocator(size_t nodeSize, size_t blockSize = 1024)
 {
-	enum ns = nodeSize >= (void*).sizeof ? nodeSize : (void*).sizeof;
-	static assert (ns < BlockAllocator!(blockSize).maxAllocationSize);
+	enum ns = roundUpToMultipleOf(
+		nodeSize >= (void*).sizeof ? nodeSize : (void*).sizeof, (void*).sizeof);
+	static assert (ns <= BlockAllocator!(blockSize).maxAllocationSize);
 	alias NodeAllocator = Freelist!(BlockAllocator!(blockSize), ns, ns);
 }
 
@@ -203,4 +204,11 @@ unittest
 	assert (mem);
 	void[] mem2 = blockAllocator.allocate(10_000);
 	assert (mem2);
+}
+
+private size_t roundUpToMultipleOf(size_t s, uint base) pure nothrow @safe
+{
+	assert(base);
+	auto rem = s % base;
+	return rem ? s + base - rem : s;
 }

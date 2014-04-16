@@ -7,7 +7,6 @@
 
 module containers.btree;
 
-version = graphviz_debugging;
 version(graphviz_debugging) import std.stdio;
 
 /**
@@ -191,18 +190,35 @@ private:
 				return (ma - mi) >= 2;
 		}
 
-//		invariant()
-//		{
-//			import core.bitop;
-//			size_t index = bsf(~registry);
-//			assert (isSorted(values[0 .. index]));
-//			bool hc;
-//			foreach (child; children)
-//				if (child !is null)
-//					hc = true;
-//			if (hc)
-//				assert (registry == fullBits!nodeCapacity);
-//		}
+		invariant()
+		{
+			import core.bitop;
+			size_t index = bsf(~registry);
+			assert (isSorted(values[0 .. index]));
+			bool hc;
+			foreach (child; children)
+				if (child !is null)
+					hc = true;
+			if (hc)
+				assert (registry == fullBits!nodeCapacity);
+			foreach (i, v; values)
+			{
+				if (children[i] !is null)
+					assert (children[i].allLessThan(v), "Left child not less than value");
+			}
+		}
+
+		private bool allLessThan(ref const T value) const
+		{
+			foreach (i, v; values)
+			{
+				if (!isFree(i) && v > value)
+					return false;
+				if (children[i] !is null && !children[i].allLessThan(v))
+					return false;
+			}
+			return true;
+		}
 
 		bool insert(T value)
 		{
@@ -213,6 +229,40 @@ private:
 				markUsed(index);
 				sort(values[0 .. index + 1]);
 				return true;
+			}
+			if (value < values[0])
+			{
+				if (children[0] is null)
+				{
+					children[0] = allocateNode(value);
+					return true;
+				}
+				if (children[0].isFull())
+				{
+					shiftNodesRight();
+					if (children[0] is null)
+					{
+						if (value < values[0])
+						{
+							children[0] = allocateNode(value);
+							return true;
+						}
+						else
+						{
+							children[0] = allocateNode(values[0]);
+							values[0] = value;
+							return true;
+						}
+					}
+					else
+						return children[0].insert(value);
+				}
+				if (children[0] is null)
+				{
+					children[0] = allocateNode(value);
+					return true;
+				}
+				return children[0].insert(value);
 			}
 			foreach (i; 0 .. nodeCapacity)
 			{
@@ -233,7 +283,79 @@ private:
 				return true;
 			}
 			else
-				return children[$ - 1].insert(value);
+			{
+				if (children[$ - 1].isFull())
+					shiftNodesLeft();
+				if (children[$ - 1] is null)
+				{
+					children[$ - 1] = allocateNode(value);
+					return true;
+				}
+				else if (values[$ - 1] > value)
+				{
+					children[$ - 1].insert(values[$ - 1]);
+					values[$ - 1] = value;
+					return true;
+				}
+				else
+					return children[$ - 1].insert(value);
+			}
+		}
+
+		void shiftNodesLeft()
+		{
+			size_t i = nodeCapacity;
+			while (true)
+			{
+				if (i == 0)
+					return;
+				if (children[i - 1] is null)
+					break;
+				i--;
+			}
+			T[nodeCapacity + 1] temp;
+			while (i <= nodeCapacity)
+			{
+				size_t from = i;
+				size_t to = i - 1;
+				temp[0] = values[to];
+				temp[1 .. $] = children[from].values[];
+				if (!children[from].isFree(nodeCapacity - 1))
+					values[to] = temp[$ - 1];
+				children[to] = children[from];
+				children[to].values[] = temp[0 .. $ - 1];
+				children[from] = null;
+				i++;
+			}
+		}
+
+		void shiftNodesRight()
+		{
+			size_t i = 0;
+			while (true)
+			{
+				if (i + 1 == nodeCapacity)
+					return;
+				if (children[i + 1] is null)
+					break;
+				i++;
+			}
+			T[nodeCapacity + 1] temp;
+			while (true)
+			{
+				size_t from = i;
+				size_t to = i + 1;
+				writeln("from = ", from, " to = ", to);
+				temp[0] = values[to];
+				temp[1 .. $] = children[from].values[];
+				values[to] = temp[0];
+				children[to] = children[from];
+				children[to].values[] = temp[1 .. $];
+				children[from] = null;
+				if (i == 0)
+					return;
+				i--;
+			}
 		}
 
 		version(graphviz_debugging) void print(File f)

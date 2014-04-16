@@ -298,7 +298,8 @@ private:
 
 	hash_t generateHash(T value) const pure nothrow @safe
 	{
-		hash_t h = hashFunction(value);
+		import std.functional;
+		hash_t h = unaryFun!(hashFunction, true)(value);
 		h ^= (h >>> 20) ^ (h >>> 12);
 		return h ^ (h >>> 7) ^ (h >>> 4);
 	}
