@@ -57,6 +57,38 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		_length++;
 	}
 
+	/**
+	 * Inserts the given item in the frontmost available cell, which may put the
+	 * item anywhere in the list as removal may leave gaps in list nodes. Use
+	 * this only if the order of elements is not important.
+	 */
+	void insertAnywhere(T item)
+	{
+		Node* n = _front;
+		while (_front !is null)
+		{
+			size_t i = n.nextAvailableIndex();
+			if (i >= nodeCapacity)
+			{
+				if (n.next is null)
+					break;
+				n = n.next;
+				continue;
+			}
+			n.items[i] = item;
+			n.markUsed(i);
+			_length++;
+			return;
+		}
+		assert (n is _back);
+		n = allocate!Node(Mallocator.it);
+		_back.next = n;
+		_back = n;
+		_back.items[0] = item;
+		_back.markUsed(0);
+		_length++;
+	}
+
 	size_t length() const nothrow pure @property
 	{
 		return _length;
@@ -65,6 +97,27 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 	bool empty() const nothrow pure @property
 	{
 		return _length == 0;
+	}
+
+	void remove(ref T item)
+	{
+		import core.bitop;
+		Node* n = _front;
+		while (n !is null)
+		{
+			foreach (i; 0 .. nodeCapacity)
+			{
+				if (n.items[i] == item)
+				{
+					n.markUnused(i);
+					if (n.next !is null
+						&& (popcnt(n.next.registry) + popcnt(n.registry) < nodeCapacity))
+					{
+						mergeNodes(n, n.next);
+					}
+				}
+			}
+		}
 	}
 
 	/// ditto
@@ -78,7 +131,6 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 	enum size_t nodeCapacity = (cacheLineSize - (void*).sizeof - (void*).sizeof
 		- ushort.sizeof) / T.sizeof;
 	static assert (nodeCapacity <= (typeof(Node.registry).sizeof * 8));
-
 
 	Range range()
 	{
@@ -128,6 +180,31 @@ private:
 	Node* _front;
 	size_t _length;
 
+	void mergeNodes(Node* first, Node* second)
+	in
+	{
+		assert (first !is null);
+		assert (second is first.next);
+	}
+	body
+	{
+		import core.bitop;
+		size_t i;
+		T[nodeCapacity] temp;
+		foreach (j; 0 .. nodeCapacity)
+		{
+			if (!first.isFree(j))
+				temp[i++] = first.items[j];
+			if (!second.isFree(j))
+				temp[i++] = second.items[j];
+		}
+		first.next = second.next;
+		first.items[0 .. i] = temp[0 .. i];
+		first.registry = 0;
+		foreach (k; 0 .. i)
+			first.markUsed(k);
+	}
+
 	static struct Node
 	{
 		size_t nextAvailableIndex() const nothrow pure
@@ -139,6 +216,11 @@ private:
 		void markUsed(size_t index)
 		{
 			registry |= (1 << index);
+		}
+
+		void markUnused(size_t index)
+		{
+			registry &= ~(1 << index);
 		}
 
 		bool isFree(size_t index)
