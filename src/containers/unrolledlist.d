@@ -203,6 +203,7 @@ private:
 		first.registry = 0;
 		foreach (k; 0 .. i)
 			first.markUsed(k);
+		deallocate(Mallocator.it, second);
 	}
 
 	static struct Node

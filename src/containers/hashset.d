@@ -91,6 +91,25 @@ struct HashSet(T, alias hashFunction)
 	}
 
 	/**
+	 * Removes the given item from the set.
+	 * Returns: false if the value was not present
+	 */
+	bool remove(T value)
+	{
+		hash_t hash = generateHash(value);
+		size_t index = hashToIndex(hash);
+		if (buckets[index].empty)
+			return false;
+		static if (storeHash)
+			bool removed = buckets[index].remove(Node(hash, value));
+		else
+			bool removed = buckets[index].remove(value);
+		if (removed)
+			--_length;
+		return removed;
+	}
+
+	/**
 	 * Returns: true if value is contained in the set.
 	 */
 	bool contains(T value)
@@ -306,6 +325,19 @@ private:
 
 	struct Node
 	{
+		bool opEquals(ref const T v) const
+		{
+			return v == value;
+		}
+
+		bool opEquals(ref const Node other) const
+		{
+			static if (storeHash)
+				if (other.hash != hash)
+					return false;
+			return other.value == value;
+		}
+
 		static if (storeHash)
 			hash_t hash;
 		T value;
@@ -339,6 +371,8 @@ unittest
 	assert (strings.canFind("d"));
 	assert (strings.canFind("test"));
 	assert (strings.length == 5);
+	assert (s.remove("test"));
+	assert (s.length == 4);
 	s.clear();
 	assert (s.length == 0);
 	assert (s.empty);

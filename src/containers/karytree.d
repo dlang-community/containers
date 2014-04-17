@@ -39,6 +39,14 @@ struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 		return r;
 	}
 
+	bool remove(T value)
+	{
+		bool removed = root !is null && root.remove(value);
+		if (removed)
+			--_length;
+		return removed;
+	}
+
 	bool contains(T value) const nothrow pure
 	{
 		return root !is null && root.contains(value);
@@ -54,12 +62,12 @@ struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 		return _length == 0;
 	}
 
-//	version(graphviz_debugging) void print(File f)
-//	{
-//		f.writeln("digraph g {");
-//		root.print(f);
-//		f.writeln("}");
-//	}
+	version(graphviz_debugging) void print(File f)
+	{
+		f.writeln("digraph g {");
+		root.print(f);
+		f.writeln("}");
+	}
 
 private:
 
@@ -140,9 +148,13 @@ private:
 
 		bool insert(T value)
 		{
+			import std.range;
 			if (!isFull())
 			{
 				immutable size_t index = nextAvailableIndex();
+				static if (!allowDuplicates)
+					if (!assumeSorted(values[0 .. index]).equalRange(value).empty)
+						return false;
 				values[index] = value;
 				markUsed(index);
 				sort(values[0 .. index + 1]);
@@ -167,6 +179,9 @@ private:
 				return right.insert(value);
 			}
 			T[nodeCapacity + 1] temp = void;
+			static if (!allowDuplicates)
+				if (!assumeSorted(values[]).equalRange(value).empty)
+					return false;
 			temp[0 .. $ - 1] = values[];
 			temp[$ - 1] = value;
 			sort(temp[]);
@@ -189,6 +204,54 @@ private:
 			}
 			values[] = temp[1 .. $];
 			return left.insert(temp[0]);
+		}
+
+		bool remove(T value)
+		{
+			import std.range;
+			if (registry == 0)
+				return false;
+			if (value < values[0])
+				return left !is null && left.remove(value);
+			size_t i = nextAvailableIndex();
+			if (value > values[i - 1])
+				return right !is null && right.remove(value);
+			auto sv = assumeSorted(values[0 .. i]);
+			auto tri = sv.trisect(value);
+			if (tri[1].length == 0)
+				return false;
+			size_t l = tri[0].length;
+			T[nodeCapacity - 1] temp;
+			temp[0 .. l] = values[0 .. l];
+			temp[l .. $] = values[l + 1 .. $];
+			values[0 .. $ - 1] = temp[];
+			if (right is null)
+				markUnused(i - 1);
+			else
+				values[$ - 1] = right.removeSmallest();
+			return true;
+		}
+
+		T removeSmallest()
+		{
+			if (left is null && right is null)
+			{
+				T r = values[0];
+				T[nodeCapacity - 1] temp = void;
+				temp[] = values[1 .. $];
+				values[0 .. $ - 1] = temp[];
+				markUnused(nodeCapacity - 1);
+				return r;
+			}
+			if (left !is null)
+				return left.removeSmallest();
+			T r = values[0];
+			T[nodeCapacity - 1] temp = void;
+			temp[] = values[1 .. $];
+			values[0 .. $ - 1] = temp[];
+			values[$ - 1] = right.removeSmallest();
+			markUnused(nodeCapacity - 1);
+			return r;
 		}
 
 		Node* rotate()
@@ -218,13 +281,6 @@ private:
 		{
 			if (left is null)
 			{
-				if (right.left !is null)
-				{
-					Node* n = right.left;
-					right.left.right = right;
-					right.left = null;
-					right = n;
-				}
 				Node* n = right;
 				right.left = &this;
 				right = null;
@@ -241,13 +297,6 @@ private:
 		{
 			if (right is null)
 			{
-				if (left.right !is null)
-				{
-					Node* n = left.right;
-					left.right.left = left;
-					left.right = null;
-					left = n;
-				}
 				Node* n = left;
 				left.right = &this;
 				left = null;
@@ -260,29 +309,29 @@ private:
 			return l;
 		}
 
-//		version(graphviz_debugging) void print(File f)
-//		{
-//			f.writef("\"%016x\"[shape=record, label=\"", &this);
-//			f.write("<f1>|");
-//			foreach (i, v; values)
-//			{
-//				if (isFree(i))
-//					f.write("<f> |");
-//				else
-//					f.writef("<f> %s|", v);
-//			}
-//			f.write("<f2>\"];");
-//			if (left !is null)
-//			{
-//				f.writefln("\"%016x\":f1 -> \"%016x\";", &this, left);
-//				left.print(f);
-//			}
-//			if (right !is null)
-//			{
-//				f.writefln("\"%016x\":f2 -> \"%016x\";", &this, right);
-//				right.print(f);
-//			}
-//		}
+		version(graphviz_debugging) void print(File f)
+		{
+			f.writef("\"%016x\"[shape=record, label=\"", &this);
+			f.write("<f1>|");
+			foreach (i, v; values)
+			{
+				if (isFree(i))
+					f.write("<f> |");
+				else
+					f.writef("<f> %s|", v);
+			}
+			f.write("<f2>\"];");
+			if (left !is null)
+			{
+				f.writefln("\"%016x\":f1 -> \"%016x\";", &this, left);
+				left.print(f);
+			}
+			if (right !is null)
+			{
+				f.writefln("\"%016x\":f2 -> \"%016x\";", &this, right);
+				right.print(f);
+			}
+		}
 
 		Node* left;
 		Node* right;
@@ -299,6 +348,7 @@ unittest
 	import core.memory;
 	import std.string;
 	GC.disable();
+	scope(exit) GC.enable();
 
 	{
 		KAryTree!int kt;
@@ -329,7 +379,6 @@ unittest
 		assert (!kt.contains(100_000));
 	}
 
-
 	{
 		import std.random;
 		KAryTree!int kt;
@@ -337,5 +386,44 @@ unittest
 		{
 			kt.insert(uniform(0, 100_000));
 		}
+	}
+
+	{
+		KAryTree!int kt;
+		kt.insert(10);
+		assert (kt.length == 1);
+		assert (!kt.insert(10));
+		assert (kt.length == 1);
+	}
+
+	{
+		KAryTree!(int, true) kt;
+		assert (kt.insert(1));
+		assert (kt.length == 1);
+		assert (kt.insert(1));
+		assert (kt.length == 2);
+		assert (kt.contains(1));
+	}
+
+	{
+		KAryTree!(int) kt;
+		foreach (i; 0 .. 200)
+		{
+			assert (kt.insert(i));
+			version(graphviz_debugging)
+			{
+				File f = File("graph%04d.dot".format(i), "w");
+				kt.print(f);
+			}
+		}
+		assert (kt.length == 200);
+		assert (kt.remove(79));
+		assert (!kt.remove(79));
+		version(graphviz_debugging)
+		{
+			File f = File("graph%04d.dot".format(999), "w");
+			kt.print(f);
+		}
+		assert (kt.length == 199);
 	}
 }
