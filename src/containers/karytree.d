@@ -24,15 +24,15 @@ struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 {
 	this(this)
 	{
-		count++;
+		refCount++;
 	}
 
 	~this()
 	{
-		if (--count > 0)
+		if (--refCount > 0)
 			return;
 		typeid(Node).destroy(root);
-		deallocate(root, Mallocator.it);
+		deallocate(Mallocator.it, root);
 	}
 
 	enum size_t nodeCapacity = (cacheLineSize - ((void*).sizeof * 2) - ushort.sizeof) / T.sizeof;
@@ -190,6 +190,7 @@ struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 
 		import containers.slist;
 		import std.allocator;
+		import memory.allocators;
 
 		void visit(Node* n)
 		{
@@ -571,7 +572,7 @@ private:
 	}
 	size_t _length;
 	Node* root;
-	uint count = 1;
+	uint refCount = 1;
 }
 
 unittest

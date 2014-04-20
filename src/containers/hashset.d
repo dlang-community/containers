@@ -75,7 +75,7 @@ struct HashSet(T, alias hashFunction)
 	~this()
 	{
 		import std.allocator;
-		if (--counter > 0)
+		if (--refCount > 0)
 			return;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
@@ -349,6 +349,7 @@ private:
 
 	Bucket[] buckets;
 	size_t _length;
+	uint refCount;
 }
 
 ///

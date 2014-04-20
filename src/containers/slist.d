@@ -42,7 +42,7 @@ struct SList(T, A)
 
 	~this()
 	{
-		if (--count > 0)
+		if (--refCount > 0)
 			return;
 		Node* current = _front;
 		Node* prev = null;
@@ -222,6 +222,8 @@ private:
 	A allocator;
 
 	size_t _length;
+
+	uint refCount;
 }
 
 unittest
