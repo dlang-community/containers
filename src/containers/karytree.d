@@ -22,6 +22,19 @@ version(graphviz_debugging) import std.stdio;
  */
 struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 {
+	this(this)
+	{
+		count++;
+	}
+
+	~this()
+	{
+		if (--count > 0)
+			return;
+		typeid(Node).destroy(root);
+		deallocate(root, Mallocator.it);
+	}
+
 	enum size_t nodeCapacity = (cacheLineSize - ((void*).sizeof * 2) - ushort.sizeof) / T.sizeof;
 
 	bool insert(T value)
@@ -41,7 +54,7 @@ struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 
 	bool remove(T value)
 	{
-		bool removed = root !is null && root.remove(value);
+		bool removed = root !is null && root.remove(value, root);
 		if (removed)
 			--_length;
 		return removed;
@@ -67,6 +80,130 @@ struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 		f.writeln("digraph g {");
 		root.print(f);
 		f.writeln("}");
+	}
+
+	Range opSlice()
+	{
+		return Range(root);
+	}
+
+	Range lowerBound(T value)
+	{
+		return Range(root, Range.Type.lower, value);
+	}
+
+	Range equalRange(T value)
+	{
+		return Range(root, Range.Type.equal, value);
+	}
+
+	Range upperBound(T value)
+	{
+		return Range(root, Range.Type.upper, value);
+	}
+
+	static struct Range
+	{
+		@disable this();
+
+		T front()
+		{
+			return nodes.front.values[index];
+		}
+
+		bool empty () const nothrow pure @property
+		{
+			return _empty;
+		}
+
+		void popFront()
+		{
+			_popFront();
+			if (empty)
+				return;
+			final switch (type)
+			{
+			case Type.upper:
+			case Type.all: break;
+			case Type.equal:
+				if (front() != val)
+					_empty = true;
+				break;
+			case Type.lower:
+				if (!(front() < val))
+					_empty = true;
+				break;
+			}
+		}
+
+		enum Type : ubyte {all, lower, equal, upper};
+
+	private:
+
+		this(Node* n)
+		{
+			this.type = Type.all;
+			nodes = SList!(Node*, shared Mallocator)(Mallocator.it);
+			visit(n);
+		}
+
+		this(Node* n, Type type, T val)
+		{
+			this(n);
+			this.type = type;
+			final switch(type)
+			{
+			case Type.all:
+				break;
+			case Type.lower:
+				this.val = val;
+				if (front() > val)
+					_empty = true;
+				break;
+			case Type.equal:
+				this.val = val;
+				while (!empty() && front() < val)
+					_popFront();
+				break;
+			case Type.upper:
+				this.val = val;
+				while (!empty() && front() <= val)
+					_popFront();
+				break;
+			}
+		}
+
+		void _popFront()
+		{
+			index++;
+			if (index >= nodeCapacity || nodes.front.isFree(index))
+			{
+				index = 0;
+				nodes.popFront();
+				if (nodes.empty)
+				{
+					_empty = true;
+					return;
+				}
+			}
+		}
+
+		import containers.slist;
+		import std.allocator;
+
+		void visit(Node* n)
+		{
+			if (n.right !is null)
+				visit(n.right);
+			nodes.insertFront(n);
+			if (n.left !is null)
+				visit(n.left);
+		}
+		size_t index;
+		SList!(Node*, shared Mallocator) nodes;
+		Type type;
+		bool _empty;
+		T val;
 	}
 
 private:
@@ -206,16 +343,15 @@ private:
 			return left.insert(temp[0]);
 		}
 
-		bool remove(T value)
+		bool remove(T value, ref Node* t)
 		{
 			import std.range;
-			if (registry == 0)
-				return false;
+			assert (registry != 0);
 			if (value < values[0])
-				return left !is null && left.remove(value);
+				return left !is null && left.remove(value, left);
 			size_t i = nextAvailableIndex();
 			if (value > values[i - 1])
-				return right !is null && right.remove(value);
+				return right !is null && right.remove(value, right);
 			auto sv = assumeSorted(values[0 .. i]);
 			auto tri = sv.trisect(value);
 			if (tri[1].length == 0)
@@ -228,11 +364,18 @@ private:
 			if (right is null)
 				markUnused(i - 1);
 			else
-				values[$ - 1] = right.removeSmallest();
+				values[$ - 1] = right.removeSmallest(right);
+			if (registry == 0)
+				t = null;
 			return true;
 		}
 
-		T removeSmallest()
+		T removeSmallest(ref Node* t)
+		in
+		{
+			assert (registry != 0);
+		}
+		body
 		{
 			if (left is null && right is null)
 			{
@@ -240,28 +383,59 @@ private:
 				T[nodeCapacity - 1] temp = void;
 				temp[] = values[1 .. $];
 				values[0 .. $ - 1] = temp[];
-				markUnused(nodeCapacity - 1);
+				markUnused(nextAvailableIndex() - 1);
+
+				if (registry == 0)
+					t = null;
 				return r;
 			}
 			if (left !is null)
-				return left.removeSmallest();
+				return left.removeSmallest(left);
 			T r = values[0];
 			T[nodeCapacity - 1] temp = void;
 			temp[] = values[1 .. $];
 			values[0 .. $ - 1] = temp[];
-			values[$ - 1] = right.removeSmallest();
-			markUnused(nodeCapacity - 1);
+			values[$ - 1] = right.removeSmallest(right);
+			if (registry == 0)
+				t = null;
+			return r;
+		}
+
+		T removeLargest(ref Node* t)
+		in
+		{
+			assert (registry != 0);
+		}
+		body
+		{
+			if (left is null && right is null)
+			{
+				size_t i = nextAvailableIndex() - 1;
+				markUnused(i);
+				if (registry == 0)
+					t = null;
+				return values[i];
+			}
+			if (right !is null)
+				return right.removeLargest(right);
+			T r = values[$ - 1];
+			T[nodeCapacity - 1] temp = void;
+			temp[] = values[0 .. $ - 1];
+			values[1 .. $] = temp[];
+			values[0] = left.removeLargest(left);
+			if (registry == 0)
+				t = null;
 			return r;
 		}
 
 		Node* rotate()
 		{
+			if (left is null && right is null)
+				return &this;
 			if (left !is null)
 				left = left.rotate();
 			if (right !is null)
 				right = right.rotate();
-			if (left is null && right is null)
-				return &this;
 			if (left !is null
 				&& ((right is null && left.height > 1)
 				|| (right !is null && left.height > right.height + 1)))
@@ -279,34 +453,91 @@ private:
 
 		Node* rotateLeft()
 		{
-			if (left is null)
+			Node* retVal = right;
+			if (right.left !is null && right.right is null)
 			{
-				Node* n = right;
+				retVal = right.left;
+				retVal.right = right;
+				retVal.left = &this;
+				retVal.right.left = null;
+				retVal.left.right = null;
+			}
+			else if (right.left is null)
+			{
 				right.left = &this;
 				right = null;
-				return n;
 			}
-			Node* n = right.left;
-			Node* r = right;
-			right.left = &this;
-			right = n;
-			return r;
+			else
+			{
+				Node* n = right.left;
+				while (n.left !is null)
+					n = n.left;
+				n.left = &this;
+				right = null;
+			}
+			fillFromChildren(retVal);
+			if (retVal.left !is null)
+			{
+				fillFromChildren(retVal.left);
+				retVal.left = retVal.left.rotate();
+			}
+			if (retVal.right !is null)
+			{
+				fillFromChildren(retVal.right);
+				retVal.right = retVal.right.rotate();
+			}
+			return retVal;
 		}
 
 		Node* rotateRight()
 		{
-			if (right is null)
+			Node* retVal = left;
+			if (left.right !is null && left.left is null)
 			{
-				Node* n = left;
+				retVal = left.right;
+				retVal.left = left;
+				retVal.right = &this;
+				retVal.left.right = null;
+				retVal.right.left = null;
+			}
+			else if (left.right is null)
+			{
 				left.right = &this;
 				left = null;
-				return n;
 			}
-			Node* l = left;
-			Node* n = left.right;
-			left.right = &this;
-			left = n;
-			return l;
+			else
+			{
+				Node* n = left.right;
+				while (n.right !is null)
+					n = n.right;
+				n.right = &this;
+				left = null;
+			}
+			fillFromChildren(retVal);
+			if (retVal.left !is null)
+			{
+				fillFromChildren(retVal.left);
+				retVal.left = retVal.left.rotate();
+			}
+			if (retVal.right !is null)
+			{
+				fillFromChildren(retVal.right);
+				retVal.right = retVal.right.rotate();
+			}
+			return retVal;
+		}
+
+		void fillFromChildren(Node* n)
+		{
+			while (!n.isFull())
+			{
+				if (n.left !is null)
+					n.insert(n.left.removeLargest(n.left));
+				else if (n.right !is null)
+					n.insert(n.right.removeSmallest(n.right));
+				else
+					break;
+			}
 		}
 
 		version(graphviz_debugging) void print(File f)
@@ -340,6 +571,7 @@ private:
 	}
 	size_t _length;
 	Node* root;
+	uint count = 1;
 }
 
 unittest
@@ -347,6 +579,8 @@ unittest
 	import std.uuid;
 	import core.memory;
 	import std.string;
+	import std.range;
+	import std.algorithm;
 	GC.disable();
 	scope(exit) GC.enable();
 
@@ -356,11 +590,11 @@ unittest
 		foreach (i; 0 .. 200)
 		{
 			assert (kt.insert(i));
-//			version(graphviz_debugging)
-//			{
-//				File f = File("graph%04d.dot".format(i), "w");
-//				kt.print(f);
-//			}
+			version(graphviz_debugging)
+			{
+				File f = File("graph%04d.dot".format(i), "w");
+				kt.print(f);
+			}
 		}
 		assert (!kt.empty);
 		assert (kt.length == 200);
@@ -410,20 +644,91 @@ unittest
 		foreach (i; 0 .. 200)
 		{
 			assert (kt.insert(i));
-			version(graphviz_debugging)
-			{
-				File f = File("graph%04d.dot".format(i), "w");
-				kt.print(f);
-			}
+//			version(graphviz_debugging)
+//			{
+//				File f = File("graph%04d.dot".format(i), "w");
+//				kt.print(f);
+//			}
 		}
 		assert (kt.length == 200);
 		assert (kt.remove(79));
 		assert (!kt.remove(79));
+//		version(graphviz_debugging)
+//		{
+//			File f = File("graph%04d.dot".format(999), "w");
+//			kt.print(f);
+//		}
+		assert (kt.length == 199);
+	}
+
+	{
+		string[] strs = [
+			"2c381d2a-bacd-40db-b6d8-055b144c5ee6",
+			"62104b50-e235-4c95-bcb9-a545e88e2d09",
+			"828c8fc0-a392-4738-a49c-62e991fce090",
+			"62e30465-79eb-446e-b34f-af5d7c491486",
+			"93ec245b-60d2-4422-91ff-66a6d7e299fc",
+			"c1d2f3d7-82cc-4d90-a2c5-9fba335f36cd",
+			"c9d8d980-94eb-4941-b873-00d68021522f",
+			"82dbc4df-cb3c-447a-9d73-cd6291a0ba02",
+			"8d259231-6ab6-49e4-9bb6-fe097c4153ed",
+			"f9f2d719-61e1-4f62-ae2c-bf2a24a13d5b"
+		];
+		KAryTree!string strings;
+		foreach (i, s; strs)
+		{
+			assert (strings.insert(s));
+//			version(graphviz_debugging)
+//			{
+//				File f = File("graph%04d.dot".format(i), "w");
+//				strings.print(f);
+//			}
+		}
+		sort(strs[]);
+		assert (equal(strs, strings[]));
+	}
+
+	foreach (x; 0 .. 1000)
+	{
+		KAryTree!string strings;
+		string[] strs = iota(10).map!(a => randomUUID().toString()).array();
+		foreach (i, s; strs)
+		{
+			assert (strings.insert(s));
+			version(graphviz_debugging)
+			{
+				File f = File("graph%04d.dot".format(i), "w");
+				strings.print(f);
+			}
+		}
+		assert (strings.length == strs.length);
 		version(graphviz_debugging)
 		{
-			File f = File("graph%04d.dot".format(999), "w");
-			kt.print(f);
+			File f = File("graph%04d.dot".format(1000), "w");
+			strings.print(f);
 		}
-		assert (kt.length == 199);
+		sort(strs);
+		if (!equal(strs, strings[]))
+		{
+			foreach (i, s; strs)
+				writeln("strs[", i, "]: ", s);
+			int i = 0;
+			foreach (s; strings[])
+				writeln("strings[", i++, "]: ", s);
+			assert(false);
+		}
+	}
+
+	{
+		KAryTree!(string, true) strings;
+		assert (strings.insert("b"));
+		assert (strings.insert("c"));
+		assert (strings.insert("a"));
+		assert (strings.insert("d"));
+		assert (strings.insert("d"));
+		assert (strings.length == 5);
+		assert (equal(strings.equalRange("d"), ["d", "d"]));
+		assert (equal(strings.lowerBound("d"), ["a", "b", "c"]));
+		assert (equal(strings.upperBound("c"), ["d", "d"]));
 	}
 }

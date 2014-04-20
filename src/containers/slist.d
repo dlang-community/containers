@@ -26,8 +26,11 @@ struct SList(T, A)
 	 * Disable default-construction and postblit
 	 */
 	@disable this();
-	/// ditto
-	@disable this(this);
+
+	this(this)
+	{
+		refCount++;
+	}
 
 	/**
 	 * Params: allocator = the allocator instance used to allocate nodes
@@ -39,6 +42,8 @@ struct SList(T, A)
 
 	~this()
 	{
+		if (--count > 0)
+			return;
 		Node* current = _front;
 		Node* prev = null;
 		while (current !is null)
@@ -76,7 +81,19 @@ struct SList(T, A)
 		_front = f.next;
 		T r = f.value;
 		deallocate(allocator, f);
+		--_length;
 		return r;
+	}
+
+	/**
+	 *
+	 */
+	void popFront()
+	{
+		Node* f = _front;
+		_front = f.next;
+		deallocate(allocator, f);
+		--_length;
 	}
 
 	/**

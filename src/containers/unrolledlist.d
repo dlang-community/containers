@@ -19,8 +19,15 @@ module containers.unrolledlist;
  */
 struct UnrolledList(T, size_t cacheLineSize = 64)
 {
+	this(this)
+	{
+		refCount++;
+	}
+
 	~this()
 	{
+		if (--refCount > 0)
+			return;
 		Node* prev = null;
 		Node* cur = _front;
 		while (cur !is null)
@@ -179,6 +186,7 @@ private:
 	Node* _back;
 	Node* _front;
 	size_t _length;
+	uint refCount;
 
 	void mergeNodes(Node* first, Node* second)
 	in

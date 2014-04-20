@@ -30,12 +30,14 @@ template HashMap(K, V) if (!is (K == string))
 struct HashMap(K, V, alias hashFunction)
 {
 	/**
-	 * Default and postblit constructors are disabled.
+	 * Default constructor disabled.
 	 */
 	@disable this();
 
-	/// ditto
-	@disable this(this);
+	this(this)
+	{
+		refCount++;
+	}
 
 	/**
 	 * Constructs an HashMap with an initial bucket count of bucketCount. bucketCount
@@ -61,6 +63,8 @@ struct HashMap(K, V, alias hashFunction)
 
 	~this()
 	{
+		if (--refCount > 0)
+			return;
 		import std.allocator;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
@@ -328,6 +332,7 @@ private:
 	SListNodeAllocator* sListNodeAllocator;
 	Bucket[] buckets;
 	size_t _length;
+	uint refCount = 1;
 }
 
 ///

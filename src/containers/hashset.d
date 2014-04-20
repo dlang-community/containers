@@ -41,12 +41,14 @@ template HashSetAllocatorType(T)
 struct HashSet(T, alias hashFunction)
 {
 	/**
-	 * Disable default and postblit constructors
+	 * Disable default constructor
 	 */
 	@disable this();
 
-	/// ditto
-	@disable this(this);
+	this(this)
+	{
+		refCount++;
+	}
 
 	/**
 	 * Constructs a HashSet with an initial bucket count of bucketCount.
@@ -73,6 +75,8 @@ struct HashSet(T, alias hashFunction)
 	~this()
 	{
 		import std.allocator;
+		if (--counter > 0)
+			return;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
 		Mallocator.it.deallocate(buckets);
