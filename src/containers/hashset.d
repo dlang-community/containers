@@ -40,11 +40,6 @@ template HashSetAllocatorType(T)
  */
 struct HashSet(T, alias hashFunction)
 {
-	/**
-	 * Disable default constructor
-	 */
-	@disable this();
-
 	this(this)
 	{
 		refCount++;
@@ -61,15 +56,7 @@ struct HashSet(T, alias hashFunction)
 	}
 	body
 	{
-		import std.conv;
-		import std.allocator;
-		sListNodeAllocator = allocate!(HashSetAllocatorType!T)(Mallocator.it);
-		assert (sListNodeAllocator);
-		buckets = cast(Bucket[]) Mallocator.it.allocate(
-			bucketCount * Bucket.sizeof);
-		assert (buckets.length == bucketCount);
-		foreach (ref bucket; buckets)
-			emplace(&bucket, sListNodeAllocator);
+		initialize(bucketCount);
 	}
 
 	~this()
@@ -138,6 +125,11 @@ struct HashSet(T, alias hashFunction)
 		return false;
 	}
 
+	bool opIn_r(T value)
+	{
+		return contains(value);
+	}
+
 	/**
 	 * Params: value = the value to insert
 	 * Returns: true if the value was actually inserted, or false if it was
@@ -145,6 +137,8 @@ struct HashSet(T, alias hashFunction)
 	 */
 	bool insert(T value)
 	{
+		if (buckets.length == 0)
+			initialize(4);
 		hash_t hash = generateHash(value);
 		size_t index = hashToIndex(hash);
 		if (buckets[index].empty)
@@ -213,6 +207,19 @@ private:
 	import std.traits;
 
 	enum bool storeHash = !isBasicType!T;
+
+	void initialize(size_t bucketCount)
+	{
+		import std.conv;
+		import std.allocator;
+		sListNodeAllocator = allocate!(HashSetAllocatorType!T)(Mallocator.it);
+		assert (sListNodeAllocator);
+		buckets = cast(Bucket[]) Mallocator.it.allocate(
+			bucketCount * Bucket.sizeof);
+		assert (buckets.length == bucketCount);
+		foreach (ref bucket; buckets)
+			emplace(&bucket, sListNodeAllocator);
+	}
 
 	static struct Range
 	{
