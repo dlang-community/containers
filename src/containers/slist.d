@@ -50,6 +50,7 @@ struct SList(T, A)
 		{
 			prev = current;
 			current = current.next;
+			typeid(Node).destroy(prev);
 			deallocate(allocator, prev);
 		}
 	}

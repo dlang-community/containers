@@ -35,7 +35,7 @@ struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 		deallocate(Mallocator.it, root);
 	}
 
-	enum size_t nodeCapacity = (cacheLineSize - ((void*).sizeof * 2) - ushort.sizeof) / T.sizeof;
+	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, cacheLineSize);
 
 	bool insert(T value)
 	{
@@ -155,7 +155,7 @@ struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 			}
 		}
 
-		enum Type : ubyte {all, lower, equal, upper};
+		enum Type : ubyte {all, lower, equal, upper}
 
 	private:
 
@@ -231,6 +231,7 @@ private:
 	import std.allocator;
 	import std.algorithm;
 	import std.array;
+	import containers.internal.fatnode;
 
 	static Node* allocateNode(ref T value)
 	{

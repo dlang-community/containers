@@ -64,6 +64,11 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		_length++;
 	}
 
+	void opOpAssign(string op)(T item) if (op == "~")
+	{
+		insertBack(item);
+	}
+
 	/**
 	 * Inserts the given item in the frontmost available cell, which may put the
 	 * item anywhere in the list as removal may leave gaps in list nodes. Use
@@ -135,9 +140,7 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 	/**
 	 * Number of items stored per node.
 	 */
-	enum size_t nodeCapacity = (cacheLineSize - (void*).sizeof - (void*).sizeof
-		- ushort.sizeof) / T.sizeof;
-	static assert (nodeCapacity <= (typeof(Node.registry).sizeof * 8));
+	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, cacheLineSize);
 
 	Range range()
 	{
@@ -154,7 +157,7 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 			this.current = current;
 		}
 
-		T front() const nothrow pure @property
+		T front() nothrow pure @property
 		{
 			return current.items[index];
 		}
@@ -182,6 +185,7 @@ private:
 
 	import std.allocator;
 	import std.traits;
+	import containers.internal.fatnode;
 
 	Node* _back;
 	Node* _front;
