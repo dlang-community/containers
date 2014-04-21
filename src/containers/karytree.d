@@ -541,29 +541,29 @@ private:
 			}
 		}
 
-		version(graphviz_debugging) void print(File f)
-		{
-			f.writef("\"%016x\"[shape=record, label=\"", &this);
-			f.write("<f1>|");
-			foreach (i, v; values)
-			{
-				if (isFree(i))
-					f.write("<f> |");
-				else
-					f.writef("<f> %s|", v);
-			}
-			f.write("<f2>\"];");
-			if (left !is null)
-			{
-				f.writefln("\"%016x\":f1 -> \"%016x\";", &this, left);
-				left.print(f);
-			}
-			if (right !is null)
-			{
-				f.writefln("\"%016x\":f2 -> \"%016x\";", &this, right);
-				right.print(f);
-			}
-		}
+//		version(graphviz_debugging) void print(File f)
+//		{
+//			f.writef("\"%016x\"[shape=record, label=\"", &this);
+//			f.write("<f1>|");
+//			foreach (i, v; values)
+//			{
+//				if (isFree(i))
+//					f.write("<f> |");
+//				else
+//					f.writef("<f> %s|", v);
+//			}
+//			f.write("<f2>\"];");
+//			if (left !is null)
+//			{
+//				f.writefln("\"%016x\":f1 -> \"%016x\";", &this, left);
+//				left.print(f);
+//			}
+//			if (right !is null)
+//			{
+//				f.writefln("\"%016x\":f2 -> \"%016x\";", &this, right);
+//				right.print(f);
+//			}
+//		}
 
 		Node* left;
 		Node* right;
@@ -696,28 +696,20 @@ unittest
 		foreach (i, s; strs)
 		{
 			assert (strings.insert(s));
-			version(graphviz_debugging)
-			{
-				File f = File("graph%04d.dot".format(i), "w");
-				strings.print(f);
-			}
+//			version(graphviz_debugging)
+//			{
+//				File f = File("graph%04d.dot".format(i), "w");
+//				strings.print(f);
+//			}
 		}
 		assert (strings.length == strs.length);
-		version(graphviz_debugging)
-		{
-			File f = File("graph%04d.dot".format(1000), "w");
-			strings.print(f);
-		}
+//		version(graphviz_debugging)
+//		{
+//			File f = File("graph%04d.dot".format(1000), "w");
+//			strings.print(f);
+//		}
 		sort(strs);
-		if (!equal(strs, strings[]))
-		{
-			foreach (i, s; strs)
-				writeln("strs[", i, "]: ", s);
-			int i = 0;
-			foreach (s; strings[])
-				writeln("strings[", i++, "]: ", s);
-			assert(false);
-		}
+		assert (equal(strs, strings[]));
 	}
 
 	{
