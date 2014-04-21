@@ -430,7 +430,7 @@ unittest
  * Returns: a pointer to an instance of $(D T).
  */
 T* allocate(T, Allocator, Args...)(auto ref Allocator a, auto ref Args args)
-    pure nothrow @trusted if (is (T == struct))
+    @trusted if (is (T == struct))
 {
     import std.conv : emplace;
     void[] mem = a.allocate(T.sizeof);
