@@ -52,6 +52,25 @@ struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 		return r;
 	}
 
+	bool insert(Range r)
+	{
+		bool retVal = false;
+		while (!r.empty)
+		{
+			retVal = insert(r.front()) || retVal;
+			r.popFront();
+		}
+		return retVal;
+	}
+
+	bool insert(T[] values)
+	{
+		bool retVal = false;
+		foreach (ref v; values)
+			retVal = insert(v) || retVal;
+		return retVal;
+	}
+
 	bool remove(T value)
 	{
 		bool removed = root !is null && root.remove(value, root);
