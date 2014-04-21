@@ -45,18 +45,25 @@ struct DynamicArray(T)
 		return arr[i];
 	}
 
-	void opOpAssign(string op)(T value) if (op == "~")
+	void insert(T value)
 	{
 		if (arr.length == 0)
 			arr = cast(T[]) Mallocator.it.allocate(T.sizeof * 4);
 		else if (l >= arr.length)
 		{
-			auto c = arr.length << 1;
+			immutable size_t c = arr.length > 512 ? arr.length + 1024 : arr.length << 1;
 			void[] a = cast(void[]) arr;
 			Mallocator.it.reallocate(a, c * T.sizeof);
 			arr = cast(T[]) a;
 		}
 		arr[l++] = value;
+	}
+
+	alias put = insert;
+
+	void opOpAssign(string op)(T value) if (op == "~")
+	{
+		insert(value);
 	}
 
 	void opIndexAssign(T value, size_t i)

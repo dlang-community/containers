@@ -7,7 +7,7 @@
 
 module containers.karytree;
 
-version(graphviz_debugging) import std.stdio;
+//version(graphviz_debugging) import std.stdio;
 
 /**
  * K-ary tree Nodes are (by default) sized to fit within a 64-byte
