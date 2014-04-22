@@ -105,6 +105,8 @@ struct HashSet(T, alias hashFunction)
 	 */
 	bool contains(T value)
 	{
+		if (buckets.length == 0)
+			return false;
 		hash_t hash = generateHash(value);
 		size_t index = hashToIndex(hash);
 		if (buckets[index].empty)
