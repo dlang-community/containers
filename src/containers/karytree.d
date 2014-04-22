@@ -7,7 +7,7 @@
 
 module containers.karytree;
 
-//version(graphviz_debugging) import std.stdio;
+version(graphviz_debugging) import std.stdio;
 
 /**
  * K-ary tree Nodes are (by default) sized to fit within a 64-byte
@@ -17,10 +17,11 @@ module containers.karytree;
  * Params:
  *     T = the element type
  *     allowDuplicates = if true, duplicate values will be allowed in the tree
+ *     less = the comparitor function to use
  *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
  * $(B Do not store pointers to GC-allocated memory in this container.)
  */
-struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
+struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t cacheLineSize = 64)
 {
 	this(this)
 	{
@@ -161,9 +162,17 @@ struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 
 		this(Node* n)
 		{
-			this.type = Type.all;
-			nodes = SList!(Node*, shared Mallocator)(Mallocator.it);
-			visit(n);
+			if (n is null)
+			{
+				_empty = true;
+				nodes = slist!(Node*)();
+			}
+			else
+			{
+				this.type = Type.all;
+				nodes = SList!(Node*, shared Mallocator)(Mallocator.it);
+				visit(n);
+			}
 		}
 
 		this(Node* n, Type type, T val)
@@ -336,10 +345,10 @@ private:
 				}
 				return right.insert(value);
 			}
-			T[nodeCapacity + 1] temp = void;
 			static if (!allowDuplicates)
 				if (!assumeSorted(values[]).equalRange(value).empty)
 					return false;
+			T[nodeCapacity + 1] temp = void;
 			temp[0 .. $ - 1] = values[];
 			temp[$ - 1] = value;
 			sort(temp[]);
@@ -474,27 +483,20 @@ private:
 
 		Node* rotateLeft()
 		{
-			Node* retVal = right;
+			Node* retVal = void;
 			if (right.left !is null && right.right is null)
 			{
 				retVal = right.left;
 				retVal.right = right;
 				retVal.left = &this;
-				retVal.right.left = null;
-				retVal.left.right = null;
-			}
-			else if (right.left is null)
-			{
-				right.left = &this;
+				right.left = null;
 				right = null;
 			}
 			else
 			{
-				Node* n = right.left;
-				while (n.left !is null)
-					n = n.left;
-				n.left = &this;
-				right = null;
+				retVal = right;
+				right = retVal.left;
+				retVal.left = &this;
 			}
 			fillFromChildren(retVal);
 			if (retVal.left !is null)
@@ -512,27 +514,20 @@ private:
 
 		Node* rotateRight()
 		{
-			Node* retVal = left;
+			Node* retVal = void;
 			if (left.right !is null && left.left is null)
 			{
 				retVal = left.right;
 				retVal.left = left;
 				retVal.right = &this;
-				retVal.left.right = null;
-				retVal.right.left = null;
-			}
-			else if (left.right is null)
-			{
-				left.right = &this;
+				left.right = null;
 				left = null;
 			}
 			else
 			{
-				Node* n = left.right;
-				while (n.right !is null)
-					n = n.right;
-				n.right = &this;
-				left = null;
+				retVal = left;
+				left = retVal.right;
+				retVal.right = &this;
 			}
 			fillFromChildren(retVal);
 			if (retVal.left !is null)
@@ -561,29 +556,47 @@ private:
 			}
 		}
 
-//		version(graphviz_debugging) void print(File f)
-//		{
-//			f.writef("\"%016x\"[shape=record, label=\"", &this);
-//			f.write("<f1>|");
-//			foreach (i, v; values)
-//			{
-//				if (isFree(i))
-//					f.write("<f> |");
-//				else
-//					f.writef("<f> %s|", v);
-//			}
-//			f.write("<f2>\"];");
-//			if (left !is null)
-//			{
-//				f.writefln("\"%016x\":f1 -> \"%016x\";", &this, left);
-//				left.print(f);
-//			}
-//			if (right !is null)
-//			{
-//				f.writefln("\"%016x\":f2 -> \"%016x\";", &this, right);
-//				right.print(f);
-//			}
-//		}
+		version(graphviz_debugging) void print(File f)
+		{
+			f.writef("\"%016x\"[shape=record, label=\"", &this);
+			f.write("<f1>|");
+			foreach (i, v; values)
+			{
+				if (isFree(i))
+					f.write("<f> |");
+				else
+					f.writef("<f> %s|", v);
+			}
+			f.write("<f2>\"];");
+			if (left !is null)
+			{
+				f.writefln("\"%016x\":f1 -> \"%016x\";", &this, left);
+				left.print(f);
+			}
+			if (right !is null)
+			{
+				f.writefln("\"%016x\":f2 -> \"%016x\";", &this, right);
+				right.print(f);
+			}
+		}
+
+		invariant()
+		{
+			import std.string;
+			assert (&this !is null);
+			assert (left !is &this, "%x, %x".format(left, &this));
+			assert (right !is &this, "%x, %x".format(right, &this));
+			if (left !is null)
+			{
+				assert (left.left !is &this, "%s".format(values));
+				assert (left.right !is &this, "%x, %x".format(left.right, &this));
+			}
+			if (right !is null)
+			{
+				assert (right.left !is &this, "%s".format(values));
+				assert (right.right !is &this, "%s".format(values));
+			}
+		}
 
 		Node* left;
 		Node* right;
@@ -611,11 +624,11 @@ unittest
 		foreach (i; 0 .. 200)
 		{
 			assert (kt.insert(i));
-			version(graphviz_debugging)
-			{
-				File f = File("graph%04d.dot".format(i), "w");
-				kt.print(f);
-			}
+//			version(graphviz_debugging)
+//			{
+//				File f = File("graph%04d.dot".format(i), "w");
+//				kt.print(f);
+//			}
 		}
 		assert (!kt.empty);
 		assert (kt.length == 200);
@@ -730,6 +743,28 @@ unittest
 //		}
 		sort(strs);
 		assert (equal(strs, strings[]));
+	}
+
+	{
+		KAryTree!string strings;
+		string[] strs = [
+			"e",
+			"f",
+			"a",
+			"b",
+			"c",
+			"d",
+		];
+		foreach (i, s; strs)
+		{
+			strings.insert(s);
+			version(graphviz_debugging)
+			{
+				File f = File("graph%04d.dot".format(i), "w");
+				strings.print(f);
+			}
+		}
+		assert (equal(strings[], ["a", "b", "c", "d", "e", "f"]));
 	}
 
 	{
