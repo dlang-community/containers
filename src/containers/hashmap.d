@@ -102,11 +102,15 @@ struct HashMap(K, V, alias hashFunction)
 	/**
 	 * Supports $(D key in aa) syntax.
 	 */
-	bool opBinaryRight(string op)(K key) const nothrow if (op == "in")
+	V* opBinaryRight(string op)(K key) const nothrow if (op == "in")
 	{
-		import std.algorithm : canFind;
 		size_t index = hashIndex(key);
-		return buckets[index].range.canFind(key);
+		foreach (ref node; buckets[index].range)
+		{
+			if (node.key == key)
+				return &node.value;
+		}
+		return null;
 	}
 
 	/**
