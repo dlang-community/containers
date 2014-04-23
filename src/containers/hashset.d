@@ -281,7 +281,7 @@ private:
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
-		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize); // Valgrind
+		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize);
 		assert (buckets);
 		assert (buckets.length == newLength);
 		auto newAllocator = allocate!(HashSetAllocatorType!T)(Mallocator.it);

@@ -125,6 +125,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 	static struct Range
 	{
 		@disable this();
+		@disable this(this);
 
 		T front()
 		{
@@ -146,11 +147,11 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 			case Type.upper:
 			case Type.all: break;
 			case Type.equal:
-				if (front() != val)
+				if (_less(front(), val) || _less(val, front()))
 					_empty = true;
 				break;
 			case Type.lower:
-				if (!(front() < val))
+				if (!_less(front(), val))
 					_empty = true;
 				break;
 			}
@@ -159,6 +160,10 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 		enum Type : ubyte {all, lower, equal, upper}
 
 	private:
+
+		import containers.slist;
+		import std.allocator;
+		import memory.allocators;
 
 		this(Node* n)
 		{
@@ -185,23 +190,28 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 				break;
 			case Type.lower:
 				this.val = val;
-				if (front() > val)
+				if (_less(val, front()))
 					_empty = true;
 				break;
 			case Type.equal:
 				this.val = val;
-				while (!empty() && front() < val)
+				while (!empty() && _less(front(), val))
 					_popFront();
 				break;
 			case Type.upper:
 				this.val = val;
-				while (!empty() && front() <= val)
+				while (!empty() && !_less(val, front()))
 					_popFront();
 				break;
 			}
 		}
 
 		void _popFront()
+		in
+		{
+			assert (!nodes.empty);
+		}
+		body
 		{
 			index++;
 			if (index >= nodeCapacity || nodes.front.isFree(index))
@@ -215,10 +225,6 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 				}
 			}
 		}
-
-		import containers.slist;
-		import std.allocator;
-		import memory.allocators;
 
 		void visit(Node* n)
 		{
@@ -241,6 +247,9 @@ private:
 	import std.algorithm;
 	import std.array;
 	import containers.internal.fatnode;
+	import std.functional;
+
+	alias _less = binaryFun!less;
 
 	static Node* allocateNode(ref T value)
 	{
@@ -298,11 +307,11 @@ private:
 		{
 			import std.range;
 			size_t i = nextAvailableIndex();
-			if (value < values[0])
+			if (_less(value, values[0]))
 				return left !is null && left.contains(value);
-			if (value > values[i - 1])
+			if (_less(values[i - 1], value))
 				return right !is null && right.contains(value);
-			return !assumeSorted(values[0 .. i]).equalRange(value).empty;
+			return !assumeSorted!less(values[0 .. i]).equalRange(value).empty;
 		}
 
 		int height() const nothrow pure
@@ -320,14 +329,14 @@ private:
 			{
 				immutable size_t index = nextAvailableIndex();
 				static if (!allowDuplicates)
-					if (!assumeSorted(values[0 .. index]).equalRange(value).empty)
+					if (!assumeSorted!less(values[0 .. index]).equalRange(value).empty)
 						return false;
 				values[index] = value;
 				markUsed(index);
-				sort(values[0 .. index + 1]);
+				sort!less(values[0 .. index + 1]);
 				return true;
 			}
-			if (value < values[0])
+			if (_less(value, values[0]))
 			{
 				if (left is null)
 				{
@@ -336,7 +345,7 @@ private:
 				}
 				return left.insert(value);
 			}
-			if (value > values[$ - 1])
+			if (_less(values[$ - 1], value))
 			{
 				if (right is null)
 				{
@@ -346,12 +355,12 @@ private:
 				return right.insert(value);
 			}
 			static if (!allowDuplicates)
-				if (!assumeSorted(values[]).equalRange(value).empty)
+				if (!assumeSorted!less(values[]).equalRange(value).empty)
 					return false;
 			T[nodeCapacity + 1] temp = void;
 			temp[0 .. $ - 1] = values[];
 			temp[$ - 1] = value;
-			sort(temp[]);
+			sort!less(temp[]);
 			if (left is null)
 			{
 				values[] = temp[1 .. $];
@@ -377,12 +386,12 @@ private:
 		{
 			import std.range;
 			assert (registry != 0);
-			if (value < values[0])
+			if (_less(value, values[0]))
 				return left !is null && left.remove(value, left);
 			size_t i = nextAvailableIndex();
-			if (value > values[i - 1])
+			if (_less(values[i - 1], value))
 				return right !is null && right.remove(value, right);
-			auto sv = assumeSorted(values[0 .. i]);
+			auto sv = assumeSorted!less(values[0 .. i]);
 			auto tri = sv.trisect(value);
 			if (tri[1].length == 0)
 				return false;
@@ -414,7 +423,6 @@ private:
 				temp[] = values[1 .. $];
 				values[0 .. $ - 1] = temp[];
 				markUnused(nextAvailableIndex() - 1);
-
 				if (registry == 0)
 					t = null;
 				return r;
@@ -778,5 +786,25 @@ unittest
 		assert (equal(strings.equalRange("d"), ["d", "d"]));
 		assert (equal(strings.lowerBound("d"), ["a", "b", "c"]));
 		assert (equal(strings.upperBound("c"), ["d", "d"]));
+	}
+
+	{
+		static struct TestStruct
+		{
+			int x;
+			int y;}
+		KAryTree!(TestStruct*, false, "a.x < b.x") tsTree;
+		foreach (i; 0 .. 1000)
+			tsTree.insert(new TestStruct(i, i * 2));
+		assert (tsTree.length == 1000);
+		auto r = tsTree[];
+		TestStruct* prev = r.front();
+		r.popFront();
+		while (!r.empty)
+		{
+			assert (r.front.x > prev.x);
+			prev = r.front;
+			r.popFront();
+		}
 	}
 }
