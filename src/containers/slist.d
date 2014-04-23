@@ -38,6 +38,7 @@ struct SList(T, A)
 	this(A allocator) pure nothrow
 	{
 		this.allocator = allocator;
+		refCount = 1;
 	}
 
 	~this()
@@ -53,6 +54,7 @@ struct SList(T, A)
 			typeid(Node).destroy(prev);
 			deallocate(allocator, prev);
 		}
+		_front = null;
 	}
 
 	/**
@@ -168,6 +170,8 @@ struct SList(T, A)
 		return Range(_front);
 	}
 
+	alias opSlice = range;
+
 	/**
 	 * Removes all elements from the range
 	 */
@@ -224,7 +228,7 @@ private:
 
 	size_t _length;
 
-	uint refCount;
+	uint refCount = 1;
 }
 
 unittest
