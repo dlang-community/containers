@@ -19,9 +19,11 @@ version(graphviz_debugging) import std.stdio;
  *     allowDuplicates = if true, duplicate values will be allowed in the tree
  *     less = the comparitor function to use
  *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
- * $(B Do not store pointers to GC-allocated memory in this container.)
+ *     supportGC = true if the container should support holding references to
+ *         GC-allocated memory.
  */
-struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t cacheLineSize = 64)
+struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
+	size_t cacheLineSize = 64, bool supportGC = true)
 {
 	this(this)
 	{
@@ -32,8 +34,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 	{
 		if (--refCount > 0)
 			return;
-		typeid(Node).destroy(root);
-		deallocate(Mallocator.it, root);
+		deallocateNode(root);
 	}
 
 	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, cacheLineSize);
@@ -80,7 +81,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 		return removed;
 	}
 
-	bool contains(T value) const nothrow pure
+	bool contains(T value) const
 	{
 		return root !is null && root.contains(value);
 	}
@@ -248,19 +249,39 @@ private:
 	import std.allocator;
 	import std.algorithm;
 	import std.array;
-	import containers.internal.fatnode;
+	import containers.internal.node;
 	import std.functional;
+	import std.traits;
 
-	alias _less = binaryFun!less;
+	// If we're storing a struct that defines opCmp, don't compare pointers as
+	// that is almost certainly not what the user intended.
+	static if (less == "a < b" && isPointer!T && __traits(hasMember, PointerTarget!T, "opCmp"))
+		alias _less = binaryFun!"a.opCmp(*b) < 0";
+	else
+		alias _less = binaryFun!less;
 
 	static Node* allocateNode(ref T value)
 	{
-		ubyte[] bytes = (cast(ubyte*) Mallocator.it.allocate(Node.sizeof))[0 .. Node.sizeof];
-		bytes[] = 0;
-		Node* n = cast(Node*) bytes.ptr;
+		import std.traits;
+		Node* n = allocate!Node(Mallocator.it);
 		n.markUsed(0);
 		n.values[0] = value;
+		static if (shouldAddGCRange!T)
+		{
+			import core.memory;
+			GC.addRange(n, Node.sizeof);
+		}
 		return n;
+	}
+
+	static void deallocateNode(Node* n)
+	{
+		import std.traits;
+		import core.memory;
+		static if (shouldAddGCRange!T)
+			GC.removeRange(n);
+		typeid(Node).destroy(n);
+		deallocate!Node(Mallocator.it, n);
 	}
 
 	template fullBits(size_t n, size_t c = 0)
@@ -279,6 +300,14 @@ private:
 	static assert (Node.sizeof <= cacheLineSize);
 	static struct Node
 	{
+		~this()
+		{
+			if (left !is null)
+				deallocateNode(left);
+			if (right !is null)
+				deallocateNode(right);
+		}
+
 		private size_t nextAvailableIndex() const nothrow pure
 		{
 			import core.bitop;
@@ -293,6 +322,8 @@ private:
 		private void markUnused(size_t index) pure nothrow
 		{
 			registry &= ~(1 << index);
+			static if (shouldNullSlot!T)
+				values[index] = null;
 		}
 
 		private bool isFree(size_t index) const pure nothrow
@@ -305,7 +336,7 @@ private:
 			return registry == fullBits!nodeCapacity;
 		}
 
-		bool contains(T value) const nothrow pure
+		bool contains(T value) const
 		{
 			import std.range;
 			size_t i = nextAvailableIndex();
@@ -313,7 +344,7 @@ private:
 				return left !is null && left.contains(value);
 			if (_less(values[i - 1], value))
 				return right !is null && right.contains(value);
-			return !assumeSorted!less(values[0 .. i]).equalRange(value).empty;
+			return !assumeSorted!_less(values[0 .. i]).equalRange(value).empty;
 		}
 
 		int height() const nothrow pure
@@ -331,11 +362,11 @@ private:
 			{
 				immutable size_t index = nextAvailableIndex();
 				static if (!allowDuplicates)
-					if (!assumeSorted!less(values[0 .. index]).equalRange(value).empty)
+					if (!assumeSorted!_less(values[0 .. index]).equalRange(value).empty)
 						return false;
 				values[index] = value;
 				markUsed(index);
-				sort!less(values[0 .. index + 1]);
+				sort!_less(values[0 .. index + 1]);
 				return true;
 			}
 			if (_less(value, values[0]))
@@ -357,12 +388,12 @@ private:
 				return right.insert(value);
 			}
 			static if (!allowDuplicates)
-				if (!assumeSorted!less(values[]).equalRange(value).empty)
+				if (!assumeSorted!_less(values[]).equalRange(value).empty)
 					return false;
 			T[nodeCapacity + 1] temp = void;
 			temp[0 .. $ - 1] = values[];
 			temp[$ - 1] = value;
-			sort!less(temp[]);
+			sort!_less(temp[]);
 			if (left is null)
 			{
 				values[] = temp[1 .. $];
@@ -393,7 +424,7 @@ private:
 			size_t i = nextAvailableIndex();
 			if (_less(values[i - 1], value))
 				return right !is null && right.remove(value, right);
-			auto sv = assumeSorted!less(values[0 .. i]);
+			auto sv = assumeSorted!_less(values[0 .. i]);
 			auto tri = sv.trisect(value);
 			if (tri[1].length == 0)
 				return false;
@@ -407,7 +438,10 @@ private:
 			else
 				values[$ - 1] = right.removeSmallest(right);
 			if (registry == 0)
+			{
+				deallocateNode(t);
 				t = null;
+			}
 			return true;
 		}
 
@@ -437,7 +471,10 @@ private:
 			values[0 .. $ - 1] = temp[];
 			values[$ - 1] = right.removeSmallest(right);
 			if (registry == 0)
+			{
+				deallocateNode(t);
 				t = null;
+			}
 			return r;
 		}
 
@@ -464,7 +501,10 @@ private:
 			values[1 .. $] = temp[];
 			values[0] = left.removeLargest(left);
 			if (registry == 0)
+			{
+				deallocateNode(t);
 				t = null;
+			}
 			return r;
 		}
 
@@ -590,29 +630,30 @@ private:
 			}
 		}
 
-		invariant()
-		{
-			import std.string;
-			assert (&this !is null);
-			assert (left !is &this, "%x, %x".format(left, &this));
-			assert (right !is &this, "%x, %x".format(right, &this));
-			if (left !is null)
-			{
-				assert (left.left !is &this, "%s".format(values));
-				assert (left.right !is &this, "%x, %x".format(left.right, &this));
-			}
-			if (right !is null)
-			{
-				assert (right.left !is &this, "%s".format(values));
-				assert (right.right !is &this, "%s".format(values));
-			}
-		}
+//		invariant()
+//		{
+//			import std.string;
+//			assert (&this !is null);
+//			assert (left !is &this, "%x, %x".format(left, &this));
+//			assert (right !is &this, "%x, %x".format(right, &this));
+//			if (left !is null)
+//			{
+//				assert (left.left !is &this, "%s".format(values));
+//				assert (left.right !is &this, "%x, %x".format(left.right, &this));
+//			}
+//			if (right !is null)
+//			{
+//				assert (right.left !is &this, "%s".format(values));
+//				assert (right.right !is &this, "%s".format(values));
+//			}
+//		}
 
 		Node* left;
 		Node* right;
 		T[nodeCapacity] values;
 		ushort registry;
 	}
+
 	size_t _length;
 	Node* root;
 	uint refCount = 1;
@@ -793,10 +834,14 @@ unittest
 	{
 		static struct TestStruct
 		{
+			int opCmp(ref const TestStruct other) const
+			{
+				return x < other.x ? -1 : (x > other.x ? 1 : 0);
+			}
 			int x;
 			int y;
 		}
-		KAryTree!(TestStruct*, false, "a.x < b.x") tsTree;
+		KAryTree!(TestStruct*, false) tsTree;
 		static assert (isForwardRange!(typeof(tsTree).Range));
 		foreach (i; 0 .. 100)
 		{
@@ -817,7 +862,7 @@ unittest
 			prev = r.front;
 			r.popFront();
 		}
-		TestStruct a = TestStruct(300, 100);
+		TestStruct a = TestStruct(30, 100);
 		auto eqArray = array(tsTree.equalRange(&a));
 		assert (eqArray.length == 1);
 	}

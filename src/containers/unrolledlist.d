@@ -15,7 +15,6 @@ module containers.unrolledlist;
  * Params:
  *     T = the element type
  *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
- * $(B Do not store pointers to GC-allocated memory in this container.)
  */
 struct UnrolledList(T, size_t cacheLineSize = 64)
 {
@@ -37,6 +36,11 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 			static if (!is(T == class))
 				foreach (ref item; cur.items)
 					typeid(T).destroy(&item);
+			static if (shouldAddGCRange!T)
+			{
+				import core.memory;
+				GC.removeRange(prev);
+			}
 			deallocate(Mallocator.it, prev);
 		}
 	}
@@ -94,6 +98,11 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		}
 		assert (n is _back);
 		n = allocate!Node(Mallocator.it);
+		static if (shouldAddGCRange!T)
+		{
+			import core.memory;
+			GC.addRange(cast(void*) n, Node.sizeof);
+		}
 		_back.next = n;
 		_back = n;
 		_back.items[0] = item;
@@ -185,7 +194,7 @@ private:
 
 	import std.allocator;
 	import std.traits;
-	import containers.internal.fatnode;
+	import containers.internal.node;
 
 	Node* _back;
 	Node* _front;
@@ -215,6 +224,11 @@ private:
 		first.registry = 0;
 		foreach (k; 0 .. i)
 			first.markUsed(k);
+		static if (shouldAddGCRange!T)
+		{
+			import core.memory;
+			GC.removeRoot(second);
+		}
 		deallocate(Mallocator.it, second);
 	}
 
@@ -234,6 +248,8 @@ private:
 		void markUnused(size_t index)
 		{
 			registry &= ~(1 << index);
+			static if (shouldNullSlot!T)
+				items[index] = null;
 		}
 
 		bool isFree(size_t index)

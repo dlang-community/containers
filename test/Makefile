@@ -16,4 +16,5 @@ clean:
 
 graphs: clean
 	dmd $(FLAGS) $(SRC) -oftests -version=graphviz_debugging
-	parallel "dot -Tpng {} > {.}.png" ::: $(shell find . -name "graph*.dot")
+	-./tests
+	parallel "dot -Tpng {} > {.}.png" ::: graph*.dot

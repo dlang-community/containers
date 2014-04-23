@@ -1,4 +1,4 @@
-module containers.internal.fatnode;
+module containers.internal.node;
 
 template fatNodeCapacity(size_t bytesPerItem, size_t pointerCount,
 	size_t cacheLineSize = 64)
@@ -9,4 +9,16 @@ template fatNodeCapacity(size_t bytesPerItem, size_t pointerCount,
 		enum fatNodeCapacity = optimistic;
 	else
 		enum fatNodeCapacity = 1;
+}
+
+template shouldNullSlot(T)
+{
+	import std.traits;
+	enum shouldNullSlot = isPointer!T || is (T == class);
+}
+
+template shouldAddGCRange(T)
+{
+	import std.traits;
+	enum shouldAddGCRange = isPointer!T || hasIndirections!T || is (T == class);
 }

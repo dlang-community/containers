@@ -9,13 +9,13 @@ module containers.hashmap;
 
 template HashMap(K, V) if (is (K == string))
 {
-	import containers.hash;
+	import containers.internal.hash;
 	alias HashMap = HashMap!(K, V, hashString);
 }
 
 template HashMap(K, V) if (!is (K == string))
 {
-	import containers.hash;
+	import containers.internal.hash;
 	alias HashMap = HashMap!(K, V, builtinHash!K);
 }
 
@@ -25,7 +25,6 @@ template HashMap(K, V) if (!is (K == string))
  *     K = the key type
  *     V = the value type
  *     hashFunction = the hash function to use on the keys
- * $(B Do not store pointers to GC-allocated memory in this container.)
  */
 struct HashMap(K, V, alias hashFunction)
 {
@@ -55,6 +54,7 @@ struct HashMap(K, V, alias hashFunction)
 		import std.allocator;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
+		GC.removeRange(buckets.ptr);
 		Mallocator.it.deallocate(buckets);
 		typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
 		deallocate(Mallocator.it, sListNodeAllocator);
@@ -189,6 +189,7 @@ private:
 	import std.traits;
 	import memory.allocators;
 	import containers.slist;
+	import core.memory;
 
 	enum bool storeHash = !isBasicType!K;
 
@@ -203,6 +204,7 @@ private:
 		assert (buckets.length == bucketCount);
 		foreach (ref bucket; buckets)
 			emplace(&bucket, sListNodeAllocator);
+		GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 	}
 
 	void insert(K key, V value)
@@ -260,6 +262,7 @@ private:
 		Bucket[] oldBuckets = buckets;
 		assert (oldBuckets.ptr == buckets.ptr);
 		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize);
+		GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		auto newAllocator = allocate!(SListNodeAllocator)(Mallocator.it);
 		assert (buckets);
 		assert (buckets.length == newLength);
@@ -285,6 +288,9 @@ private:
 		}
 		typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
 		deallocate(Mallocator.it, sListNodeAllocator);
+		foreach (ref bucket; oldBuckets)
+			typeid(typeof(bucket)).destroy(&bucket);
+		GC.removeRange(oldBuckets.ptr);
 		Mallocator.it.deallocate(cast(void[]) oldBuckets);
 		sListNodeAllocator = newAllocator;
 	}

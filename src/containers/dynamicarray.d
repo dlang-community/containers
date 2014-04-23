@@ -13,8 +13,10 @@ module containers.dynamicarray;
  * storage.
  * Params:
  *     T = the array element type
+ *     supportGC = true if the container should support holding references to
+ *         GC-allocated memory.
  */
-struct DynamicArray(T)
+struct DynamicArray(T, bool supportGC = true)
 {
 	this(this)
 	{
@@ -27,6 +29,11 @@ struct DynamicArray(T)
 			return;
 		foreach (ref item; arr[0 .. l])
 			typeid(T).destroy(&item);
+		static if (shouldAddGCRange!T)
+		{
+			import core.memory;
+			GC.removeRange(arr.ptr);
+		}
 		Mallocator.it.deallocate(arr);
 	}
 
@@ -48,13 +55,26 @@ struct DynamicArray(T)
 	void insert(T value)
 	{
 		if (arr.length == 0)
+		{
 			arr = cast(T[]) Mallocator.it.allocate(T.sizeof * 4);
+			static if (supportGC && shouldAddGCRange!T)
+			{
+				import core.memory;
+				GC.addRange(arr.ptr, arr.length * T.sizeof);
+			}
+		}
 		else if (l >= arr.length)
 		{
 			immutable size_t c = arr.length > 512 ? arr.length + 1024 : arr.length << 1;
 			void[] a = cast(void[]) arr;
 			Mallocator.it.reallocate(a, c * T.sizeof);
 			arr = cast(T[]) a;
+			static if (supportGC && shouldAddGCRange!T)
+			{
+				import core.memory;
+				GC.removeRange(arr.ptr);
+				GC.addRange(arr.ptr, arr.length * T.sizeof);
+			}
 		}
 		arr[l++] = value;
 	}
@@ -85,6 +105,7 @@ struct DynamicArray(T)
 
 private:
 	import std.allocator;
+	import containers.internal.node;
 	T[] arr;
 	size_t l;
 	uint refCount = 1;
