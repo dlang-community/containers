@@ -125,7 +125,6 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 	static struct Range
 	{
 		@disable this();
-		@disable this(this);
 
 		T front()
 		{
@@ -157,6 +156,11 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 			}
 		}
 
+		typeof(this) save() @property
+		{
+			return this;
+		}
+
 		enum Type : ubyte {all, lower, equal, upper}
 
 	private:
@@ -164,18 +168,15 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 		import containers.slist;
 		import std.allocator;
 		import memory.allocators;
+		import std.array;
 
 		this(Node* n)
 		{
 			if (n is null)
-			{
 				_empty = true;
-				nodes = slist!(Node*)();
-			}
 			else
 			{
 				this.type = Type.all;
-				nodes = SList!(Node*, shared Mallocator)(Mallocator.it);
 				visit(n);
 			}
 		}
@@ -209,7 +210,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 		void _popFront()
 		in
 		{
-			assert (!nodes.empty);
+			assert (nodes.length != 0);
 		}
 		body
 		{
@@ -218,7 +219,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 			{
 				index = 0;
 				nodes.popFront();
-				if (nodes.empty)
+				if (nodes.length == 0)
 				{
 					_empty = true;
 					return;
@@ -228,14 +229,15 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b", size_t ca
 
 		void visit(Node* n)
 		{
-			if (n.right !is null)
-				visit(n.right);
-			nodes.insertFront(n);
 			if (n.left !is null)
 				visit(n.left);
+			nodes ~= n;
+			if (n.right !is null)
+				visit(n.right);
 		}
+
 		size_t index;
-		SList!(Node*, shared Mallocator) nodes;
+		Node*[] nodes;
 		Type type;
 		bool _empty;
 		T val;
@@ -766,11 +768,11 @@ unittest
 		foreach (i, s; strs)
 		{
 			strings.insert(s);
-			version(graphviz_debugging)
-			{
-				File f = File("graph%04d.dot".format(i), "w");
-				strings.print(f);
-			}
+//			version(graphviz_debugging)
+//			{
+//				File f = File("graph%04d.dot".format(i), "w");
+//				strings.print(f);
+//			}
 		}
 		assert (equal(strings[], ["a", "b", "c", "d", "e", "f"]));
 	}
@@ -792,11 +794,20 @@ unittest
 		static struct TestStruct
 		{
 			int x;
-			int y;}
+			int y;
+		}
 		KAryTree!(TestStruct*, false, "a.x < b.x") tsTree;
-		foreach (i; 0 .. 1000)
+		static assert (isForwardRange!(typeof(tsTree).Range));
+		foreach (i; 0 .. 100)
+		{
 			tsTree.insert(new TestStruct(i, i * 2));
-		assert (tsTree.length == 1000);
+//			version(graphviz_debugging)
+//			{
+//				File f = File("graph%04d.dot".format(i), "w");
+//				tsTree.print(f);
+//			}
+		}
+		assert (tsTree.length == 100);
 		auto r = tsTree[];
 		TestStruct* prev = r.front();
 		r.popFront();
@@ -806,5 +817,8 @@ unittest
 			prev = r.front;
 			r.popFront();
 		}
+		TestStruct a = TestStruct(300, 100);
+		auto eqArray = array(tsTree.equalRange(&a));
+		assert (eqArray.length == 1);
 	}
 }
