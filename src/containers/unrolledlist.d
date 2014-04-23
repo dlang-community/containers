@@ -199,7 +199,7 @@ private:
 	Node* _back;
 	Node* _front;
 	size_t _length;
-	uint refCount;
+	uint refCount = 1;
 
 	void mergeNodes(Node* first, Node* second)
 	in
