@@ -20,11 +20,11 @@ public:
 	 * Params:
 	 *     allocator = the allocator to use
 	 */
-	this(ref A allocator)
+	this()(auto ref A allocator)
 	{
 		this.allocator = allocator;
-		memory = cast(T[]) allocator.allocate(initialSize * T.sizeof);
-		assert (memory.length == initialSize);
+		mem = cast(T[]) allocator.allocate(initialSize * T.sizeof);
+		assert (mem.length == initialSize);
 	}
 
 	/**
@@ -32,7 +32,7 @@ public:
 	 */
 	T[] opSlice()
 	{
-		return memory[0 .. next];
+		return mem[0 .. next];
 	}
 
 	alias put = append;
@@ -44,22 +44,22 @@ public:
 	{
 		import std.format;
 		import std.traits: hasMember;
-		if (next >= memory.length)
+		if (next >= mem.length)
 		{
-			next = memory.length;
-			immutable newSize = T.sizeof * (memory.length << 1);
-			void[] original = cast(void[]) memory;
-			assert (original.ptr is memory.ptr);
-			assert (memory);
+			next = mem.length;
+			immutable newSize = T.sizeof * (mem.length << 1);
+			void[] original = cast(void[]) mem;
+			assert (original.ptr is mem.ptr);
+			assert (mem);
 			assert (original);
-			assert (original.length == memory.length * T.sizeof);
+			assert (original.length == mem.length * T.sizeof);
 			bool success = allocator.reallocate(original, newSize);
 			assert (success);
-			memory = cast(T[]) original;
-			assert (memory.ptr == original.ptr);
+			mem = cast(T[]) original;
+			assert (mem.ptr == original.ptr);
 		}
-		assert (next < memory.length);
-		memory[next++] = item;
+		assert (next < mem.length);
+		mem[next++] = item;
 	}
 
 	void reset()
@@ -67,9 +67,21 @@ public:
 		next = 0;
 	}
 
+	T[] mem;
+
 private:
 	import memory.allocators;
 	size_t next;
-	T[] memory;
+
 	A allocator;
+}
+
+unittest
+{
+	import std.allocator;
+	auto a = Appender!(int, shared Mallocator, 64)(Mallocator.it);
+	foreach (i; 0 .. 20)
+		a.append(i);
+	assert (a[].length == 20);
+	Mallocator.it.deallocate(a.mem);
 }
