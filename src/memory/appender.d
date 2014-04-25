@@ -40,10 +40,8 @@ public:
 	/**
 	 * Appends an item.
 	 */
-	void append(T item) pure nothrow @trusted
+	void append(T item) @trusted
 	{
-		import std.format;
-		import std.traits: hasMember;
 		if (next >= mem.length)
 		{
 			next = mem.length;
@@ -60,6 +58,12 @@ public:
 		}
 		assert (next < mem.length);
 		mem[next++] = item;
+	}
+
+	void append(inout(T)[] items) @trusted
+	{
+		foreach (ref i; items)
+			append(i);
 	}
 
 	void reset()
