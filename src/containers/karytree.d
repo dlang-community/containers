@@ -34,7 +34,8 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 	{
 		if (--refCount > 0)
 			return;
-		deallocateNode(root);
+		if (root !is null)
+			deallocateNode(root);
 	}
 
 	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, cacheLineSize);
@@ -261,6 +262,12 @@ private:
 		alias _less = binaryFun!less;
 
 	static Node* allocateNode(ref T value)
+	out (result)
+	{
+		assert (result.left is null);
+		assert (result.right is null);
+	}
+	body
 	{
 		import std.traits;
 		Node* n = allocate!Node(Mallocator.it);
@@ -275,6 +282,11 @@ private:
 	}
 
 	static void deallocateNode(Node* n)
+	in
+	{
+		assert (n !is null);
+	}
+	body
 	{
 		import std.traits;
 		import core.memory;
@@ -356,6 +368,12 @@ private:
 		}
 
 		bool insert(T value)
+		in
+		{
+			static if (isPointer!T || is (T == class))
+				assert (value !is null);
+		}
+		body
 		{
 			import std.range;
 			if (!isFull())
@@ -483,15 +501,21 @@ private:
 		{
 			assert (registry != 0);
 		}
+		out (result)
+		{
+			static if (isPointer!T || is (T == class))
+				assert (result !is null);
+		}
 		body
 		{
 			if (left is null && right is null)
 			{
 				size_t i = nextAvailableIndex() - 1;
+				T r = values[i];
 				markUnused(i);
 				if (registry == 0)
 					t = null;
-				return values[i];
+				return r;
 			}
 			if (right !is null)
 				return right.removeLargest(right);
@@ -594,6 +618,11 @@ private:
 		}
 
 		void fillFromChildren(Node* n)
+		in
+		{
+			assert (n !is null);
+		}
+		body
 		{
 			while (!n.isFull())
 			{
