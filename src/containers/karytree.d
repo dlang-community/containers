@@ -82,18 +82,15 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		return retVal;
 	}
 
-	bool remove(T value)
-	{
-		T t;
-		return remove(value, t);
-	}
-
 	/**
-	 * Retuns true if any value was removed
+	 * Params:
+	 *     value = a value equal to the one to be removed
+	 *     cleanup = a function that should be run on the removed item
+	 * Retuns: true if any value was removed
 	 */
-	bool remove(T value, out T found)
+	bool remove(T value, void delegate(T) cleanup = null)
 	{
-		bool removed = root !is null && root.remove(value, root, found);
+		bool removed = root !is null && root.remove(value, root, cleanup);
 		if (removed)
 			--_length;
 		return removed;
@@ -455,20 +452,21 @@ private:
 			return left.insert(temp[0]);
 		}
 
-		bool remove(T value, ref Node* n, out T found)
+		bool remove(T value, ref Node* n, void delegate(T) cleanup = null)
 		{
 			import std.range;
 			assert (registry != 0);
 			if (_less(value, values[0]))
-				return left !is null && left.remove(value, left, found);
+				return left !is null && left.remove(value, left, cleanup);
 			size_t i = nextAvailableIndex();
 			if (_less(values[i - 1], value))
-				return right !is null && right.remove(value, right, found);
+				return right !is null && right.remove(value, right, cleanup);
 			auto sv = assumeSorted!_less(values[0 .. i]);
 			auto tri = sv.trisect(value);
 			if (tri[1].length == 0)
 				return false;
-			found = tri[1][0];
+			if (cleanup !is null)
+				cleanup(tri[1][0]);
 			size_t l = tri[0].length;
 			T[nodeCapacity - 1] temp;
 			temp[0 .. l] = values[0 .. l];
