@@ -32,10 +32,10 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 	~this()
 	{
-		if (--refCount > 0)
+		if (--refCount > 0 || root is null)
 			return;
-		if (root !is null)
-			deallocateNode(root);
+		deallocateNode(root);
+		root = null;
 	}
 
 	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, cacheLineSize);
@@ -51,10 +51,17 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		bool r = root.insert(value);
 		if (r)
 			++_length;
-		root = root.rotate();
+		if (++counter > (nodeCapacity * 4))
+		{
+			root = root.rotate();
+			counter = 0;
+		}
 		return r;
 	}
 
+	/**
+	 * Returns true if any values were added
+	 */
 	bool insert(Range r)
 	{
 		bool retVal = false;
@@ -66,6 +73,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		return retVal;
 	}
 
+	/// ditto
 	bool insert(T[] values)
 	{
 		bool retVal = false;
@@ -76,12 +84,24 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 	bool remove(T value)
 	{
-		bool removed = root !is null && root.remove(value, root);
+		T t;
+		return remove(value, t);
+	}
+
+	/**
+	 * Retuns true if any value was removed
+	 */
+	bool remove(T value, out T found)
+	{
+		bool removed = root !is null && root.remove(value, root, found);
 		if (removed)
 			--_length;
 		return removed;
 	}
 
+	/**
+	 * Returns true if the tree _conains the given value
+	 */
 	bool contains(T value) const
 	{
 		return root !is null && root.contains(value);
@@ -129,11 +149,16 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		@disable this();
 
 		T front()
+		in
+		{
+			assert (!empty);
+		}
+		body
 		{
 			return nodes.front.values[index];
 		}
 
-		bool empty () const nothrow pure @property
+		bool empty() const nothrow pure @property
 		{
 			return _empty;
 		}
@@ -141,7 +166,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		void popFront()
 		{
 			_popFront();
-			if (empty)
+			if (_empty)
 				return;
 			final switch (type)
 			{
@@ -174,11 +199,11 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 		this(Node* n)
 		{
+			this.type = Type.all;
 			if (n is null)
 				_empty = true;
 			else
 			{
-				this.type = Type.all;
 				visit(n);
 			}
 		}
@@ -198,12 +223,13 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 				break;
 			case Type.equal:
 				this.val = val;
-				while (!empty() && _less(front(), val))
+				while (!_empty && _less(front(), val))
 					_popFront();
+				_empty = empty || _less(front(), val) || _less(val, front());
 				break;
 			case Type.upper:
 				this.val = val;
-				while (!empty() && !_less(val, front()))
+				while (!_empty && !_less(val, front()))
 					_popFront();
 				break;
 			}
@@ -222,10 +248,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 				index = 0;
 				nodes.popFront();
 				if (nodes.length == 0)
-				{
 					_empty = true;
-					return;
-				}
 			}
 		}
 
@@ -359,12 +382,11 @@ private:
 			return !assumeSorted!_less(values[0 .. i]).equalRange(value).empty;
 		}
 
-		int height() const nothrow pure
+		uint height() nothrow pure
 		{
-			import std.algorithm;
-			return 1 +
-				max((left is null ? 0 : left.height()),
-					(right is null ? 0 : right.height()));
+			uint l = left is null ? 0 : left.height();
+			uint r = right is null ? 0 : right.height();
+			return 1 + (l > r ? l : r);
 		}
 
 		bool insert(T value)
@@ -433,19 +455,20 @@ private:
 			return left.insert(temp[0]);
 		}
 
-		bool remove(T value, ref Node* t)
+		bool remove(T value, ref Node* n, out T found)
 		{
 			import std.range;
 			assert (registry != 0);
 			if (_less(value, values[0]))
-				return left !is null && left.remove(value, left);
+				return left !is null && left.remove(value, left, found);
 			size_t i = nextAvailableIndex();
 			if (_less(values[i - 1], value))
-				return right !is null && right.remove(value, right);
+				return right !is null && right.remove(value, right, found);
 			auto sv = assumeSorted!_less(values[0 .. i]);
 			auto tri = sv.trisect(value);
 			if (tri[1].length == 0)
 				return false;
+			found = tri[1][0];
 			size_t l = tri[0].length;
 			T[nodeCapacity - 1] temp;
 			temp[0 .. l] = values[0 .. l];
@@ -457,8 +480,8 @@ private:
 				values[$ - 1] = right.removeSmallest(right);
 			if (registry == 0)
 			{
-				deallocateNode(t);
-				t = null;
+				deallocateNode(n);
+				n = null;
 			}
 			return true;
 		}
@@ -540,15 +563,17 @@ private:
 				left = left.rotate();
 			if (right !is null)
 				right = right.rotate();
+			size_t l = left is null ? 0 : left.height();
+			size_t r = right is null ? 0 : right.height();
 			if (left !is null
-				&& ((right is null && left.height > 1)
-				|| (right !is null && left.height > right.height + 1)))
+				&& ((right is null && l > 1)
+				|| (right !is null && l > r + 1)))
 			{
 				return rotateRight();
 			}
 			if (right !is null
-				&& ((left is null && right.height > 1)
-				|| (left !is null && right.height > left.height + 1)))
+				&& ((left is null && r > 1)
+				|| (left !is null && r > l + 1)))
 			{
 				return rotateLeft();
 			}
@@ -683,8 +708,9 @@ private:
 		ushort registry;
 	}
 
-	size_t _length;
-	Node* root;
+	size_t _length = 0;
+	size_t counter = 0;
+	Node* root = null;
 	uint refCount = 1;
 }
 
@@ -894,5 +920,31 @@ unittest
 		TestStruct a = TestStruct(30, 100);
 		auto eqArray = array(tsTree.equalRange(&a));
 		assert (eqArray.length == 1);
+	}
+
+	{
+		import std.stdio;
+		static struct S
+		{
+			string x;
+			int opCmp (ref const S other) const
+			{
+				import std.string;
+				if (x < other.x)
+					return -1;
+				if (x > other.x)
+					return 1;
+				return 0;
+			}
+		}
+
+		KAryTree!(S*, true) stringTree;
+		auto one = S("offset");
+		stringTree.insert(&one);
+		auto two = S("object");
+		auto three = S("old");
+		assert (stringTree.equalRange(&two).empty);
+		assert (!stringTree.equalRange(&one).empty);
+		assert (stringTree[].front.x == "offset");
 	}
 }

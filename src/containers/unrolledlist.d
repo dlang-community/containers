@@ -166,7 +166,7 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 			this.current = current;
 		}
 
-		T front() nothrow pure @property
+		T front() @property
 		{
 			return current.items[index];
 		}
@@ -174,10 +174,21 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		void popFront() nothrow pure
 		{
 			index++;
-			if (index >= nodeCapacity || current.isFree(index))
+			while (true)
 			{
-				current = current.next;
-				index = 0;
+				if (current is null)
+					return;
+				if (index >= nodeCapacity)
+				{
+					current = current.next;
+					index = 0;
+				}
+				else
+				{
+					if (!current.isFree(index))
+						return;
+					index++;
+				}
 			}
 		}
 
