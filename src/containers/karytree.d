@@ -121,22 +121,22 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		f.writeln("}");
 	}
 
-	Range opSlice()
+	Range opSlice() inout
 	{
 		return Range(root);
 	}
 
-	Range lowerBound(T value)
+	Range lowerBound(inout T value) inout
 	{
 		return Range(root, Range.Type.lower, value);
 	}
 
-	Range equalRange(T value)
+	Range equalRange(inout T value) inout
 	{
 		return Range(root, Range.Type.equal, value);
 	}
 
-	Range upperBound(T value)
+	Range upperBound(inout T value) inout
 	{
 		return Range(root, Range.Type.upper, value);
 	}
@@ -145,14 +145,14 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 	{
 		@disable this();
 
-		T front()
+		const T front() const
 		in
 		{
 			assert (!empty);
 		}
 		body
 		{
-			return nodes.front.values[index];
+			return cast(typeof(return)) nodes.front.values[index];
 		}
 
 		bool empty() const nothrow pure @property
@@ -194,7 +194,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		import memory.allocators;
 		import std.array;
 
-		this(Node* n)
+		this(inout(Node)* n)
 		{
 			this.type = Type.all;
 			if (n is null)
@@ -205,27 +205,25 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 			}
 		}
 
-		this(Node* n, Type type, T val)
+		this(inout(Node)* n, Type type, inout T val)
 		{
 			this(n);
 			this.type = type;
+			this.val = val;
 			final switch(type)
 			{
 			case Type.all:
 				break;
 			case Type.lower:
-				this.val = val;
 				if (_less(val, front()))
 					_empty = true;
 				break;
 			case Type.equal:
-				this.val = val;
 				while (!_empty && _less(front(), val))
 					_popFront();
 				_empty = empty || _less(front(), val) || _less(val, front());
 				break;
 			case Type.upper:
-				this.val = val;
 				while (!_empty && !_less(val, front()))
 					_popFront();
 				break;
@@ -249,7 +247,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 			}
 		}
 
-		void visit(Node* n)
+		void visit(inout(Node)* n)
 		{
 			if (n.left !is null)
 				visit(n.left);
@@ -259,10 +257,10 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		}
 
 		size_t index;
-		Node*[] nodes;
+		const(Node)*[] nodes;
 		Type type;
 		bool _empty;
-		T val;
+		const T val;
 	}
 
 private:
@@ -276,7 +274,7 @@ private:
 
 	// If we're storing a struct that defines opCmp, don't compare pointers as
 	// that is almost certainly not what the user intended.
-	static if (less == "a < b" && isPointer!T && __traits(hasMember, PointerTarget!T, "opCmp"))
+	static if (is(typeof(less) == string ) && less == "a < b" && isPointer!T && __traits(hasMember, PointerTarget!T, "opCmp"))
 		alias _less = binaryFun!"a.opCmp(*b) < 0";
 	else
 		alias _less = binaryFun!less;
@@ -911,7 +909,7 @@ unittest
 		r.popFront();
 		while (!r.empty)
 		{
-			assert (r.front.x > prev.x);
+			assert (r.front.x > prev.x, format("%s %s", prev.x, r.front.x));
 			prev = r.front;
 			r.popFront();
 		}
