@@ -38,6 +38,8 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		root = null;
 	}
 
+	private import containers.internal.node;
+
 	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, cacheLineSize);
 
 	bool insert(T value)
@@ -145,7 +147,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 	{
 		@disable this();
 
-		const T front() const
+		const T front() inout
 		in
 		{
 			assert (!empty);
@@ -155,7 +157,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 			return cast(typeof(return)) nodes.front.values[index];
 		}
 
-		bool empty() const nothrow pure @property
+		bool empty() inout nothrow pure @property
 		{
 			return _empty;
 		}
@@ -189,7 +191,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 	private:
 
-		import containers.slist;
+		import containers.unrolledlist;
 		import std.allocator;
 		import memory.allocators;
 		import std.array;
@@ -257,7 +259,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		}
 
 		size_t index;
-		const(Node)*[] nodes;
+		UnrolledList!(const(Node)*) nodes;
 		Type type;
 		bool _empty;
 		const T val;

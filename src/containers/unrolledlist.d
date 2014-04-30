@@ -68,6 +68,11 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		_length++;
 	}
 
+	/// ditto
+	alias put = insertBack;
+	/// ditto
+	alias insert = insertBack;
+
 	void opOpAssign(string op)(T item) if (op == "~")
 	{
 		insertBack(item);
@@ -120,31 +125,80 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		return _length == 0;
 	}
 
-	void remove(ref T item)
+	bool remove(T item)
 	{
 		import core.bitop;
+		if (_front is null)
+			return false;
 		Node* n = _front;
-		while (n !is null)
+		bool r = false;
+		loop: while (n !is null)
 		{
 			foreach (i; 0 .. nodeCapacity)
 			{
 				if (n.items[i] == item)
 				{
 					n.markUnused(i);
+					r = true;
+					--_length;
 					if (n.next !is null
-						&& (popcnt(n.next.registry) + popcnt(n.registry) < nodeCapacity))
+						&& (popcnt(n.next.registry) + popcnt(n.registry) <= nodeCapacity))
 					{
 						mergeNodes(n, n.next);
 					}
+					break loop;
 				}
 			}
+			n = n.next;
 		}
+		if (_front.registry == 0)
+		{
+			_front = null;
+			deallocate(Mallocator.it, _front);
+		}
+		return r;
 	}
 
-	/// ditto
-	alias put = insert;
-	/// ditto
-	alias insert = insertBack;
+	void popFront()
+	{
+		moveFront();
+	}
+
+	T moveFront()
+	in
+	{
+		assert (!empty());
+		assert (_front.registry != 0);
+	}
+	body
+	{
+		import std.stdio;
+		import core.bitop;
+		size_t index = bsf(_front.registry);
+		T r = _front.items[index];
+		_front.markUnused(index);
+		_length--;
+		if (_front.registry == 0)
+		{
+			auto f = _front;
+			_front = _front.next;
+			deallocate(Mallocator.it, f);
+			return r;
+		}
+		if (_front.next !is null
+			&& (popcnt(_front.next.registry) + popcnt(_front.registry) <= nodeCapacity))
+		{
+			mergeNodes(_front, _front.next);
+		}
+		return r;
+	}
+
+	inout T front() inout @property
+	{
+		import core.bitop;
+		size_t index = bsf(_front.registry);
+		return _front.items[index];
+	}
 
 	/**
 	 * Number of items stored per node.
@@ -163,7 +217,13 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		@disable this();
 		this(Node* current)
 		{
+			import core.bitop;
 			this.current = current;
+			if (current !is null)
+			{
+				index = bsf(current.registry);
+				assert (index < nodeCapacity);
+			}
 		}
 
 		T front() @property
@@ -224,12 +284,11 @@ private:
 		size_t i;
 		T[nodeCapacity] temp;
 		foreach (j; 0 .. nodeCapacity)
-		{
 			if (!first.isFree(j))
 				temp[i++] = first.items[j];
+		foreach (j; 0 .. nodeCapacity)
 			if (!second.isFree(j))
 				temp[i++] = second.items[j];
-		}
 		first.next = second.next;
 		first.items[0 .. i] = temp[0 .. i];
 		first.registry = 0;
@@ -238,7 +297,7 @@ private:
 		static if (shouldAddGCRange!T)
 		{
 			import core.memory;
-			GC.removeRoot(second);
+			GC.removeRange(second);
 		}
 		deallocate(Mallocator.it, second);
 	}
@@ -279,6 +338,8 @@ unittest
 {
 	import std.algorithm;
 	import std.range;
+	import std.stdio;
+	import std.string;
 	UnrolledList!int l;
 	static assert (l.Node.sizeof <= 64);
 	assert (l.empty);
@@ -289,4 +350,30 @@ unittest
 		l.insert(i);
 	assert (l.length == 100);
 	assert (equal(l[], iota(100)));
+	foreach (i; 0 .. 100)
+		assert (l.remove(i), format("%d", i));
+	assert (l.length == 0, format("%d", l.length));
+	assert (l.empty);
+	UnrolledList!int l2;
+	l2.insert(1);
+	l2.insert(2);
+	l2.insert(3);
+	assert (l2.front == 1);
+	l2.popFront();
+	assert (l2.front == 2);
+	assert (equal(l2[], [2, 3]));
+	l2.popFront();
+	assert (equal(l2[], [3]));
+	l2.popFront();
+	assert (l2.empty, format("%d", l2.front));
+	assert (equal(l2[], cast(int[]) []));
+	UnrolledList!int l3;
+	foreach (i; 0 .. 200)
+		l3 ~= i;
+	foreach (i; 0 .. 200)
+	{
+		auto x = l3.moveFront();
+		assert (x == i, format("%d %d", i, x));
+	}
+	assert (l3.empty);
 }

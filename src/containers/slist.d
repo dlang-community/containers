@@ -64,7 +64,7 @@ struct SList(T, A)
 	/**
 	 * Returns: the most recently inserted item
 	 */
-	T front() pure nothrow @property
+	T front() inout pure nothrow @property
 	in
 	{
 		assert (!empty);
@@ -116,7 +116,7 @@ struct SList(T, A)
 	/**
 	 * Returns: true if this list is empty
 	 */
-	bool empty() pure nothrow const @property
+	bool empty() inout pure nothrow @property
 	{
 		return _front is null;
 	}
@@ -124,7 +124,7 @@ struct SList(T, A)
 	/**
 	 * Returns: the number of items in the list
 	 */
-	size_t length() @property
+	size_t length() inout pure nothrow @property
 	{
 		return _length;
 	}
