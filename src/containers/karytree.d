@@ -99,17 +99,17 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 	/**
 	 * Returns true if the tree _conains the given value
 	 */
-	bool contains(T value) const
+	bool contains(T value) inout
 	{
 		return root !is null && root.contains(value);
 	}
 
-	size_t length() const nothrow pure @property
+	size_t length() inout nothrow pure @property
 	{
 		return _length;
 	}
 
-	bool empty() const nothrow pure @property
+	bool empty() inout nothrow pure @property
 	{
 		return _length == 0;
 	}
