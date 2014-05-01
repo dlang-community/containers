@@ -16,7 +16,7 @@ module containers.unrolledlist;
  *     T = the element type
  *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
  */
-struct UnrolledList(T, size_t cacheLineSize = 64)
+struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 {
 	this(this)
 	{
@@ -36,12 +36,7 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 			static if (!is(T == class))
 				foreach (ref item; cur.items)
 					typeid(T).destroy(&item);
-			static if (shouldAddGCRange!T)
-			{
-				import core.memory;
-				GC.removeRange(prev);
-			}
-			deallocate(Mallocator.it, prev);
+			deallocateNode(prev);
 		}
 	}
 
@@ -52,13 +47,15 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 	{
 		if (_back is null)
 		{
-			_back = allocate!Node(Mallocator.it);
+			_back = allocateNode();
+			assert (_back.prev is null);
+			assert (_back.next is null);
 			_front = _back;
 		}
 		size_t index = _back.nextAvailableIndex();
 		if (index >= nodeCapacity)
 		{
-			Node* n = allocate!Node(Mallocator.it);
+			Node* n = allocateNode();
 			_back.next = n;
 			_back = n;
 			index = 0;
@@ -66,6 +63,7 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		_back.items[index] = item;
 		_back.markUsed(index);
 		_length++;
+		assert (_back.registry <= fullBits!nodeCapacity);
 	}
 
 	/// ditto
@@ -99,20 +97,17 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 			n.items[i] = item;
 			n.markUsed(i);
 			_length++;
+			assert (n.registry <= fullBits!nodeCapacity);
 			return;
 		}
 		assert (n is _back);
-		n = allocate!Node(Mallocator.it);
-		static if (shouldAddGCRange!T)
-		{
-			import core.memory;
-			GC.addRange(cast(void*) n, Node.sizeof);
-		}
+		n = allocateNode();
 		_back.next = n;
 		_back = n;
 		_back.items[0] = item;
 		_back.markUsed(0);
 		_length++;
+		assert (_back.registry <= fullBits!nodeCapacity);
 	}
 
 	size_t length() const nothrow pure @property
@@ -139,8 +134,8 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 				if (n.items[i] == item)
 				{
 					n.markUnused(i);
-					r = true;
 					--_length;
+					r = true;
 					if (n.next !is null
 						&& (popcnt(n.next.registry) + popcnt(n.registry) <= nodeCapacity))
 					{
@@ -153,8 +148,9 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		}
 		if (_front.registry == 0)
 		{
+			deallocateNode(_front);
 			_front = null;
-			deallocate(Mallocator.it, _front);
+			_back = null;
 		}
 		return r;
 	}
@@ -162,6 +158,7 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 	void popFront()
 	{
 		moveFront();
+		assert (_front is null || _front.registry != 0);
 	}
 
 	T moveFront()
@@ -181,8 +178,13 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		if (_front.registry == 0)
 		{
 			auto f = _front;
+			assert (_front.next !is _front);
 			_front = _front.next;
-			deallocate(Mallocator.it, f);
+			if (_front is null)
+				_back = null;
+			else
+				assert (_front.registry <= fullBits!nodeCapacity);
+			deallocateNode(f);
 			return r;
 		}
 		if (_front.next !is null
@@ -193,19 +195,33 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		return r;
 	}
 
-	inout T front() inout @property
+	invariant()
+	{
+		assert (_front is null || _front.registry != 0);
+		assert (_front !is null || _back is null);
+	}
+
+	inout T front() const @property
+	in
+	{
+		assert (!empty);
+		assert (_front.registry != 0);
+	}
+	body
 	{
 		import core.bitop;
+		import std.string;
 		size_t index = bsf(_front.registry);
+		assert (index < nodeCapacity, format("%d", index));
 		return _front.items[index];
 	}
 
 	/**
 	 * Number of items stored per node.
 	 */
-	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, cacheLineSize);
+	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, ushort, cacheLineSize);
 
-	Range range()
+	Range range() const nothrow pure
 	{
 		return Range(_front);
 	}
@@ -215,7 +231,8 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 	static struct Range
 	{
 		@disable this();
-		this(Node* current)
+
+		this(inout(Node)* current)
 		{
 			import core.bitop;
 			this.current = current;
@@ -226,7 +243,7 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 			}
 		}
 
-		T front() @property
+		T front() const pure @property
 		{
 			return current.items[index];
 		}
@@ -257,7 +274,12 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 			return current is null;
 		}
 
-		Node* current;
+		Range save() const nothrow pure @property
+		{
+			return this;
+		}
+
+		const(Node)* current;
 		size_t index;
 	}
 
@@ -271,6 +293,27 @@ private:
 	Node* _front;
 	size_t _length;
 	uint refCount = 1;
+
+	Node* allocateNode()
+	{
+		Node* n = allocate!Node(Mallocator.it);
+		static if (supportGC && shouldAddGCRange!T)
+		{
+			import core.memory;
+			GC.addRange(n, Node.sizeof);
+		}
+		return n;
+	}
+
+	void deallocateNode(Node* n)
+	{
+		deallocate(Mallocator.it, n);
+		static if (supportGC && shouldAddGCRange!T)
+		{
+			import core.memory;
+			GC.removeRange(n);
+		}
+	}
 
 	void mergeNodes(Node* first, Node* second)
 	in
@@ -294,10 +337,13 @@ private:
 		first.registry = 0;
 		foreach (k; 0 .. i)
 			first.markUsed(k);
-		static if (shouldAddGCRange!T)
+		assert (first.registry <= fullBits!nodeCapacity);
+		static if (supportGC && shouldAddGCRange!T)
 		{
 			import core.memory;
 			GC.removeRange(second);
+			if (_back is second)
+				_back = null;
 		}
 		deallocate(Mallocator.it, second);
 	}
@@ -310,21 +356,34 @@ private:
 			return bsf(~registry);
 		}
 
-		void markUsed(size_t index)
+		void markUsed(size_t index) nothrow pure
 		{
 			registry |= (1 << index);
 		}
 
-		void markUnused(size_t index)
+		void markUnused(size_t index) nothrow pure
 		{
 			registry &= ~(1 << index);
 			static if (shouldNullSlot!T)
 				items[index] = null;
 		}
 
-		bool isFree(size_t index)
+		bool empty() const nothrow pure
+		{
+			return registry == 0;
+		}
+
+		bool isFree(size_t index) const nothrow pure
 		{
 			return (registry & (1 << index)) == 0;
+		}
+
+		invariant()
+		{
+			import std.string;
+			assert (registry <= fullBits!nodeCapacity, format("%016b %016b", registry, fullBits!nodeCapacity));
+			assert (prev !is &this);
+			assert (next !is &this);
 		}
 
 		ushort registry;
