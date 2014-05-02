@@ -155,7 +155,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		}
 		body
 		{
-			return cast(typeof(return)) nodeRange.front.values[index];
+			return cast(typeof(return)) nodes[nodeIndex].values[index];
 		}
 
 		bool empty() const nothrow pure @property
@@ -201,15 +201,9 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		{
 			this.type = Type.all;
 			if (n is null)
-			{
 				_empty = true;
-				nodeRange = typeof(nodeRange).init;
-			}
 			else
-			{
-				visit(n, nodes);
-				nodeRange = nodes[];
-			}
+				visit(n);
 		}
 
 		this(inout(Node)* n, Type type, inout T val)
@@ -240,32 +234,32 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		void _popFront()
 		in
 		{
-			assert (!nodeRange.empty);
+			assert (nodeIndex < nodes.length);
 		}
 		body
 		{
 			index++;
-			if (index >= nodeCapacity || nodeRange.front.isFree(index))
+			if (index >= nodeCapacity || nodes[nodeIndex].isFree(index))
 			{
 				index = 0;
-				nodeRange.popFront();
-				if (nodeRange.empty)
+				nodeIndex++;
+				if (nodeIndex >= nodes.length)
 					_empty = true;
 			}
 		}
 
-		void visit(inout(Node)* n, ref UnrolledList!(const(Node)*, false) nodes)
+		void visit(inout(Node)* n)
 		{
 			if (n.left !is null)
-				visit(n.left, nodes);
+				visit(n.left);
 			nodes ~= n;
 			if (n.right !is null)
-				visit(n.right, nodes);
+				visit(n.right);
 		}
 
 		size_t index;
-		UnrolledList!(const(Node)*, false) nodes;
-		UnrolledList!(const(Node)*, false).Range nodeRange;
+		const(Node)*[] nodes;
+		size_t nodeIndex;
 		Type type;
 		bool _empty;
 		const T val;
@@ -335,7 +329,7 @@ private:
 		private size_t nextAvailableIndex() const nothrow pure
 		{
 			import core.bitop;
-			return bsf(~registry);
+			return bsf(~(registry & fullBits!nodeCapacity));
 		}
 
 		private void markUsed(size_t index) pure nothrow
@@ -358,6 +352,11 @@ private:
 		private bool isFull() const pure nothrow
 		{
 			return (registry & fullBits!nodeCapacity) == fullBits!nodeCapacity;
+		}
+
+		private bool isEmpty() const pure nothrow
+		{
+			return (registry & fullBits!nodeCapacity) == 0;
 		}
 
 		bool contains(T value) const
@@ -486,31 +485,48 @@ private:
 		bool remove(T value, ref Node* n, void delegate(T) cleanup = null)
 		{
 			import std.range;
-			assert (registry != 0);
+			assert (!isEmpty());
 			if (_less(value, values[0]))
 				return left !is null && left.remove(value, left, cleanup);
-			size_t i = nextAvailableIndex();
-			if (_less(values[i - 1], value))
+			if (isFull() && _less(values[$ - 1], value))
 				return right !is null && right.remove(value, right, cleanup);
+			size_t i = nextAvailableIndex();
 			auto sv = assumeSorted!_less(values[0 .. i]);
 			auto tri = sv.trisect(value);
 			if (tri[1].length == 0)
 				return false;
+			// Clean up removed item
 			if (cleanup !is null)
 				cleanup(tri[1][0]);
-			size_t l = tri[0].length;
-			T[nodeCapacity - 1] temp;
-			temp[0 .. l] = values[0 .. l];
-			temp[l .. $] = values[l + 1 .. $];
-			values[0 .. $ - 1] = temp[];
-			if (right is null)
-				markUnused(i - 1);
-			else
-				values[$ - 1] = right.removeSmallest(right);
-			if (registry == 0)
+			immutable size_t l = tri[0].length;
+			if (right is null && left is null)
 			{
-				deallocateNode(n);
-				n = null;
+				T[nodeCapacity - 1] temp;
+				temp[0 .. l] = values[0 .. l];
+				temp[l .. $] = values[l + 1 .. $];
+				values[0 .. $ - 1] = temp[];
+				markUnused(nextAvailableIndex() - 1);
+				if (isEmpty())
+				{
+					deallocateNode(n);
+					n = null;
+				}
+			}
+			else if (right !is null)
+			{
+				T[nodeCapacity - 1] temp;
+				temp[0 .. l] = values[0 .. l];
+				temp[l .. $] = values[l + 1 .. $];
+				values[0 .. $ - 1] = temp[];
+				values[$ - 1] = right.removeSmallest(right);
+			}
+			else if (left !is null)
+			{
+				T[nodeCapacity - 1] temp;
+				temp[0 .. l] = values[0 .. l];
+				temp[l .. $] = values[l + 1 .. $];
+				values[1 .. $] = temp[];
+				values[0] = left.removeLargest(left);
 			}
 			return true;
 		}
@@ -518,7 +534,8 @@ private:
 		T removeSmallest(ref Node* t)
 		in
 		{
-			assert (registry != 0);
+			if (isEmpty())
+				*(cast(int*) null) = 1;
 		}
 		body
 		{
@@ -529,8 +546,11 @@ private:
 				temp[] = values[1 .. $];
 				values[0 .. $ - 1] = temp[];
 				markUnused(nextAvailableIndex() - 1);
-				if (registry == 0)
+				if (isEmpty())
+				{
+					deallocateNode(t);
 					t = null;
+				}
 				return r;
 			}
 			if (left !is null)
@@ -540,18 +560,13 @@ private:
 			temp[] = values[1 .. $];
 			values[0 .. $ - 1] = temp[];
 			values[$ - 1] = right.removeSmallest(right);
-			if (registry == 0)
-			{
-				deallocateNode(t);
-				t = null;
-			}
 			return r;
 		}
 
 		T removeLargest(ref Node* t)
 		in
 		{
-			assert (registry != 0);
+			assert (!isEmpty());
 		}
 		out (result)
 		{
@@ -565,7 +580,7 @@ private:
 				size_t i = nextAvailableIndex() - 1;
 				T r = values[i];
 				markUnused(i);
-				if (registry == 0)
+				if (isEmpty())
 					t = null;
 				return r;
 			}
@@ -576,11 +591,6 @@ private:
 			temp[] = values[0 .. $ - 1];
 			values[1 .. $] = temp[];
 			values[0] = left.removeLargest(left);
-			if (registry == 0)
-			{
-				deallocateNode(t);
-				t = null;
-			}
 			return r;
 		}
 
@@ -962,20 +972,11 @@ unittest
 
 	{
 		import std.algorithm;
-		import std.stdio;
-		writeln("Starting filter test");
 		KAryTree!int ints;
 		foreach (i; 0 .. 50)
 			ints ~= i;
-		writeln("values inserted");
-		stdout.flush();
 		assert (canFind(ints[], 20));
-		writeln("canFind passed");
 		assert (walkLength(ints[]) == 50);
-		writeln("walkLength passed");
-		auto x = map!(a => a * 2)(ints[]);
-		writeln(x);
-		writeln("map passed");
-		assert (walkLength(filter!(a => (a & 1) == 0)(ints[])) == 50);
+		assert (walkLength(filter!(a => (a & 1) == 0)(ints[])) == 25);
 	}
 }
