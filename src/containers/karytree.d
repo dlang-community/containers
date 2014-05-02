@@ -43,6 +43,11 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, size_t, cacheLineSize);
 	static assert (nodeCapacity <= (size_t.sizeof * 4), "cannot fit height info and registry in size_t");
 
+	void opOpAssign(string op)(T value) if (op == "~")
+	{
+		insert(value);
+	}
+
 	bool insert(T value)
 	{
 		if (root is null)
@@ -953,5 +958,24 @@ unittest
 		assert (stringTree.equalRange(&two).empty);
 		assert (!stringTree.equalRange(&one).empty);
 		assert (stringTree[].front.x == "offset");
+	}
+
+	{
+		import std.algorithm;
+		import std.stdio;
+		writeln("Starting filter test");
+		KAryTree!int ints;
+		foreach (i; 0 .. 50)
+			ints ~= i;
+		writeln("values inserted");
+		stdout.flush();
+		assert (canFind(ints[], 20));
+		writeln("canFind passed");
+		assert (walkLength(ints[]) == 50);
+		writeln("walkLength passed");
+		auto x = map!(a => a * 2)(ints[]);
+		writeln(x);
+		writeln("map passed");
+		assert (walkLength(filter!(a => (a & 1) == 0)(ints[])) == 50);
 	}
 }
