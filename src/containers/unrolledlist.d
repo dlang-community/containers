@@ -213,7 +213,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		import std.string;
 		size_t index = bsf(_front.registry);
 		assert (index < nodeCapacity, format("%d", index));
-		return _front.items[index];
+		return cast(T) _front.items[index];
 	}
 
 	/**
@@ -243,9 +243,9 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 			}
 		}
 
-		T front() const pure @property
+		T front() const @property
 		{
-			return current.items[index];
+			return cast(T) current.items[index];
 		}
 
 		void popFront() nothrow pure
