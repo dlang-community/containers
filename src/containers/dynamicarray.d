@@ -18,14 +18,11 @@ module containers.dynamicarray;
  */
 struct DynamicArray(T, bool supportGC = true)
 {
-	this(this)
-	{
-		refCount++;
-	}
+	this(this) @disable;
 
 	~this()
 	{
-		if (--refCount > 0)
+		if (arr is null)
 			return;
 		foreach (ref item; arr[0 .. l])
 			typeid(T).destroy(&item);
@@ -81,11 +78,6 @@ struct DynamicArray(T, bool supportGC = true)
 
 	alias put = insert;
 
-	void opOpAssign(string op)(T value) if (op == "~")
-	{
-		insert(value);
-	}
-
 	void opIndexAssign(T value, size_t i)
 	{
 		arr[i] = value;
@@ -108,7 +100,6 @@ private:
 	import containers.internal.node;
 	T[] arr;
 	size_t l;
-	uint refCount = 1;
 }
 
 unittest
@@ -117,7 +108,7 @@ unittest
 	import std.range;
 	DynamicArray!int ints;
 	foreach (i; 0 .. 100)
-		ints ~= i;
+		ints.insert(i);
 	assert (equal(ints[], iota(100)));
 	assert (ints.length == 100);
 	ints[0] = 100;
@@ -128,5 +119,4 @@ unittest
 	ints[] = 432;
 	foreach (i; ints[])
 		assert (i == 432);
-	DynamicArray!int copy = ints;
 }

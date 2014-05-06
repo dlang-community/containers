@@ -18,15 +18,12 @@ module containers.unrolledlist;
  */
 struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 {
-	this(this)
-	{
-		refCount++;
-	}
+	private import std.traits;
+
+	this(this) @disable;
 
 	~this()
 	{
-		if (--refCount > 0)
-			return;
 		Node* prev = null;
 		Node* cur = _front;
 		while (cur !is null)
@@ -47,34 +44,39 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	{
 		if (_back is null)
 		{
-			_back = allocateNode();
-			assert (_back.prev is null);
-			assert (_back.next is null);
+			_back = allocateNode(item);
 			_front = _back;
 		}
-		size_t index = _back.nextAvailableIndex();
-		if (index >= nodeCapacity)
+		else
 		{
-			Node* n = allocateNode();
-			_back.next = n;
-			_back = n;
-			index = 0;
+			size_t index = _back.nextAvailableIndex();
+			if (index >= nodeCapacity)
+			{
+				Node* n = allocateNode(item);
+				_back.next = n;
+				_back = n;
+				index = 0;
+			}
+			else
+			{
+				_back.items[index] = item;
+				_back.markUsed(index);
+			}
 		}
-		_back.items[index] = item;
-		_back.markUsed(index);
 		_length++;
 		assert (_back.registry <= fullBits!nodeCapacity);
+	}
+
+	void insertBack(R)(R range)
+	{
+		foreach (ref r; range)
+			insertBack(r);
 	}
 
 	/// ditto
 	alias put = insertBack;
 	/// ditto
 	alias insert = insertBack;
-
-	void opOpAssign(string op)(T item) if (op == "~")
-	{
-		insertBack(item);
-	}
 
 	/**
 	 * Inserts the given item in the frontmost available cell, which may put the
@@ -101,11 +103,9 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 			return;
 		}
 		assert (n is _back);
-		n = allocateNode();
+		n = allocateNode(item);
 		_back.next = n;
 		_back = n;
-		_back.items[0] = item;
-		_back.markUsed(0);
 		_length++;
 		assert (_back.registry <= fullBits!nodeCapacity);
 	}
@@ -197,7 +197,8 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 
 	invariant()
 	{
-		assert (_front is null || _front.registry != 0);
+		import std.string;
+		assert (_front is null || _front.registry != 0, format("%x, %b", _front, _front.registry));
 		assert (_front !is null || _back is null);
 	}
 
@@ -262,9 +263,10 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 				}
 				else
 				{
-					if (!current.isFree(index))
+					if (current.isFree(index))
+						index++;
+					else
 						return;
-					index++;
 				}
 			}
 		}
@@ -286,15 +288,14 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 private:
 
 	import std.allocator;
-	import std.traits;
 	import containers.internal.node;
 
 	Node* _back;
 	Node* _front;
 	size_t _length;
-	uint refCount = 1;
+//	uint refCount = 1;
 
-	Node* allocateNode()
+	Node* allocateNode(T item)
 	{
 		Node* n = allocate!Node(Mallocator.it);
 		static if (supportGC && shouldAddGCRange!T)
@@ -302,6 +303,8 @@ private:
 			import core.memory;
 			GC.addRange(n, Node.sizeof);
 		}
+		n.items[0] = item;
+		n.markUsed(0);
 		return n;
 	}
 
@@ -378,13 +381,13 @@ private:
 			return (registry & (1 << index)) == 0;
 		}
 
-		invariant()
-		{
-			import std.string;
-			assert (registry <= fullBits!nodeCapacity, format("%016b %016b", registry, fullBits!nodeCapacity));
-			assert (prev !is &this);
-			assert (next !is &this);
-		}
+//		invariant()
+//		{
+//			import std.string;
+//			assert (registry <= fullBits!nodeCapacity, format("%016b %016b", registry, fullBits!nodeCapacity));
+//			assert (prev !is &this);
+//			assert (next !is &this);
+//		}
 
 		ushort registry;
 		T[nodeCapacity] items;
@@ -428,7 +431,7 @@ unittest
 	assert (equal(l2[], cast(int[]) []));
 	UnrolledList!int l3;
 	foreach (i; 0 .. 200)
-		l3 ~= i;
+		l3.insert(i);
 	foreach (i; 0 .. 200)
 	{
 		auto x = l3.moveFront();

@@ -24,12 +24,8 @@ struct SList(T, A)
 	/**
 	 * Disable default-construction and postblit
 	 */
-	@disable this();
-
-	this(this)
-	{
-		refCount++;
-	}
+	this() @disable;
+	this(this) @disable;
 
 	/**
 	 * Params: allocator = the allocator instance used to allocate nodes
@@ -37,13 +33,10 @@ struct SList(T, A)
 	this(A allocator) pure nothrow
 	{
 		this.allocator = allocator;
-		refCount = 1;
 	}
 
 	~this()
 	{
-		if (--refCount > 0)
-			return;
 		Node* current = _front;
 		Node* prev = null;
 		while (current !is null)
@@ -257,8 +250,6 @@ private:
 	A allocator;
 
 	size_t _length;
-
-	uint refCount = 1;
 }
 
 unittest

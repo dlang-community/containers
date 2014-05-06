@@ -39,10 +39,7 @@ template HashSetAllocatorType(T)
  */
 struct HashSet(T, alias hashFunction)
 {
-	this(this)
-	{
-		refCount++;
-	}
+	this(this) @disable;
 
 	/**
 	 * Constructs a HashSet with an initial bucket count of bucketCount.
@@ -61,8 +58,6 @@ struct HashSet(T, alias hashFunction)
 	~this()
 	{
 		import std.allocator;
-		if (--refCount > 0)
-			return;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
 		GC.removeRange(buckets.ptr);
@@ -362,7 +357,6 @@ private:
 
 	Bucket[] buckets;
 	size_t _length;
-	uint refCount;
 }
 
 ///

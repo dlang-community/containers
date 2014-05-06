@@ -25,14 +25,11 @@ version(graphviz_debugging) import std.stdio;
 struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 	bool supportGC = true, size_t cacheLineSize = 64)
 {
-	this(this)
-	{
-		refCount++;
-	}
+	this(this) @disable;
 
 	~this()
 	{
-		if (--refCount > 0 || root is null)
+		if (root is null)
 			return;
 		deallocateNode(root);
 		root = null;
@@ -65,7 +62,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 	/**
 	 * Returns true if any values were added
 	 */
-	bool insert(Range r)
+	bool insert(R)(R r)
 	{
 		bool retVal = false;
 		while (!r.empty)
@@ -126,22 +123,22 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 	Range opSlice() const
 	{
-		return Range(root);
+		return Range(root, _length / nodeCapacity);
 	}
 
 	Range lowerBound(inout T value) const
 	{
-		return Range(root, Range.Type.lower, value);
+		return Range(root, Range.Type.lower, value, _length / nodeCapacity);
 	}
 
 	Range equalRange(inout T value) const
 	{
-		return Range(root, Range.Type.equal, value);
+		return Range(root, Range.Type.equal, value, _length / nodeCapacity);
 	}
 
 	Range upperBound(inout T value) const
 	{
-		return Range(root, Range.Type.upper, value);
+		return Range(root, Range.Type.upper, value, _length / nodeCapacity);
 	}
 
 	static struct Range
@@ -197,18 +194,20 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		import memory.allocators;
 		import std.array;
 
-		this(inout(Node)* n)
+		this(inout(Node)* n, size_t length)
 		{
 			this.type = Type.all;
+			nodes.length = length;
+			nodes.length = 0;
 			if (n is null)
 				_empty = true;
 			else
 				visit(n);
 		}
 
-		this(inout(Node)* n, Type type, inout T val)
+		this(inout(Node)* n, Type type, inout T val, size_t length)
 		{
-			this(n);
+			this(n, length);
 			this.type = type;
 			this.val = val;
 			final switch(type)
@@ -731,7 +730,6 @@ private:
 	size_t _length = 0;
 	size_t counter = 0;
 	Node* root = null;
-	uint refCount = 1;
 }
 
 unittest
