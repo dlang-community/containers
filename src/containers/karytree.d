@@ -771,7 +771,6 @@ private:
 	}
 
 	size_t _length = 0;
-	size_t counter = 0;
 	Node* root = null;
 }
 
