@@ -113,11 +113,17 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		return root !is null && root.contains(value);
 	}
 
+	/**
+	 * Returns: the number of elements in the tree.
+	 */
 	size_t length() const nothrow pure @property
 	{
 		return _length;
 	}
 
+	/**
+	 * Returns: true if the tree is empty.
+	 */
 	bool empty() const nothrow pure @property
 	{
 		return _length == 0;
@@ -130,30 +136,50 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		f.writeln("}");
 	}
 
+	/**
+	 * Returns: a range over the tree. Do not insert into the tree while
+	 * iterating because you may iterate over the same value multiple times.
+	 */
 	Range opSlice() const
 	{
 		return Range(root);
 	}
 
+	/**
+	 * Returns: a range of elements which are less than value.
+	 */
 	Range lowerBound(inout T value) const
 	{
 		return Range(root, Range.Type.lower, value);
 	}
 
+	/**
+	 * Returns: a range of elements which are equivalent (though not necessarily
+	 * equal) to value.
+	 */
 	Range equalRange(inout T value) const
 	{
 		return Range(root, Range.Type.equal, value);
 	}
 
+	/**
+	 * Returns: a range of elements which are greater than value.
+	 */
 	Range upperBound(inout T value) const
 	{
 		return Range(root, Range.Type.upper, value);
 	}
 
+	/**
+	 * Tree range
+	 */
 	static struct Range
 	{
 		@disable this();
 
+		/**
+		 * Standard range operations
+		 */
 		const T front() const @property
 		in
 		{
@@ -164,11 +190,13 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 			return cast(typeof(return)) current.values[index];
 		}
 
+		/// ditto
 		bool empty() const nothrow pure @property
 		{
 			return current is null;
 		}
 
+		/// ditto
 		void popFront()
 		{
 			_popFront();
@@ -189,14 +217,15 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 			}
 		}
 
+		/// ditto
 		Range save() @property
 		{
 			return this;
 		}
 
-		enum Type : ubyte {all, lower, equal, upper}
-
 	private:
+
+		enum Type : ubyte {all, lower, equal, upper}
 
 		import containers.unrolledlist;
 		import std.allocator;
