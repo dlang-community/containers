@@ -37,8 +37,14 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 	private import containers.internal.node;
 
-	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, size_t, cacheLineSize);
+	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 3, size_t, cacheLineSize);
 	static assert (nodeCapacity <= (size_t.sizeof * 4), "cannot fit height info and registry in size_t");
+
+	invariant()
+	{
+		if ((root is null && _length != 0) || (root !is null && root.parent !is null && _length == 0))
+			int a = *(cast(int*) null);
+	}
 
 	void opOpAssign(string op)(T value) if (op == "~")
 	{
@@ -49,7 +55,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 	{
 		if (root is null)
 		{
-			root = allocateNode(value);
+			root = allocateNode(value, null);
 			++_length;
 			return true;
 		}
@@ -123,47 +129,47 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 	Range opSlice() const
 	{
-		return Range(root, _length / nodeCapacity);
+		return Range(root);
 	}
 
 	Range lowerBound(inout T value) const
 	{
-		return Range(root, Range.Type.lower, value, _length / nodeCapacity);
+		return Range(root, Range.Type.lower, value);
 	}
 
 	Range equalRange(inout T value) const
 	{
-		return Range(root, Range.Type.equal, value, _length / nodeCapacity);
+		return Range(root, Range.Type.equal, value);
 	}
 
 	Range upperBound(inout T value) const
 	{
-		return Range(root, Range.Type.upper, value, _length / nodeCapacity);
+		return Range(root, Range.Type.upper, value);
 	}
 
 	static struct Range
 	{
 		@disable this();
 
-		const T front() const
+		const T front() const @property
 		in
 		{
 			assert (!empty);
 		}
 		body
 		{
-			return cast(typeof(return)) nodes[nodeIndex].values[index];
+			return cast(typeof(return)) current.values[index];
 		}
 
 		bool empty() const nothrow pure @property
 		{
-			return _empty;
+			return current is null;
 		}
 
 		void popFront()
 		{
 			_popFront();
-			if (_empty)
+			if (current is null)
 				return;
 			final switch (type)
 			{
@@ -171,11 +177,11 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 			case Type.all: break;
 			case Type.equal:
 				if (_less(front(), val) || _less(val, front()))
-					_empty = true;
+					current = null;
 				break;
 			case Type.lower:
 				if (!_less(front(), val))
-					_empty = true;
+					current = null;
 				break;
 			}
 		}
@@ -194,20 +200,22 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		import memory.allocators;
 		import std.array;
 
-		this(inout(Node)* n, size_t length)
+		this(inout(Node)* n)
 		{
 			this.type = Type.all;
-			nodes.length = length;
-			nodes.length = 0;
 			if (n is null)
-				_empty = true;
+				current = null;
 			else
-				visit(n);
+			{
+				current = n;
+				while (current.left !is null)
+					current = current.left;
+			}
 		}
 
-		this(inout(Node)* n, Type type, inout T val, size_t length)
+		this(inout(Node)* n, Type type, inout T val)
 		{
-			this(n, length);
+			this(n);
 			this.type = type;
 			this.val = val;
 			final switch(type)
@@ -216,15 +224,16 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 				break;
 			case Type.lower:
 				if (_less(val, front()))
-					_empty = true;
+					current = null;
 				break;
 			case Type.equal:
-				while (!_empty && _less(front(), val))
+				while (current !is null && _less(front(), val))
 					_popFront();
-				_empty = _empty || _less(front(), val) || _less(val, front());
+				if (current is null || _less(front(), val) || _less(val, front()))
+					current = null;
 				break;
 			case Type.upper:
-				while (!_empty && !_less(val, front()))
+				while (current !is null && !_less(val, front()))
 					_popFront();
 				break;
 			}
@@ -233,34 +242,43 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		void _popFront()
 		in
 		{
-			assert (nodeIndex < nodes.length);
+			assert (!empty);
 		}
 		body
 		{
 			index++;
-			if (index >= nodeCapacity || nodes[nodeIndex].isFree(index))
+			if (index >= nodeCapacity || current.isFree(index))
 			{
 				index = 0;
-				nodeIndex++;
-				if (nodeIndex >= nodes.length)
-					_empty = true;
+				if (current.right !is null)
+				{
+					current = current.right;
+					while (current.left !is null)
+						current = current.left;
+				}
+				else if (current.parent is null)
+					current = null;
+				else if (current.parent.left is current)
+					current = current.parent;
+				else
+				{
+					while (current.parent.right is current)
+					{
+						current = current.parent;
+						if (current.parent is null)
+						{
+							current = null;
+							return;
+						}
+					}
+					current = current.parent;
+				}
 			}
 		}
 
-		void visit(inout(Node)* n)
-		{
-			if (n.left !is null)
-				visit(n.left);
-			nodes ~= n;
-			if (n.right !is null)
-				visit(n.right);
-		}
-
 		size_t index;
-		const(Node)*[] nodes;
-		size_t nodeIndex;
+		const(Node)* current;
 		Type type;
-		bool _empty;
 		const T val;
 	}
 
@@ -280,7 +298,7 @@ private:
 	else
 		alias _less = binaryFun!less;
 
-	static Node* allocateNode(ref T value)
+	static Node* allocateNode(ref T value, Node* parent)
 	out (result)
 	{
 		assert (result.left is null);
@@ -291,6 +309,7 @@ private:
 		import std.traits;
 		import core.memory;
 		Node* n = allocate!Node(Mallocator.it);
+		n.parent = parent;
 		n.markUsed(0);
 		n.values[0] = value;
 		static if (supportGC && shouldAddGCRange!T)
@@ -397,7 +416,7 @@ private:
 			return 0;
 		}
 
-		bool insert(T value, ref Node* n)
+		bool insert(T value, ref Node* root)
 		in
 		{
 			static if (isPointer!T || is (T == class))
@@ -421,13 +440,13 @@ private:
 			{
 				if (left is null)
 				{
-					left = allocateNode(value);
+					left = allocateNode(value, &this);
 					calcHeight();
 					return true;
 				}
-				bool b = left.insert(value, left);
+				bool b = left.insert(value, root);
 				if (imbalanced() == -1)
-					n = rotateRight();
+					rotateRight(root);
 				calcHeight();
 				return b;
 			}
@@ -435,13 +454,13 @@ private:
 			{
 				if (right is null)
 				{
-					right = allocateNode(value);
+					right = allocateNode(value, &this);
 					calcHeight();
 					return true;
 				}
-				bool b = right.insert(value, right);
+				bool b = right.insert(value, root);
 				if (imbalanced() == 1)
-					n = rotateLeft();
+					rotateLeft(root);
 				calcHeight();
 				return b;
 			}
@@ -452,31 +471,31 @@ private:
 			temp[0 .. $ - 1] = values[];
 			temp[$ - 1] = value;
 			sort!_less(temp[]);
-			if (left is null)
-			{
-				values[] = temp[1 .. $];
-				left = allocateNode(temp[0]);
-				return true;
-			}
 			if (right is null)
 			{
 				values[] = temp[0 .. $ - 1];
-				right = allocateNode(temp[$ - 1]);
+				right = allocateNode(temp[$ - 1], &this);
+				return true;
+			}
+			if (left is null)
+			{
+				values[] = temp[1 .. $];
+				left = allocateNode(temp[0], &this);
 				return true;
 			}
 			if (right.height < left.height)
 			{
 				values[] = temp[0 .. $ - 1];
-				bool b = right.insert(temp[$ - 1], right);
+				bool b = right.insert(temp[$ - 1], root);
 				if (imbalanced() == 1)
-					n = rotateLeft();
+					rotateLeft(root);
 				calcHeight();
 				return b;
 			}
 			values[] = temp[1 .. $];
-			bool b = left.insert(temp[0], left);
+			bool b = left.insert(temp[0], root);
 			if (imbalanced() == -1)
-				n = rotateRight();
+				rotateRight(root);
 			calcHeight();
 			return b;
 		}
@@ -593,75 +612,90 @@ private:
 			return r;
 		}
 
-		Node* rotateLeft()
+		void rotateLeft(ref Node* root)
 		{
-			Node* retVal = void;
+			Node* newRoot = void;
 			if (right.left !is null && right.right is null)
 			{
-				retVal = right.left;
-				retVal.right = right;
-				retVal.left = &this;
-				right.left = null;
+				newRoot = right.left;
+				newRoot.parent = this.parent;
+				newRoot.left = &this;
+				newRoot.left.parent = newRoot;
+				newRoot.right = right;
+				newRoot.right.parent = newRoot;
+				newRoot.right.left = null;
 				right = null;
-			}
-			else
-			{
-				retVal = right;
-				right = retVal.left;
-				retVal.left = &this;
-			}
-			fillFromChildren(retVal);
-			if (retVal.left !is null)
-			{
-				fillFromChildren(retVal.left);
-			}
-			if (retVal.right !is null)
-			{
-				fillFromChildren(retVal.right);
-			}
-			if (retVal.left !is null)
-				retVal.left.calcHeight();
-			if (retVal.right !is null)
-				retVal.right.calcHeight();
-			retVal.calcHeight();
-			return retVal;
-		}
-
-		Node* rotateRight()
-		{
-			Node* retVal = void;
-			if (left.right !is null && left.left is null)
-			{
-				retVal = left.right;
-				retVal.left = left;
-				retVal.right = &this;
-				left.right = null;
 				left = null;
 			}
 			else
 			{
-				retVal = left;
-				left = retVal.right;
-				retVal.right = &this;
+				newRoot = right;
+				newRoot.parent = this.parent;
+				right = newRoot.left;
+				if (right !is null)
+					right.parent = &this;
+				newRoot.left = &this;
+				this.parent = newRoot;
 			}
-			fillFromChildren(retVal);
-			if (retVal.left !is null)
-			{
-				fillFromChildren(retVal.left);
-			}
-			if (retVal.right !is null)
-			{
-				fillFromChildren(retVal.right);
-			}
-			if (retVal.left !is null)
-				retVal.left.calcHeight();
-			if (retVal.right !is null)
-				retVal.right.calcHeight();
-			retVal.calcHeight();
-			return retVal;
+			cleanup(newRoot, root);
 		}
 
-		void fillFromChildren(Node* n)
+		void rotateRight(ref Node* root)
+		{
+			Node* newRoot = void;
+			if (left.right !is null && left.left is null)
+			{
+				newRoot = left.right;
+				newRoot.parent = this.parent;
+				newRoot.right = &this;
+				newRoot.right.parent = newRoot;
+				newRoot.left = left;
+				newRoot.left.parent = newRoot;
+				newRoot.left.right = null;
+				left = null;
+				right = null;
+			}
+			else
+			{
+				newRoot = left;
+				newRoot.parent = this.parent;
+				left = newRoot.right;
+				if (left !is null)
+					left.parent = &this;
+				newRoot.right = &this;
+				this.parent = newRoot;
+			}
+			cleanup(newRoot, root);
+		}
+
+		void cleanup(Node* newRoot, ref Node* root)
+		{
+			if (newRoot.parent !is null)
+			{
+				if (newRoot.parent.right is &this)
+					newRoot.parent.right = newRoot;
+				else
+					newRoot.parent.left = newRoot;
+			}
+			else
+				root = newRoot;
+			fillFromChildren(newRoot, root);
+			if (newRoot.left !is null)
+			{
+				fillFromChildren(newRoot.left, root);
+			}
+			if (newRoot.right !is null)
+			{
+				fillFromChildren(newRoot.right, root);
+			}
+			if (newRoot.left !is null)
+				newRoot.left.calcHeight();
+			if (newRoot.right !is null)
+				newRoot.right.calcHeight();
+			newRoot.calcHeight();
+		}
+
+		void fillFromChildren(Node* n, ref Node* root)
 		in
 		{
 			assert (n !is null);
@@ -671,9 +705,9 @@ private:
 			while (!n.isFull())
 			{
 				if (n.left !is null)
-					n.insert(n.left.removeLargest(n.left), n.left);
+					n.insert(n.left.removeLargest(n.left), root);
 				else if (n.right !is null)
-					n.insert(n.right.removeSmallest(n.right), n.right);
+					n.insert(n.right.removeSmallest(n.right), root);
 				else
 					break;
 			}
@@ -701,28 +735,37 @@ private:
 				f.writefln("\"%016x\":f2 -> \"%016x\";", &this, right);
 				right.print(f);
 			}
+			if (parent !is null)
+			{
+				f.writefln("\"%016x\" -> \"%016x\";", &this, parent);
+			}
 		}
 
-//		invariant()
-//		{
-//			import std.string;
-//			assert (&this !is null);
-//			assert (left !is &this, "%x, %x".format(left, &this));
-//			assert (right !is &this, "%x, %x".format(right, &this));
-//			if (left !is null)
-//			{
-//				assert (left.left !is &this, "%s".format(values));
-//				assert (left.right !is &this, "%x, %x".format(left.right, &this));
-//			}
-//			if (right !is null)
-//			{
-//				assert (right.left !is &this, "%s".format(values));
-//				assert (right.right !is &this, "%s".format(values));
-//			}
-//		}
+		invariant()
+		{
+			import std.string;
+			assert (&this !is null);
+			assert (left !is &this, "%x, %x".format(left, &this));
+			assert (right !is &this, "%x, %x".format(right, &this));
+			if (left !is null)
+			{
+				assert (left.left !is &this, "%s".format(values));
+				assert (left.right !is &this, "%x, %x".format(left.right, &this));
+				if (left.parent !is &this)
+					int a = *(cast(int*) null);
+			}
+			if (right !is null)
+			{
+				assert (right.left !is &this, "%s".format(values));
+				assert (right.right !is &this, "%s".format(values));
+				if (right.parent !is &this)
+					int a = *(cast(int*) null);
+			}
+		}
 
 		Node* left;
 		Node* right;
+		Node* parent;
 		T[nodeCapacity] values;
 		size_t registry = (cast(size_t) 1) << (size_t.sizeof * 4);
 	}
@@ -735,12 +778,199 @@ private:
 unittest
 {
 	import std.uuid;
+	import std.stdio;
 	import core.memory;
 	import std.string;
 	import std.range;
 	import std.algorithm;
 	GC.disable();
 	scope(exit) GC.enable();
+
+	{
+		KAryTree!int kt;
+		assert (kt.empty);
+		foreach (i; 0 .. 200)
+		{
+			assert (kt.insert(i));
+//			version(graphviz_debugging)
+//			{
+//				File f = File("graph%04d.dot".format(i), "w");
+//				kt.print(f);
+//			}
+		}
+		assert (!kt.empty);
+		assert (kt.length == 200);
+		assert (kt.contains(30));
+//		writeln(__LINE__, " passed");
+	}
+
+	{
+		KAryTree!int kt;
+		assert (!kt.contains(5));
+		kt.insert(2_000);
+		assert (kt.contains(2_000));
+		foreach_reverse (i; 0 .. 1_000)
+		{
+			assert (kt.insert(i));
+		}
+		assert (!kt.contains(100_000));
+//		writeln(__LINE__, " passed");
+	}
+
+	{
+		import std.random;
+		KAryTree!int kt;
+		foreach (i; 0 .. 1_000)
+		{
+			kt.insert(uniform(0, 100_000));
+		}
+//		writeln(__LINE__, " passed");
+	}
+
+	{
+		KAryTree!int kt;
+		kt.insert(10);
+		assert (kt.length == 1);
+		assert (!kt.insert(10));
+		assert (kt.length == 1);
+//		writeln(__LINE__, " passed");
+	}
+
+	{
+		KAryTree!(int, true) kt;
+		assert (kt.insert(1));
+		assert (kt.length == 1);
+		assert (kt.insert(1));
+		assert (kt.length == 2);
+		assert (kt.contains(1));
+//		writeln(__LINE__, " passed");
+	}
+
+	{
+		KAryTree!(int) kt;
+		foreach (i; 0 .. 200)
+		{
+			assert (kt.insert(i));
+//			version(graphviz_debugging)
+//			{
+//				File f = File("graph%04d.dot".format(i), "w");
+//				kt.print(f);
+//			}
+		}
+		assert (kt.length == 200);
+		assert (kt.remove(79));
+		assert (!kt.remove(79));
+//		version(graphviz_debugging)
+//		{
+//			File f = File("graph%04d.dot".format(999), "w");
+//			kt.print(f);
+//		}
+		assert (kt.length == 199);
+//		writeln(__LINE__, " passed");
+	}
+
+	{
+		string[] strs = [
+			"2c381d2a-bacd-40db-b6d8-055b144c5ee6",
+			"62104b50-e235-4c95-bcb9-a545e88e2d09",
+			"828c8fc0-a392-4738-a49c-62e991fce090",
+			"62e30465-79eb-446e-b34f-af5d7c491486",
+			"93ec245b-60d2-4422-91ff-66a6d7e299fc",
+			"c1d2f3d7-82cc-4d90-a2c5-9fba335f36cd",
+			"c9d8d980-94eb-4941-b873-00d68021522f",
+			"82dbc4df-cb3c-447a-9d73-cd6291a0ba02",
+			"8d259231-6ab6-49e4-9bb6-fe097c4153ed",
+			"f9f2d719-61e1-4f62-ae2c-bf2a24a13d5b"
+		];
+		KAryTree!string strings;
+		foreach (i, s; strs)
+		{
+			assert (strings.insert(s));
+//			version(graphviz_debugging)
+//			{
+//				File f = File("graph%04d.dot".format(i), "w");
+//				strings.print(f);
+//			}
+		}
+		sort(strs[]);
+//		writeln(strings[]);
+		assert (equal(strs, strings[]));
+//		writeln(__LINE__, " passed");
+	}
+
+	foreach (x; 0 .. 1000)
+	{
+		KAryTree!string strings;
+		string[] strs = iota(10).map!(a => randomUUID().toString()).array();
+		foreach (i, s; strs)
+		{
+			assert (strings.insert(s));
+//			version(graphviz_debugging)
+//			{
+//				File f = File("graph%04d.dot".format(i), "w");
+//				strings.print(f);
+//			}
+		}
+		assert (strings.length == strs.length);
+//		version(graphviz_debugging)
+//		{
+//			File f = File("graph%04d.dot".format(1000), "w");
+//			strings.print(f);
+//		}
+		sort(strs);
+//		writeln(strings[]);
+		assert (equal(strs, strings[]));
+//		writeln(__LINE__, " passed");
+	}
+
+	{
+		KAryTree!string strings;
+		strings.insert(["e", "f", "a", "b", "c", "d"]);
+//		writeln(strings[]);
+		assert (equal(strings[], ["a", "b", "c", "d", "e", "f"]));
+//		writeln(__LINE__, " passed");
+	}
+
+	{
+		KAryTree!(string, true) strings;
+		assert (strings.insert("b"));
+		assert (strings.insert("c"));
+		assert (strings.insert("a"));
+		assert (strings.insert("d"));
+		assert (strings.insert("d"));
+		assert (strings.length == 5);
+		assert (equal(strings.equalRange("d"), ["d", "d"]));
+		assert (equal(strings.lowerBound("d"), ["a", "b", "c"]));
+		assert (equal(strings.upperBound("c"), ["d", "d"]));
+//		writeln(__LINE__, " passed");
+	}
+
+	{
+		import std.stdio;
+		static struct S
+		{
+			string x;
+			int opCmp (ref const S other) const
+			{
+				import std.string;
+				if (x < other.x)
+					return -1;
+				if (x > other.x)
+					return 1;
+				return 0;
+			}
+		}
+
+		KAryTree!(S*, true) stringTree;
+		auto one = S("offset");
+		stringTree.insert(&one);
+		auto two = S("object");
+		auto three = S("old");
+		assert (stringTree.equalRange(&two).empty);
+		assert (!stringTree.equalRange(&one).empty);
+		assert (stringTree[].front.x == "offset");
+//		writeln(__LINE__, " passed");
+	}
 
 	{
 		static struct TestStruct
@@ -776,196 +1006,7 @@ unittest
 		TestStruct a = TestStruct(30, 100);
 		auto eqArray = array(tsTree.equalRange(&a));
 		assert (eqArray.length == 1, format("%d", eqArray.length));
-	}
-
-	{
-		KAryTree!int kt;
-		assert (kt.empty);
-		foreach (i; 0 .. 200)
-		{
-			assert (kt.insert(i));
-//			version(graphviz_debugging)
-//			{
-//				File f = File("graph%04d.dot".format(i), "w");
-//				kt.print(f);
-//			}
-		}
-		assert (!kt.empty);
-		assert (kt.length == 200);
-		assert (kt.contains(30));
-	}
-
-	{
-		KAryTree!int kt;
-		assert (!kt.contains(5));
-		kt.insert(2_000);
-		assert (kt.contains(2_000));
-		foreach_reverse (i; 0 .. 1_000)
-		{
-			assert (kt.insert(i));
-		}
-		assert (!kt.contains(100_000));
-	}
-
-	{
-		import std.random;
-		KAryTree!int kt;
-		foreach (i; 0 .. 1_000)
-		{
-			kt.insert(uniform(0, 100_000));
-		}
-	}
-
-	{
-		KAryTree!int kt;
-		kt.insert(10);
-		assert (kt.length == 1);
-		assert (!kt.insert(10));
-		assert (kt.length == 1);
-	}
-
-	{
-		KAryTree!(int, true) kt;
-		assert (kt.insert(1));
-		assert (kt.length == 1);
-		assert (kt.insert(1));
-		assert (kt.length == 2);
-		assert (kt.contains(1));
-	}
-
-	{
-		KAryTree!(int) kt;
-		foreach (i; 0 .. 200)
-		{
-			assert (kt.insert(i));
-//			version(graphviz_debugging)
-//			{
-//				File f = File("graph%04d.dot".format(i), "w");
-//				kt.print(f);
-//			}
-		}
-		assert (kt.length == 200);
-		assert (kt.remove(79));
-		assert (!kt.remove(79));
-//		version(graphviz_debugging)
-//		{
-//			File f = File("graph%04d.dot".format(999), "w");
-//			kt.print(f);
-//		}
-		assert (kt.length == 199);
-	}
-
-	{
-		string[] strs = [
-			"2c381d2a-bacd-40db-b6d8-055b144c5ee6",
-			"62104b50-e235-4c95-bcb9-a545e88e2d09",
-			"828c8fc0-a392-4738-a49c-62e991fce090",
-			"62e30465-79eb-446e-b34f-af5d7c491486",
-			"93ec245b-60d2-4422-91ff-66a6d7e299fc",
-			"c1d2f3d7-82cc-4d90-a2c5-9fba335f36cd",
-			"c9d8d980-94eb-4941-b873-00d68021522f",
-			"82dbc4df-cb3c-447a-9d73-cd6291a0ba02",
-			"8d259231-6ab6-49e4-9bb6-fe097c4153ed",
-			"f9f2d719-61e1-4f62-ae2c-bf2a24a13d5b"
-		];
-		KAryTree!string strings;
-		foreach (i, s; strs)
-		{
-			assert (strings.insert(s));
-//			version(graphviz_debugging)
-//			{
-//				File f = File("graph%04d.dot".format(i), "w");
-//				strings.print(f);
-//			}
-		}
-		sort(strs[]);
-		assert (equal(strs, strings[]));
-	}
-
-	foreach (x; 0 .. 1000)
-	{
-		KAryTree!string strings;
-		string[] strs = iota(10).map!(a => randomUUID().toString()).array();
-		foreach (i, s; strs)
-		{
-			assert (strings.insert(s));
-//			version(graphviz_debugging)
-//			{
-//				File f = File("graph%04d.dot".format(i), "w");
-//				strings.print(f);
-//			}
-		}
-		assert (strings.length == strs.length);
-//		version(graphviz_debugging)
-//		{
-//			File f = File("graph%04d.dot".format(1000), "w");
-//			strings.print(f);
-//		}
-		sort(strs);
-		import std.stdio;
-//		writeln(strings[]);
-		assert (equal(strs, strings[]));
-	}
-
-	{
-		KAryTree!string strings;
-		string[] strs = [
-			"e",
-			"f",
-			"a",
-			"b",
-			"c",
-			"d",
-		];
-		foreach (i, s; strs)
-		{
-			strings.insert(s);
-//			version(graphviz_debugging)
-//			{
-//				File f = File("graph%04d.dot".format(i), "w");
-//				strings.print(f);
-//			}
-		}
-		assert (equal(strings[], ["a", "b", "c", "d", "e", "f"]));
-	}
-
-	{
-		KAryTree!(string, true) strings;
-		assert (strings.insert("b"));
-		assert (strings.insert("c"));
-		assert (strings.insert("a"));
-		assert (strings.insert("d"));
-		assert (strings.insert("d"));
-		assert (strings.length == 5);
-		assert (equal(strings.equalRange("d"), ["d", "d"]));
-		assert (equal(strings.lowerBound("d"), ["a", "b", "c"]));
-		assert (equal(strings.upperBound("c"), ["d", "d"]));
-	}
-
-	{
-		import std.stdio;
-		static struct S
-		{
-			string x;
-			int opCmp (ref const S other) const
-			{
-				import std.string;
-				if (x < other.x)
-					return -1;
-				if (x > other.x)
-					return 1;
-				return 0;
-			}
-		}
-
-		KAryTree!(S*, true) stringTree;
-		auto one = S("offset");
-		stringTree.insert(&one);
-		auto two = S("object");
-		auto three = S("old");
-		assert (stringTree.equalRange(&two).empty);
-		assert (!stringTree.equalRange(&one).empty);
-		assert (stringTree[].front.x == "offset");
+//		writeln(__LINE__, " passed");
 	}
 
 	{
@@ -976,5 +1017,6 @@ unittest
 		assert (canFind(ints[], 20));
 		assert (walkLength(ints[]) == 50);
 		assert (walkLength(filter!(a => (a & 1) == 0)(ints[])) == 25);
+//		writeln(__LINE__, " passed");
 	}
 }
