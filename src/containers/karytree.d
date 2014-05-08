@@ -51,6 +51,11 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		insert(value);
 	}
 
+	/**
+	 * Returns true if any values were added. This is not a stable insert. You
+	 * will get strange results if you insert into a tree while iterating over
+	 * it.
+	 */
 	bool insert(T value)
 	{
 		if (root is null)
@@ -65,9 +70,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 		return r;
 	}
 
-	/**
-	 * Returns true if any values were added
-	 */
+	/// ditto
 	bool insert(R)(R r)
 	{
 		bool retVal = false;
