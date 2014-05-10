@@ -42,8 +42,7 @@ struct KAryTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 	invariant()
 	{
-		if ((root is null && _length != 0) || (root !is null && root.parent !is null && _length == 0))
-			int a = *(cast(int*) null);
+		assert ((root is null || _length != 0) || (root.parent is null && _length > 0));
 	}
 
 	void opOpAssign(string op)(T value) if (op == "~")
@@ -783,15 +782,13 @@ private:
 			{
 				assert (left.left !is &this, "%s".format(values));
 				assert (left.right !is &this, "%x, %x".format(left.right, &this));
-				if (left.parent !is &this)
-					int a = *(cast(int*) null);
+				assert (left.parent is &this);
 			}
 			if (right !is null)
 			{
 				assert (right.left !is &this, "%s".format(values));
 				assert (right.right !is &this, "%s".format(values));
-				if (right.parent !is &this)
-					int a = *(cast(int*) null);
+				assert (right.parent is &this);
 			}
 		}
 
@@ -996,7 +993,6 @@ unittest
 		auto one = S("offset");
 		stringTree.insert(&one);
 		auto two = S("object");
-		auto three = S("old");
 		assert (stringTree.equalRange(&two).empty);
 		assert (!stringTree.equalRange(&one).empty);
 		assert (stringTree[].front.x == "offset");

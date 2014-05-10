@@ -71,18 +71,14 @@ struct BlockAllocator(size_t blockSize)
 	 */
 	~this() pure nothrow @trusted
 	{
-		if (--refCount > 0)
-			return;
 		Node* current = root;
 		Node* previous = void;
-		uint i = 0;
 		while (current !is null)
 		{
 			previous = current;
 			current = current.next;
 			assert (previous == previous.memory.ptr);
 			Mallocator.it.deallocate(previous.memory);
-			i++;
 		}
 		root = null;
 	}
@@ -182,11 +178,6 @@ private:
 	 * Pointer to the first item in the node list
 	 */
 	Node* root;
-
-	/**
-	 * Reference count
-	 */
-	uint refCount = 1;
 
 	/**
 	 * Returns s rounded up to a multiple of base.
