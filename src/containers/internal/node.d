@@ -11,6 +11,11 @@ template fatNodeCapacity(size_t bytesPerItem, size_t pointerCount,
 		enum fatNodeCapacity = 1;
 }
 
+// Double linked fat node of int with bookkeeping in a uint should be able to
+// hold 11 ints per node.
+// 64 - 16 - 4 = 4 * 11
+static assert (fatNodeCapacity!(int.sizeof, 2, uint) == 11);
+
 template shouldNullSlot(T)
 {
 	import std.traits;
@@ -22,6 +27,9 @@ template shouldAddGCRange(T)
 	import std.traits;
 	enum shouldAddGCRange = isPointer!T || hasIndirections!T || is (T == class);
 }
+
+static assert (shouldAddGCRange!string);
+static assert (!shouldAddGCRange!int);
 
 template fullBits(size_t n, size_t c = 0)
 {
