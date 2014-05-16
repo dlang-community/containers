@@ -15,27 +15,25 @@ module containers.unrolledlist;
  * Params:
  *     T = the element type
  *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
- * $(B Do not store pointers to GC-allocated memory in this container.)
  */
-struct UnrolledList(T, size_t cacheLineSize = 64)
+struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 {
-	this(this)
-	{
-		refCount++;
-	}
+	private import std.traits;
+
+	this(this) @disable;
 
 	~this()
 	{
-		if (--refCount > 0)
-			return;
 		Node* prev = null;
 		Node* cur = _front;
 		while (cur !is null)
 		{
 			prev = cur;
 			cur = cur.next;
-			typeid(Node).destroy(prev);
-			deallocate(Mallocator.it, prev);
+			static if (!is(T == class))
+				foreach (ref item; cur.items)
+					typeid(T).destroy(&item);
+			deallocateNode(prev);
 		}
 	}
 
@@ -46,21 +44,39 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 	{
 		if (_back is null)
 		{
-			_back = allocate!Node(Mallocator.it);
+			_back = allocateNode(item);
 			_front = _back;
 		}
-		size_t index = _back.nextAvailableIndex();
-		if (index >= nodeCapacity)
+		else
 		{
-			Node* n = allocate!Node(Mallocator.it);
-			_back.next = n;
-			_back = n;
-			index = 0;
+			size_t index = _back.nextAvailableIndex();
+			if (index >= nodeCapacity)
+			{
+				Node* n = allocateNode(item);
+				_back.next = n;
+				_back = n;
+				index = 0;
+			}
+			else
+			{
+				_back.items[index] = item;
+				_back.markUsed(index);
+			}
 		}
-		_back.items[index] = item;
-		_back.markUsed(index);
 		_length++;
+		assert (_back.registry <= fullBits!nodeCapacity);
 	}
+
+	void insertBack(R)(R range)
+	{
+		foreach (ref r; range)
+			insertBack(r);
+	}
+
+	/// ditto
+	alias put = insertBack;
+	/// ditto
+	alias insert = insertBack;
 
 	/**
 	 * Inserts the given item in the frontmost available cell, which may put the
@@ -83,15 +99,15 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 			n.items[i] = item;
 			n.markUsed(i);
 			_length++;
+			assert (n.registry <= fullBits!nodeCapacity);
 			return;
 		}
 		assert (n is _back);
-		n = allocate!Node(Mallocator.it);
+		n = allocateNode(item);
 		_back.next = n;
 		_back = n;
-		_back.items[0] = item;
-		_back.markUsed(0);
 		_length++;
+		assert (_back.registry <= fullBits!nodeCapacity);
 	}
 
 	size_t length() const nothrow pure @property
@@ -104,40 +120,109 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		return _length == 0;
 	}
 
-	void remove(ref T item)
+	bool remove(T item)
 	{
 		import core.bitop;
+		if (_front is null)
+			return false;
 		Node* n = _front;
-		while (n !is null)
+		bool r = false;
+		loop: while (n !is null)
 		{
 			foreach (i; 0 .. nodeCapacity)
 			{
 				if (n.items[i] == item)
 				{
 					n.markUnused(i);
+					--_length;
+					r = true;
 					if (n.next !is null
-						&& (popcnt(n.next.registry) + popcnt(n.registry) < nodeCapacity))
+						&& (popcnt(n.next.registry) + popcnt(n.registry) <= nodeCapacity))
 					{
 						mergeNodes(n, n.next);
 					}
+					break loop;
 				}
 			}
+			n = n.next;
 		}
+		if (_front.registry == 0)
+		{
+			deallocateNode(_front);
+			_front = null;
+			_back = null;
+		}
+		return r;
 	}
 
-	/// ditto
-	alias put = insert;
-	/// ditto
-	alias insert = insertBack;
+	void popFront()
+	{
+		moveFront();
+		assert (_front is null || _front.registry != 0);
+	}
+
+	T moveFront()
+	in
+	{
+		assert (!empty());
+		assert (_front.registry != 0);
+	}
+	body
+	{
+		import std.stdio;
+		import core.bitop;
+		size_t index = bsf(_front.registry);
+		T r = _front.items[index];
+		_front.markUnused(index);
+		_length--;
+		if (_front.registry == 0)
+		{
+			auto f = _front;
+			assert (_front.next !is _front);
+			_front = _front.next;
+			if (_front is null)
+				_back = null;
+			else
+				assert (_front.registry <= fullBits!nodeCapacity);
+			deallocateNode(f);
+			return r;
+		}
+		if (_front.next !is null
+			&& (popcnt(_front.next.registry) + popcnt(_front.registry) <= nodeCapacity))
+		{
+			mergeNodes(_front, _front.next);
+		}
+		return r;
+	}
+
+	invariant()
+	{
+		import std.string;
+		assert (_front is null || _front.registry != 0, format("%x, %b", _front, _front.registry));
+		assert (_front !is null || _back is null);
+	}
+
+	inout T front() const @property
+	in
+	{
+		assert (!empty);
+		assert (_front.registry != 0);
+	}
+	body
+	{
+		import core.bitop;
+		import std.string;
+		size_t index = bsf(_front.registry);
+		assert (index < nodeCapacity, format("%d", index));
+		return cast(T) _front.items[index];
+	}
 
 	/**
 	 * Number of items stored per node.
 	 */
-	enum size_t nodeCapacity = (cacheLineSize - (void*).sizeof - (void*).sizeof
-		- ushort.sizeof) / T.sizeof;
-	static assert (nodeCapacity <= (typeof(Node.registry).sizeof * 8));
+	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, ushort, cacheLineSize);
 
-	Range range()
+	Range range() const nothrow pure
 	{
 		return Range(_front);
 	}
@@ -147,23 +232,42 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 	static struct Range
 	{
 		@disable this();
-		this(Node* current)
+
+		this(inout(Node)* current)
 		{
+			import core.bitop;
 			this.current = current;
+			if (current !is null)
+			{
+				index = bsf(current.registry);
+				assert (index < nodeCapacity);
+			}
 		}
 
-		T front() const nothrow pure @property
+		T front() const @property
 		{
-			return current.items[index];
+			return cast(T) current.items[index];
 		}
 
 		void popFront() nothrow pure
 		{
 			index++;
-			if (index >= nodeCapacity || current.isFree(index))
+			while (true)
 			{
-				current = current.next;
-				index = 0;
+				if (current is null)
+					return;
+				if (index >= nodeCapacity)
+				{
+					current = current.next;
+					index = 0;
+				}
+				else
+				{
+					if (current.isFree(index))
+						index++;
+					else
+						return;
+				}
 			}
 		}
 
@@ -172,19 +276,47 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 			return current is null;
 		}
 
-		Node* current;
+		Range save() const nothrow pure @property
+		{
+			return this;
+		}
+
+		const(Node)* current;
 		size_t index;
 	}
 
 private:
 
 	import std.allocator;
-	import std.traits;
+	import containers.internal.node;
 
 	Node* _back;
 	Node* _front;
 	size_t _length;
-	uint refCount;
+//	uint refCount = 1;
+
+	Node* allocateNode(T item)
+	{
+		Node* n = allocate!Node(Mallocator.it);
+		static if (supportGC && shouldAddGCRange!T)
+		{
+			import core.memory;
+			GC.addRange(n, Node.sizeof);
+		}
+		n.items[0] = item;
+		n.markUsed(0);
+		return n;
+	}
+
+	void deallocateNode(Node* n)
+	{
+		deallocate(Mallocator.it, n);
+		static if (supportGC && shouldAddGCRange!T)
+		{
+			import core.memory;
+			GC.removeRange(n);
+		}
+	}
 
 	void mergeNodes(Node* first, Node* second)
 	in
@@ -198,17 +330,24 @@ private:
 		size_t i;
 		T[nodeCapacity] temp;
 		foreach (j; 0 .. nodeCapacity)
-		{
 			if (!first.isFree(j))
 				temp[i++] = first.items[j];
+		foreach (j; 0 .. nodeCapacity)
 			if (!second.isFree(j))
 				temp[i++] = second.items[j];
-		}
 		first.next = second.next;
 		first.items[0 .. i] = temp[0 .. i];
 		first.registry = 0;
 		foreach (k; 0 .. i)
 			first.markUsed(k);
+		assert (first.registry <= fullBits!nodeCapacity);
+		static if (supportGC && shouldAddGCRange!T)
+		{
+			import core.memory;
+			GC.removeRange(second);
+			if (_back is second)
+				_back = null;
+		}
 		deallocate(Mallocator.it, second);
 	}
 
@@ -220,20 +359,35 @@ private:
 			return bsf(~registry);
 		}
 
-		void markUsed(size_t index)
+		void markUsed(size_t index) nothrow pure
 		{
 			registry |= (1 << index);
 		}
 
-		void markUnused(size_t index)
+		void markUnused(size_t index) nothrow pure
 		{
 			registry &= ~(1 << index);
+			static if (shouldNullSlot!T)
+				items[index] = null;
 		}
 
-		bool isFree(size_t index)
+		bool empty() const nothrow pure
+		{
+			return registry == 0;
+		}
+
+		bool isFree(size_t index) const nothrow pure
 		{
 			return (registry & (1 << index)) == 0;
 		}
+
+//		invariant()
+//		{
+//			import std.string;
+//			assert (registry <= fullBits!nodeCapacity, format("%016b %016b", registry, fullBits!nodeCapacity));
+//			assert (prev !is &this);
+//			assert (next !is &this);
+//		}
 
 		ushort registry;
 		T[nodeCapacity] items;
@@ -246,6 +400,8 @@ unittest
 {
 	import std.algorithm;
 	import std.range;
+	import std.stdio;
+	import std.string;
 	UnrolledList!int l;
 	static assert (l.Node.sizeof <= 64);
 	assert (l.empty);
@@ -256,4 +412,30 @@ unittest
 		l.insert(i);
 	assert (l.length == 100);
 	assert (equal(l[], iota(100)));
+	foreach (i; 0 .. 100)
+		assert (l.remove(i), format("%d", i));
+	assert (l.length == 0, format("%d", l.length));
+	assert (l.empty);
+	UnrolledList!int l2;
+	l2.insert(1);
+	l2.insert(2);
+	l2.insert(3);
+	assert (l2.front == 1);
+	l2.popFront();
+	assert (l2.front == 2);
+	assert (equal(l2[], [2, 3]));
+	l2.popFront();
+	assert (equal(l2[], [3]));
+	l2.popFront();
+	assert (l2.empty, format("%d", l2.front));
+	assert (equal(l2[], cast(int[]) []));
+	UnrolledList!int l3;
+	foreach (i; 0 .. 200)
+		l3.insert(i);
+	foreach (i; 0 .. 200)
+	{
+		auto x = l3.moveFront();
+		assert (x == i, format("%d %d", i, x));
+	}
+	assert (l3.empty);
 }

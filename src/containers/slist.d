@@ -18,19 +18,14 @@ auto slist(T)()
  * Params:
  *     T = the element type
  *     A = the allocator type
- * $(B Do not store pointers to GC-allocated memory in this container.)
  */
 struct SList(T, A)
 {
 	/**
 	 * Disable default-construction and postblit
 	 */
-	@disable this();
-
-	this(this)
-	{
-		refCount++;
-	}
+	this() @disable;
+	this(this) @disable;
 
 	/**
 	 * Params: allocator = the allocator instance used to allocate nodes
@@ -42,22 +37,27 @@ struct SList(T, A)
 
 	~this()
 	{
-		if (--refCount > 0)
-			return;
 		Node* current = _front;
 		Node* prev = null;
 		while (current !is null)
 		{
 			prev = current;
 			current = current.next;
+			typeid(Node).destroy(prev);
+			static if (shouldAddGCRange!T)
+			{
+				import core.memory;
+				GC.removeRange(prev);
+			}
 			deallocate(allocator, prev);
 		}
+		_front = null;
 	}
 
 	/**
 	 * Returns: the most recently inserted item
 	 */
-	T front() pure nothrow @property
+	T front() inout pure nothrow @property
 	in
 	{
 		assert (!empty);
@@ -80,6 +80,11 @@ struct SList(T, A)
 		Node* f = _front;
 		_front = f.next;
 		T r = f.value;
+		static if (shouldAddGCRange!T)
+		{
+			import core.memory;
+			GC.removeRange(f);
+		}
 		deallocate(allocator, f);
 		--_length;
 		return r;
@@ -92,6 +97,11 @@ struct SList(T, A)
 	{
 		Node* f = _front;
 		_front = f.next;
+		static if (shouldAddGCRange!T)
+		{
+			import core.memory;
+			GC.removeRange(f);
+		}
 		deallocate(allocator, f);
 		--_length;
 	}
@@ -99,7 +109,7 @@ struct SList(T, A)
 	/**
 	 * Returns: true if this list is empty
 	 */
-	bool empty() pure nothrow const @property
+	bool empty() inout pure nothrow @property
 	{
 		return _front is null;
 	}
@@ -107,7 +117,7 @@ struct SList(T, A)
 	/**
 	 * Returns: the number of items in the list
 	 */
-	size_t length() @property
+	size_t length() inout pure nothrow @property
 	{
 		return _length;
 	}
@@ -116,9 +126,14 @@ struct SList(T, A)
 	 * Inserts an item at the front of the list.
 	 * Params: t = the item to insert into the list
 	 */
-	void insert(T t) pure nothrow @trusted
+	void insert(T t) nothrow @trusted
 	{
 		_front = allocate!Node(allocator, _front, t);
+		static if (shouldAddGCRange!T)
+		{
+			import core.memory;
+			GC.addRange(_front, Node.sizeof);
+		}
 		_length++;
 	}
 
@@ -137,7 +152,7 @@ struct SList(T, A)
 	 * Removes the first instance of value found in the list.
 	 * Returns: true if a value was removed.
 	 */
-	bool remove(V)(V value) pure nothrow @trusted /+ if (is(T == V) || __traits(compiles, (T.init.opEquals(V.init))))+/
+	bool remove(V)(V value) nothrow @trusted /+ if (is(T == V) || __traits(compiles, (T.init.opEquals(V.init))))+/
 	{
 		Node* prev = null;
 		Node* cur = _front;
@@ -149,6 +164,11 @@ struct SList(T, A)
 					prev.next = cur.next;
 				if (_front is cur)
 					_front = cur.next;
+				static if (shouldAddGCRange!T)
+				{
+					import core.memory;
+					GC.removeRange(cur);
+				}
 				deallocate(allocator, cur);
 				_length--;
 				return true;
@@ -167,6 +187,8 @@ struct SList(T, A)
 		return Range(_front);
 	}
 
+	alias opSlice = range;
+
 	/**
 	 * Removes all elements from the range
 	 */
@@ -178,6 +200,11 @@ struct SList(T, A)
 		{
 			prev = cur;
 			cur = prev.next;
+			static if (shouldAddGCRange!T)
+			{
+				import core.memory;
+				GC.removeRange(prev);
+			}
 			deallocate(allocator, prev);
 		}
 		_front = null;
@@ -188,6 +215,7 @@ private:
 
 	import std.allocator;
 	import memory.allocators;
+	import containers.internal.node;
 
 	static struct Range
 	{
@@ -222,8 +250,6 @@ private:
 	A allocator;
 
 	size_t _length;
-
-	uint refCount;
 }
 
 unittest

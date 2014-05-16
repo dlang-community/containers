@@ -9,13 +9,13 @@ module containers.hashmap;
 
 template HashMap(K, V) if (is (K == string))
 {
-	import containers.hash;
+	import containers.internal.hash;
 	alias HashMap = HashMap!(K, V, hashString);
 }
 
 template HashMap(K, V) if (!is (K == string))
 {
-	import containers.hash;
+	import containers.internal.hash;
 	alias HashMap = HashMap!(K, V, builtinHash!K);
 }
 
@@ -25,19 +25,10 @@ template HashMap(K, V) if (!is (K == string))
  *     K = the key type
  *     V = the value type
  *     hashFunction = the hash function to use on the keys
- * $(B Do not store pointers to GC-allocated memory in this container.)
  */
 struct HashMap(K, V, alias hashFunction)
 {
-	/**
-	 * Default constructor disabled.
-	 */
-	@disable this();
-
-	this(this)
-	{
-		refCount++;
-	}
+	this(this) @disable;
 
 	/**
 	 * Constructs an HashMap with an initial bucket count of bucketCount. bucketCount
@@ -55,11 +46,10 @@ struct HashMap(K, V, alias hashFunction)
 
 	~this()
 	{
-		if (--refCount > 0)
-			return;
 		import std.allocator;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
+		GC.removeRange(buckets.ptr);
 		Mallocator.it.deallocate(buckets);
 		typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
 		deallocate(Mallocator.it, sListNodeAllocator);
@@ -96,13 +86,15 @@ struct HashMap(K, V, alias hashFunction)
 	/**
 	 * Supports $(D key in aa) syntax.
 	 */
-	bool opBinaryRight(string op)(K key) const nothrow if (op == "in")
+	V* opBinaryRight(string op)(K key) const nothrow if (op == "in")
 	{
-		if (buckets.length == 0)
-			return false;
-		import std.algorithm : canFind;
 		size_t index = hashIndex(key);
-		return buckets[index].range.canFind(key);
+		foreach (ref node; buckets[index].range)
+		{
+			if (node.key == key)
+				return &node.value;
+		}
+		return null;
 	}
 
 	/**
@@ -192,10 +184,11 @@ private:
 	import std.traits;
 	import memory.allocators;
 	import containers.slist;
+	import core.memory;
 
 	enum bool storeHash = !isBasicType!K;
 
-	void initialize(size_t bucketCount)
+	void initialize(size_t bucketCount = 4)
 	{
 		import std.conv;
 		import std.allocator;
@@ -206,13 +199,14 @@ private:
 		assert (buckets.length == bucketCount);
 		foreach (ref bucket; buckets)
 			emplace(&bucket, sListNodeAllocator);
+		GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 	}
 
 	void insert(K key, V value)
 	{
 		import std.algorithm;
 		if (buckets.length == 0)
-			initialize(4);
+			initialize();
 		size_t hash = generateHash(key);
 		size_t index = hashToIndex(hash);
 		foreach (ref item; buckets[index].range)
@@ -263,6 +257,7 @@ private:
 		Bucket[] oldBuckets = buckets;
 		assert (oldBuckets.ptr == buckets.ptr);
 		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize);
+		GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		auto newAllocator = allocate!(SListNodeAllocator)(Mallocator.it);
 		assert (buckets);
 		assert (buckets.length == newLength);
@@ -288,6 +283,9 @@ private:
 		}
 		typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
 		deallocate(Mallocator.it, sListNodeAllocator);
+		foreach (ref bucket; oldBuckets)
+			typeid(typeof(bucket)).destroy(&bucket);
+		GC.removeRange(oldBuckets.ptr);
 		Mallocator.it.deallocate(cast(void[]) oldBuckets);
 		sListNodeAllocator = newAllocator;
 	}
@@ -345,7 +343,6 @@ private:
 	SListNodeAllocator* sListNodeAllocator;
 	Bucket[] buckets;
 	size_t _length;
-	uint refCount = 1;
 }
 
 ///

@@ -78,10 +78,24 @@ struct ImmutableHashSet(T, alias hashFunction)
 		}
 		buckets = cast(immutable) mutableBuckets;
 		nodes = cast(immutable) mutableNodes;
+		static if (shouldAddGCRange!T)
+		{
+			GC.addRange(buckets.ptr, buckets.length * (Node[]).sizeof);
+			foreach (ref b; buckets)
+				GC.addRange(b.ptr, b.length * Node.sizeof);
+			GC.addRange(nodes.ptr, nodes.length * Node.sizeof);
+		}
 	}
 
 	~this()
 	{
+		static if (shouldAddGCRange!T)
+		{
+			GC.removeRange(buckets.ptr);
+			foreach (ref b; buckets)
+				GC.removeRange(b.ptr);
+			GC.removeRange(nodes.ptr);
+		}
 		Mallocator.it.deallocate(cast(void[]) buckets);
 		Mallocator.it.deallocate(cast(void[]) nodes);
 	}
@@ -138,6 +152,8 @@ private:
 
 	import std.allocator;
 	import std.traits;
+	import containers.internal.node;
+	import core.memory;
 
 	static struct Node
 	{

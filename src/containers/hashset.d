@@ -10,17 +10,17 @@ module containers.hashset;
 /**
  * Template that automatically chooses a hash function
  */
-template HashSet(T) if (is (T == string))
+template HashSet(T, bool supportGC = true) if (is (T == string))
 {
-	import containers.hash;
-	alias HashSet = HashSet!(T, hashString);
+	import containers.internal.hash;
+	alias HashSet = HashSet!(T, hashString, supportGC);
 }
 
 /// ditto
-template HashSet(T) if (!is (T == string))
+template HashSet(T, bool supportGC = true) if (!is (T == string))
 {
-	import containers.hash;
-	alias HashSet = HashSet!(T, builtinHash!T);
+	import containers.internal.hash;
+	alias HashSet = HashSet!(T, builtinHash!T, supportGC);
 }
 
 template HashSetAllocatorType(T)
@@ -36,14 +36,10 @@ template HashSetAllocatorType(T)
  * Params:
  *     T = the element type
  *     hashFunction = the hash function to use on the elements
- * $(B Do not store pointers to GC-allocated memory in this container.)
  */
-struct HashSet(T, alias hashFunction)
+struct HashSet(T, alias hashFunction, bool supportGC = true)
 {
-	this(this)
-	{
-		refCount++;
-	}
+	this(this) @disable;
 
 	/**
 	 * Constructs a HashSet with an initial bucket count of bucketCount.
@@ -62,10 +58,10 @@ struct HashSet(T, alias hashFunction)
 	~this()
 	{
 		import std.allocator;
-		if (--refCount > 0)
-			return;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
+		static if (supportGC && shouldAddGCRange!T)
+			GC.removeRange(buckets.ptr);
 		Mallocator.it.deallocate(buckets);
 		typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
 		deallocate(Mallocator.it, sListNodeAllocator);
@@ -105,6 +101,8 @@ struct HashSet(T, alias hashFunction)
 	 */
 	bool contains(T value) inout nothrow
 	{
+		if (buckets.length == 0)
+			return false;
 		hash_t hash = generateHash(value);
 		size_t index = hashToIndex(hash);
 		if (buckets[index].empty)
@@ -201,10 +199,12 @@ struct HashSet(T, alias hashFunction)
 
 private:
 
+	import containers.internal.node;
 	import containers.slist;
 	import memory.allocators;
 	import std.allocator;
 	import std.traits;
+	import core.memory;
 
 	enum bool storeHash = !isBasicType!T;
 
@@ -219,6 +219,8 @@ private:
 		assert (buckets.length == bucketCount);
 		foreach (ref bucket; buckets)
 			emplace(&bucket, sListNodeAllocator);
+		static if (supportGC && shouldAddGCRange!T)
+			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 	}
 
 	static struct Range
@@ -279,13 +281,15 @@ private:
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
-		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize); // Valgrind
+		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize);
 		assert (buckets);
 		assert (buckets.length == newLength);
 		auto newAllocator = allocate!(HashSetAllocatorType!T)(Mallocator.it);
 		assert (newAllocator);
 		foreach (ref bucket; buckets)
 			emplace(&bucket, newAllocator);
+		static if (supportGC && shouldAddGCRange!T)
+			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		foreach (ref const bucket; oldBuckets)
 		{
 			foreach (node; bucket.range)
@@ -305,6 +309,8 @@ private:
 		}
 		foreach (ref bucket; oldBuckets)
 			typeid(Bucket).destroy(&bucket);
+		static if (supportGC && shouldAddGCRange!T)
+			GC.removeRange(oldBuckets.ptr);
 		Mallocator.it.deallocate(oldBuckets);
 		typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
 		deallocate(Mallocator.it, sListNodeAllocator);
@@ -356,7 +362,6 @@ private:
 
 	Bucket[] buckets;
 	size_t _length;
-	uint refCount;
 }
 
 ///

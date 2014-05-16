@@ -58,18 +58,30 @@ unittest
 
 /**
  * Simple allocator that allocates memory in chucks of blockSize, and then frees
- * all of its blocks when it goes out of scope. It does not support freeing any
+ * all of its blocks when it goes out of scope. The block allocator is reference
+ * counted, so it may be copied safely. It does not support freeing any
  * memory allocated by it. Deallocation only occurs by destroying the entire
  * allocator. Note that it is not possible to allocate blockSize bytes with this
- * allocator due to some memory
+ * allocator due to some memory being used for internal record keeping.
  */
 struct BlockAllocator(size_t blockSize)
 {
 	/**
-	 * Copying is not allowed because memory is deallocated during the
-	 * destructor run.
+	 * Frees all memory allocated by this allocator
 	 */
-	@disable this(this);
+	~this() pure nothrow @trusted
+	{
+		Node* current = root;
+		Node* previous = void;
+		while (current !is null)
+		{
+			previous = current;
+			current = current.next;
+			assert (previous == previous.memory.ptr);
+			Mallocator.it.deallocate(previous.memory);
+		}
+		root = null;
+	}
 
 	/**
 	 * Standard allocator operation.
@@ -106,25 +118,6 @@ struct BlockAllocator(size_t blockSize)
 		n.next = root;
 		root = n;
 		return mem;
-	}
-
-	/**
-	 * Frees all memory allocated by this allocator
-	 */
-	~this() pure nothrow @trusted
-	{
-		Node* current = root;
-		Node* previous = void;
-		uint i = 0;
-		while (current !is null)
-		{
-			previous = current;
-			current = current.next;
-			assert (previous == previous.memory.ptr);
-			Mallocator.it.deallocate(previous.memory);
-			i++;
-		}
-		root = null;
 	}
 
 	/**

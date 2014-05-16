@@ -1,4 +1,4 @@
-module containers.hash;
+module containers.internal.hash;
 
 size_t builtinHash(K)(K key) nothrow @trusted
 {
