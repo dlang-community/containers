@@ -50,15 +50,7 @@ struct HashMap(K, V, alias hashFunction)
 	}
 	body
 	{
-		import std.conv;
-		import std.allocator;
-		sListNodeAllocator = allocate!(SListNodeAllocator)(Mallocator.it);
-		emplace(sListNodeAllocator);
-		buckets = cast(Bucket[]) Mallocator.it.allocate( // Valgrind
-			bucketCount * Bucket.sizeof);
-		assert (buckets.length == bucketCount);
-		foreach (ref bucket; buckets)
-			emplace(&bucket, sListNodeAllocator);
+		initialize(bucketCount);
 	}
 
 	~this()
@@ -81,6 +73,8 @@ struct HashMap(K, V, alias hashFunction)
 		import std.algorithm : find;
 		import std.exception : enforce;
 		import std.conv : text;
+		if (buckets.length == 0)
+			throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
 		size_t hash = generateHash(key);
 		size_t index = hashToIndex(hash);
 		foreach (r; buckets[index].range)
@@ -104,6 +98,8 @@ struct HashMap(K, V, alias hashFunction)
 	 */
 	bool opBinaryRight(string op)(K key) const nothrow if (op == "in")
 	{
+		if (buckets.length == 0)
+			return false;
 		import std.algorithm : canFind;
 		size_t index = hashIndex(key);
 		return buckets[index].range.canFind(key);
@@ -115,6 +111,8 @@ struct HashMap(K, V, alias hashFunction)
 	 */
 	bool remove(K key)
 	{
+		if (buckets.length == 0)
+			return false;
 		size_t index = hashIndex(key);
 		bool removed = buckets[index].remove(key);
 		if (removed)
@@ -197,9 +195,24 @@ private:
 
 	enum bool storeHash = !isBasicType!K;
 
+	void initialize(size_t bucketCount)
+	{
+		import std.conv;
+		import std.allocator;
+		sListNodeAllocator = allocate!(SListNodeAllocator)(Mallocator.it);
+		emplace(sListNodeAllocator);
+		buckets = cast(Bucket[]) Mallocator.it.allocate( // Valgrind
+			bucketCount * Bucket.sizeof);
+		assert (buckets.length == bucketCount);
+		foreach (ref bucket; buckets)
+			emplace(&bucket, sListNodeAllocator);
+	}
+
 	void insert(K key, V value)
 	{
 		import std.algorithm;
+		if (buckets.length == 0)
+			initialize(4);
 		size_t hash = generateHash(key);
 		size_t index = hashToIndex(hash);
 		foreach (ref item; buckets[index].range)

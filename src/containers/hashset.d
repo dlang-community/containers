@@ -103,7 +103,7 @@ struct HashSet(T, alias hashFunction)
 	/**
 	 * Returns: true if value is contained in the set.
 	 */
-	bool contains(T value)
+	bool contains(T value) inout nothrow
 	{
 		hash_t hash = generateHash(value);
 		size_t index = hashToIndex(hash);
@@ -125,7 +125,7 @@ struct HashSet(T, alias hashFunction)
 		return false;
 	}
 
-	bool opIn_r(T value)
+	bool opBinaryRight(string op)(T value) inout nothrow if (op == "in")
 	{
 		return contains(value);
 	}

@@ -34,9 +34,7 @@ struct UnrolledList(T, size_t cacheLineSize = 64)
 		{
 			prev = cur;
 			cur = cur.next;
-			static if (!is(T == class))
-				foreach (ref item; cur.items)
-					typeid(T).destroy(&item);
+			typeid(Node).destroy(prev);
 			deallocate(Mallocator.it, prev);
 		}
 	}

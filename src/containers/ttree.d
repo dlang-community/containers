@@ -1,16 +1,16 @@
 /**
- * K-ary Tree.
+ * T-Tree.
  * Copyright: © 2014 Economic Modeling Specialists, Intl.
  * Authors: Brian Schott
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt Boost License 1.0)
  */
 
-module containers.karytree;
+module containers.ttree;
 
 //version(graphviz_debugging) import std.stdio;
 
 /**
- * K-ary tree Nodes are (by default) sized to fit within a 64-byte
+ * T-tree Nodes are (by default) sized to fit within a 64-byte
  * cache line. The number of items stored per node can be read from the
  * nodeCapacity field. Each node 0, 1, or 2 children. Each node has between 1
  * and nodeCapacity items or nodeCapacity items and 0 or more children.
@@ -18,9 +18,8 @@ module containers.karytree;
  *     T = the element type
  *     allowDuplicates = if true, duplicate values will be allowed in the tree
  *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
- * $(B Do not store pointers to GC-allocated memory in this container.)
  */
-struct KAryTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
+struct TTree(T, bool allowDuplicates = false, size_t cacheLineSize = 64)
 {
 	this(this)
 	{
@@ -258,6 +257,20 @@ private:
 	static assert (Node.sizeof <= cacheLineSize);
 	static struct Node
 	{
+		~this()
+		{
+			if (left !is null)
+			{
+				typeid(Node).destroy(left);
+				deallocate(Mallocator.it, left);
+			}
+			if (right !is null)
+			{
+				typeid(Node).destroy(right);
+				deallocate(Mallocator.it, right);
+			}
+		}
+
 		private size_t nextAvailableIndex() const nothrow pure
 		{
 			import core.bitop;
@@ -605,7 +618,7 @@ unittest
 	scope(exit) GC.enable();
 
 	{
-		KAryTree!int kt;
+		TTree!int kt;
 		assert (kt.empty);
 		foreach (i; 0 .. 200)
 		{
@@ -622,7 +635,7 @@ unittest
 	}
 
 	{
-		KAryTree!int kt;
+		TTree!int kt;
 		assert (!kt.contains(5));
 		kt.insert(2_000);
 		assert (kt.contains(2_000));
@@ -635,7 +648,7 @@ unittest
 
 	{
 		import std.random;
-		KAryTree!int kt;
+		TTree!int kt;
 		foreach (i; 0 .. 1_000)
 		{
 			kt.insert(uniform(0, 100_000));
@@ -643,7 +656,7 @@ unittest
 	}
 
 	{
-		KAryTree!int kt;
+		TTree!int kt;
 		kt.insert(10);
 		assert (kt.length == 1);
 		assert (!kt.insert(10));
@@ -651,7 +664,7 @@ unittest
 	}
 
 	{
-		KAryTree!(int, true) kt;
+		TTree!(int, true) kt;
 		assert (kt.insert(1));
 		assert (kt.length == 1);
 		assert (kt.insert(1));
@@ -660,7 +673,7 @@ unittest
 	}
 
 	{
-		KAryTree!(int) kt;
+		TTree!(int) kt;
 		foreach (i; 0 .. 200)
 		{
 			assert (kt.insert(i));
@@ -694,7 +707,7 @@ unittest
 			"8d259231-6ab6-49e4-9bb6-fe097c4153ed",
 			"f9f2d719-61e1-4f62-ae2c-bf2a24a13d5b"
 		];
-		KAryTree!string strings;
+		TTree!string strings;
 		foreach (i, s; strs)
 		{
 			assert (strings.insert(s));
@@ -710,7 +723,7 @@ unittest
 
 	foreach (x; 0 .. 1000)
 	{
-		KAryTree!string strings;
+		TTree!string strings;
 		string[] strs = iota(10).map!(a => randomUUID().toString()).array();
 		foreach (i, s; strs)
 		{
@@ -732,7 +745,7 @@ unittest
 	}
 
 	{
-		KAryTree!(string, true) strings;
+		TTree!(string, true) strings;
 		assert (strings.insert("b"));
 		assert (strings.insert("c"));
 		assert (strings.insert("a"));
