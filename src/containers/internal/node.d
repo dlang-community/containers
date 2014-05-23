@@ -14,7 +14,8 @@ template fatNodeCapacity(size_t bytesPerItem, size_t pointerCount,
 // Double linked fat node of int with bookkeeping in a uint should be able to
 // hold 11 ints per node.
 // 64 - 16 - 4 = 4 * 11
-static assert (fatNodeCapacity!(int.sizeof, 2, uint) == 11);
+version (X86_64)
+	static assert (fatNodeCapacity!(int.sizeof, 2, uint) == 11);
 
 template shouldNullSlot(T)
 {
