@@ -61,7 +61,7 @@ struct TreeMap(K, V, alias less = "a < b", bool supportGC = true,
 
 private:
 
-	import containers.karytree;
+	import containers.ttree;
 
 	static struct TreeMapElement
 	{
@@ -73,5 +73,5 @@ private:
 			return binaryFun!less(key, other.key);
 		}
 	}
-	KAryTree!(TreeMapElement, false, "a.opCmp(b) > 0", supportGC, cacheLineSize) tree;
+	TTree!(TreeMapElement, false, "a.opCmp(b) > 0", supportGC, cacheLineSize) tree;
 }

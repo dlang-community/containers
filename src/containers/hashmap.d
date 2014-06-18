@@ -1,5 +1,5 @@
 /**
- * Hash Set
+ * Hash Map
  * Copyright: © 2014 Economic Modeling Specialists, Intl.
  * Authors: Brian Schott
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt Boost License 1.0)
@@ -56,7 +56,7 @@ struct HashMap(K, V, alias hashFunction)
 	}
 
 	/**
-	 * Supports ($D aa[key]) syntax.
+	 * Supports $(D aa[key]) syntax.
 	 */
 	V opIndex(K key) const
 	{
@@ -161,7 +161,7 @@ struct HashMap(K, V, alias hashFunction)
 	}
 
 	/**
-	 * Support for $(D foreach(key, value; aa)) { ... }) syntax;
+	 * Support for $(D foreach(key, value; aa) { ... }) syntax;
 	 */
 	int opApply(int delegate(ref K, ref V) del)
 	{

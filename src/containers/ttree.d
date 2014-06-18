@@ -583,8 +583,7 @@ private:
 		T removeSmallest(ref Node* t)
 		in
 		{
-			if (isEmpty())
-				*(cast(int*) null) = 1;
+			assert (!isEmpty());
 		}
 		body
 		{
@@ -835,8 +834,6 @@ unittest
 	import std.string;
 	import std.range;
 	import std.algorithm;
-	GC.disable();
-	scope(exit) GC.enable();
 
 	{
 		TTree!int kt;
