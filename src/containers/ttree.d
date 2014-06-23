@@ -233,6 +233,8 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 		void currentToLeftmost()
 		{
+			if (current is null)
+				return;
 			while (current.left !is null)
 				current = current.left;
 		}
