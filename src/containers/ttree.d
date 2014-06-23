@@ -141,7 +141,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	 */
 	Range opSlice() const
 	{
-		return Range(root);
+		return Range(root, Range.type.all, T.init);
 	}
 
 	/**
@@ -231,39 +231,54 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 		import memory.allocators;
 		import std.array;
 
-		this(inout(Node)* n)
+		void currentToLeftmost()
 		{
-			this.type = Type.all;
-			if (n is null)
-				current = null;
-			else
+			while (current.left !is null)
+				current = current.left;
+		}
+
+		void currentToLeastContaining(inout T val)
+		{
+			while (current !is null)
 			{
-				current = n;
-				while (current.left !is null)
+				if (_less(val, current.values[0]))
 					current = current.left;
+				else if (current.isFull)
+				{
+					if (_less(current.values[$ - 1], val))
+						current = current.right;
+					else
+						break;
+				}
+				else
+					break;
 			}
 		}
 
 		this(inout(Node)* n, Type type, inout T val)
 		{
-			this(n);
+			current = n;
 			this.type = type;
 			this.val = val;
 			final switch(type)
 			{
 			case Type.all:
+				currentToLeftmost();
 				break;
 			case Type.lower:
+				currentToLeftmost();
 				if (_less(val, front()))
 					current = null;
 				break;
 			case Type.equal:
+				currentToLeastContaining(val);
 				while (current !is null && _less(front(), val))
 					_popFront();
 				if (current is null || _less(front(), val) || _less(val, front()))
 					current = null;
 				break;
 			case Type.upper:
+				currentToLeastContaining(val);
 				while (current !is null && !_less(val, front()))
 					_popFront();
 				break;
