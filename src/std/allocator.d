@@ -4472,7 +4472,7 @@ class CAllocator
     throw an exception if it does allow setting the alignment but an invalid
     value is passed.
     */
-    @property bool alignment(uint) pure nothrow @property
+    bool alignment(uint) pure nothrow @property
     {
         return false;
     }
