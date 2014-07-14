@@ -56,7 +56,7 @@ struct HashMap(K, V, alias hashFunction)
 	}
 
 	/**
-	 * Supports $(D aa[key]) syntax.
+	 * Supports $(B aa[key]) syntax.
 	 */
 	V opIndex(K key) const
 	{
@@ -76,7 +76,7 @@ struct HashMap(K, V, alias hashFunction)
 	}
 
 	/**
-	 * Supports $(D aa[key] = value;) syntax.
+	 * Supports $(B aa[key] = value;) syntax.
 	 */
 	void opIndexAssign(V value, K key)
 	{
@@ -84,7 +84,7 @@ struct HashMap(K, V, alias hashFunction)
 	}
 
 	/**
-	 * Supports $(D key in aa) syntax.
+	 * Supports $(B key in aa) syntax.
 	 */
 	V* opBinaryRight(string op)(K key) const nothrow if (op == "in")
 	{

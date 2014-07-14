@@ -8,12 +8,16 @@
 module containers.unrolledlist;
 
 /**
- * Unrolled Linked List. Nodes are (by default) sized to fit within a 64-byte
- * cache line. The number of items stored per node can be read from the
- * nodeCapacity field.
- * See_also: $(Link http://en.wikipedia.org/wiki/Unrolled_linked_list)
+ * Unrolled Linked List.
+ *
+ * Nodes are (by default) sized to fit within a 64-byte cache line. The number
+ * of items stored per node can be read from the $(B nodeCapacity) field.
+ * See_also: $(LINK http://en.wikipedia.org/wiki/Unrolled_linked_list)
  * Params:
  *     T = the element type
+ *     supportGC = true to ensure that the GC scans the nodes of the unrolled
+ *         list, false if you are sure that no references to GC-managed memory
+ *         will be stored in this container.
  *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
  */
 struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
@@ -67,6 +71,9 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		assert (_back.registry <= fullBits!nodeCapacity);
 	}
 
+	/**
+	 * Inserts the given range into the end of the list
+	 */
 	void insertBack(R)(R range)
 	{
 		foreach (ref r; range)
@@ -110,16 +117,22 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		assert (_back.registry <= fullBits!nodeCapacity);
 	}
 
+	/// Returns: the length of the list
 	size_t length() const nothrow pure @property
 	{
 		return _length;
 	}
 
+	/// Returns: true if the list is empty
 	bool empty() const nothrow pure @property
 	{
 		return _length == 0;
 	}
 
+	/**
+	 * Removes the given item from the list.
+	 * Returns: true if something was removed.
+	 */
 	bool remove(T item)
 	{
 		import core.bitop;
@@ -155,12 +168,14 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		return r;
 	}
 
+	/// Pops the front item off of the list
 	void popFront()
 	{
 		moveFront();
 		assert (_front is null || _front.registry != 0);
 	}
 
+	/// Pops the front item off of the list and returns it
 	T moveFront()
 	in
 	{
@@ -202,6 +217,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		assert (_front !is null || _back is null);
 	}
 
+	/// Returns: the item at the front of the list
 	inout T front() const @property
 	in
 	{
@@ -222,11 +238,13 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	 */
 	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, ushort, cacheLineSize);
 
+	/// Returns: a range over the list
 	Range range() const nothrow pure
 	{
 		return Range(_front);
 	}
 
+	///
 	alias opSlice = range;
 
 	static struct Range

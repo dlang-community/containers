@@ -8,11 +8,11 @@ test:
 	./tests
 
 clean:
-	-rm tests
-	-rm *.o
-	-rm *.dot
-	-rm *.png
-	-rm ..*.lst
+	rm -f tests
+	rm -f *.o
+	rm -f *.dot
+	rm -f *.png
+	rm -f ..*.lst
 
 graphs: clean
 	dmd $(FLAGS) $(SRC) -oftests -version=graphviz_debugging

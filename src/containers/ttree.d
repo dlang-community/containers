@@ -10,6 +10,8 @@ module containers.ttree;
 //version(graphviz_debugging) import std.stdio;
 
 /**
+ * Implements a binary search tree with multiple items per tree node.
+ *
  * T-tree Nodes are (by default) sized to fit within a 64-byte
  * cache line. The number of items stored per node can be read from the
  * nodeCapacity field. Each node 0, 1, or 2 children. Each node has between 1
@@ -21,6 +23,7 @@ module containers.ttree;
  *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
  *     supportGC = true if the container should support holding references to
  *         GC-allocated memory.
+ * See_also: $(LINK http://en.wikipedia.org/wiki/T-tree)
  */
 struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	bool supportGC = true, size_t cacheLineSize = 64)
@@ -44,6 +47,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 		assert ((root is null || _length != 0) || (root.parent is null && _length > 0));
 	}
 
+	/// $(B tree ~= item) operator overload.
 	void opOpAssign(string op)(T value) if (op == "~")
 	{
 		insert(value);
