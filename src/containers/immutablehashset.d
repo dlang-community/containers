@@ -9,9 +9,10 @@ module containers.immutablehashset;
 
 /**
  * The immutable hash set is useful for constructing a read-only collection that
- * supports quickly determining if an element is present. Because the set does
- * not support inserting, it only takes up as much memory as is necessary to
- * contain the elements provided at construction.
+ * supports quickly determining if an element is present.
+ *
+ * Because the set does not support inserting, it only takes up as much memory
+ * as is necessary to contain the elements provided at construction.
  */
 struct ImmutableHashSet(T, alias hashFunction)
 {

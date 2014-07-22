@@ -123,12 +123,16 @@ struct HashSet(T, alias hashFunction, bool supportGC = true)
 		return false;
 	}
 
+	/**
+	 * Supports $(B a in b) syntax
+	 */
 	bool opBinaryRight(string op)(T value) inout nothrow if (op == "in")
 	{
 		return contains(value);
 	}
 
 	/**
+	 * Inserts the given item into the set.
 	 * Params: value = the value to insert
 	 * Returns: true if the value was actually inserted, or false if it was
 	 *     already present.

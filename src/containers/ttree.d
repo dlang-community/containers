@@ -14,8 +14,9 @@ module containers.ttree;
  *
  * T-tree Nodes are (by default) sized to fit within a 64-byte
  * cache line. The number of items stored per node can be read from the
- * nodeCapacity field. Each node 0, 1, or 2 children. Each node has between 1
- * and nodeCapacity items or nodeCapacity items and 0 or more children.
+ * nodeCapacity field. Each node has 0, 1, or 2 children. Each node has between
+ * 1 and $(B nodeCapacity) items, or it has $(B nodeCapacity) items and 0 or
+ * more children.
  * Params:
  *     T = the element type
  *     allowDuplicates = if true, duplicate values will be allowed in the tree
@@ -95,6 +96,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	}
 
 	/**
+	 * Removes a value from the tree.
 	 * Params:
 	 *     value = a value equal to the one to be removed
 	 *     cleanup = a function that should be run on the removed item

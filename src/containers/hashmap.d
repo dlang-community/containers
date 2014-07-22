@@ -113,7 +113,7 @@ struct HashMap(K, V, alias hashFunction)
 	}
 
 	/**
-	 * Number of key/value pairs in this aa
+	 * Returns: the number of key/value pairs in this aa
 	 */
 	size_t length() const @property
 	{
@@ -121,7 +121,7 @@ struct HashMap(K, V, alias hashFunction)
 	}
 
 	/**
-	 * Returns: A GC-allocates an array and fills it with the keys contained in this map.
+	 * Returns: a GC-allocated array filled with the keys contained in this map.
 	 */
 	K[] keys() const @property
 	out(result)
@@ -141,7 +141,7 @@ struct HashMap(K, V, alias hashFunction)
 	}
 
 	/**
-	 * Returns: A GC-allocated array containing the values contained in this map.
+	 * Returns: a GC-allocated array containing the values contained in this map.
 	 */
 	V[] values() const @property
 	out(result)
@@ -305,9 +305,7 @@ private:
 		return hash & (buckets.length - 1);
 	}
 
-	/**
-	 * Move the bits a bit to the right. This trick was taken from the JRE
-	 */
+	// Move the bits a bit to the right. This trick was taken from the JRE
 	size_t generateHash(K key) const nothrow @safe
 	{
 		size_t h = hashFunction(key);

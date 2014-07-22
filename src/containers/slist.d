@@ -91,7 +91,7 @@ struct SList(T, A)
 	}
 
 	/**
-	 *
+	 * Removes the first item in the list.
 	 */
 	void popFront()
 	{
@@ -143,6 +143,7 @@ struct SList(T, A)
 	/// ditto
 	alias put = insert;
 
+	/// Supports $(B list ~= item) syntax
 	void opOpAssign(string op)(T t) if (op == "~")
 	{
 		put(t);
@@ -187,6 +188,7 @@ struct SList(T, A)
 		return Range(_front);
 	}
 
+	/// ditto
 	alias opSlice = range;
 
 	/**

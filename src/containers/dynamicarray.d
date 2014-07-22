@@ -34,21 +34,27 @@ struct DynamicArray(T, bool supportGC = true)
 		Mallocator.it.deallocate(arr);
 	}
 
+	/// Slice operator overload
 	T[] opSlice()
 	{
 		return arr[0 .. l];
 	}
 
+	/// ditto
 	T[] opSlice(size_t a, size_t b)
 	{
 		return arr[a .. b];
 	}
 
+	/// Index operator overload
 	T opIndex(size_t i)
 	{
 		return arr[i];
 	}
 
+	/**
+	 * Inserts the given value into the end of the array.
+	 */
 	void insert(T value)
 	{
 		if (arr.length == 0)
@@ -76,23 +82,28 @@ struct DynamicArray(T, bool supportGC = true)
 		arr[l++] = value;
 	}
 
+	/// ditto
 	alias put = insert;
 
+	/// Index assignment support
 	void opIndexAssign(T value, size_t i)
 	{
 		arr[i] = value;
 	}
 
+	/// Slice assignment support
 	void opSliceAssign(T value)
 	{
 		arr[0 .. l] = value;
 	}
 
+	/// ditto
 	void opSliceAssign(T value, size_t i, size_t j)
 	{
 		arr[i .. j] = value;
 	}
 
+	/// Returns: the number of items in the array
 	size_t length() @property { return l; }
 
 private:

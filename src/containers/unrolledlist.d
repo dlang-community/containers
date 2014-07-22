@@ -244,7 +244,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		return Range(_front);
 	}
 
-	///
+	/// ditto
 	alias opSlice = range;
 
 	static struct Range
