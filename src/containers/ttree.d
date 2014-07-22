@@ -36,7 +36,6 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 		if (root is null)
 			return;
 		deallocateNode(root);
-		root = null;
 	}
 
 	private import containers.internal.node;
@@ -371,7 +370,7 @@ private:
 		return n;
 	}
 
-	static void deallocateNode(Node* n)
+	static void deallocateNode(ref Node* n)
 	in
 	{
 		assert (n !is null);
@@ -384,6 +383,7 @@ private:
 			GC.removeRange(n);
 		typeid(Node).destroy(n);
 		deallocate!Node(Mallocator.it, n);
+		n = null;
 	}
 
 	static assert (nodeCapacity <= (typeof(Node.registry).sizeof * 8));
@@ -559,9 +559,19 @@ private:
 			import std.range;
 			assert (!isEmpty());
 			if (_less(value, values[0]))
-				return left !is null && left.remove(value, left, cleanup);
+			{
+				bool r = left !is null && left.remove(value, left, cleanup);
+				if (left.isEmpty())
+					deallocateNode(left);
+				return r;
+			}
 			if (isFull() && _less(values[$ - 1], value))
-				return right !is null && right.remove(value, right, cleanup);
+			{
+				bool r = right !is null && right.remove(value, right, cleanup);
+				if (right.isEmpty())
+					deallocateNode(right);
+				return r;
+			}
 			size_t i = nextAvailableIndex();
 			auto sv = assumeSorted!_less(values[0 .. i]);
 			auto tri = sv.trisect(value);
@@ -578,11 +588,6 @@ private:
 				temp[l .. $] = values[l + 1 .. $];
 				values[0 .. $ - 1] = temp[];
 				markUnused(nextAvailableIndex() - 1);
-				if (isEmpty())
-				{
-					deallocateNode(n);
-					n = null;
-				}
 			}
 			else if (right !is null)
 			{
@@ -590,7 +595,9 @@ private:
 				temp[0 .. l] = values[0 .. l];
 				temp[l .. $] = values[l + 1 .. $];
 				values[0 .. $ - 1] = temp[];
-				values[$ - 1] = right.removeSmallest(right);
+				values[$ - 1] = right.removeSmallest();
+				if (right.isEmpty())
+					deallocateNode(right);
 			}
 			else if (left !is null)
 			{
@@ -598,12 +605,14 @@ private:
 				temp[0 .. l] = values[0 .. l];
 				temp[l .. $] = values[l + 1 .. $];
 				values[1 .. $] = temp[];
-				values[0] = left.removeLargest(left);
+				values[0] = left.removeLargest();
+				if (left.isEmpty())
+					deallocateNode(left);
 			}
 			return true;
 		}
 
-		T removeSmallest(ref Node* t)
+		T removeSmallest()
 		in
 		{
 			assert (!isEmpty());
@@ -617,24 +626,26 @@ private:
 				temp[] = values[1 .. $];
 				values[0 .. $ - 1] = temp[];
 				markUnused(nextAvailableIndex() - 1);
-				if (isEmpty())
-				{
-					deallocateNode(t);
-					t = null;
-				}
 				return r;
 			}
 			if (left !is null)
-				return left.removeSmallest(left);
+			{
+				auto r = left.removeSmallest();
+				if (left.isEmpty())
+					deallocateNode(left);
+				return r;
+			}
 			T r = values[0];
 			T[nodeCapacity - 1] temp = void;
 			temp[] = values[1 .. $];
 			values[0 .. $ - 1] = temp[];
-			values[$ - 1] = right.removeSmallest(right);
+			values[$ - 1] = right.removeSmallest();
+			if (right.isEmpty())
+				deallocateNode(right);
 			return r;
 		}
 
-		T removeLargest(ref Node* t)
+		T removeLargest()
 		in
 		{
 			assert (!isEmpty());
@@ -651,17 +662,22 @@ private:
 				size_t i = nextAvailableIndex() - 1;
 				T r = values[i];
 				markUnused(i);
-				if (isEmpty())
-					t = null;
 				return r;
 			}
 			if (right !is null)
-				return right.removeLargest(right);
+			{
+				auto r = right.removeLargest();
+				if (right.isEmpty())
+					deallocateNode(right);
+				return r;
+			}
 			T r = values[$ - 1];
 			T[nodeCapacity - 1] temp = void;
 			temp[] = values[0 .. $ - 1];
 			values[1 .. $] = temp[];
-			values[0] = left.removeLargest(left);
+			values[0] = left.removeLargest();
+			if (left.isEmpty())
+				deallocateNode(left);
 			return r;
 		}
 
@@ -732,14 +748,14 @@ private:
 			}
 			else
 				root = newRoot;
-			fillFromChildren(newRoot, root);
+			newRoot.fillFromChildren(root);
 			if (newRoot.left !is null)
 			{
-				fillFromChildren(newRoot.left, root);
+				newRoot.left.fillFromChildren(root);
 			}
 			if (newRoot.right !is null)
 			{
-				fillFromChildren(newRoot.right, root);
+				newRoot.right.fillFromChildren(root);
 			}
 			if (newRoot.left !is null)
 				newRoot.left.calcHeight();
@@ -748,19 +764,22 @@ private:
 			newRoot.calcHeight();
 		}
 
-		void fillFromChildren(Node* n, ref Node* root)
-		in
+		void fillFromChildren(ref Node* root)
 		{
-			assert (n !is null);
-		}
-		body
-		{
-			while (!n.isFull())
+			while (!isFull())
 			{
-				if (n.left !is null)
-					n.insert(n.left.removeLargest(n.left), root);
-				else if (n.right !is null)
-					n.insert(n.right.removeSmallest(n.right), root);
+				if (left !is null)
+				{
+					insert(left.removeLargest(), root);
+					if (left.isEmpty())
+						deallocateNode(left);
+				}
+				else if (right !is null)
+				{
+					insert(right.removeSmallest(), root);
+					if (right.isEmpty())
+						deallocateNode(right);
+				}
 				else
 					break;
 			}
@@ -804,7 +823,7 @@ private:
 			{
 				assert (left.left !is &this, "%s".format(values));
 				assert (left.right !is &this, "%x, %x".format(left.right, &this));
-				assert (left.parent is &this);
+				assert (left.parent is &this, "%x, %x, %x".format(left, left.parent, &this));
 			}
 			if (right !is null)
 			{
@@ -1089,5 +1108,21 @@ unittest
 		assert (walkLength(ints[]) == 50);
 		assert (walkLength(filter!(a => (a & 1) == 0)(ints[])) == 25);
 //		writeln(__LINE__, " passed");
+	}
+
+	{
+		TTree!int ints;
+		foreach (i; 0 .. 50)
+			ints ~=  i;
+		ints.remove(0);
+		assert (ints.length == 49);
+		foreach (i; 1 .. 12)
+		{
+//			try
+				ints.remove(i);
+//			catch (Error)
+//				writeln("Failed on ", i);
+		}
+		assert (ints.length == 49 - 11);
 	}
 }
