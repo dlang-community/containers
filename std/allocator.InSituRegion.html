@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>InSituRegion</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.html">allocator</a>.InSituRegion</div>
+<pre><code>struct InSituRegion(size_t size, size_t minAlign = platformAlignment)</code></pre>
+<div class="section">
+ is a convenient region that carries its storage within itself
+(in the form of a statically-sized array).
+</div>
+<div class="section">
+The first template argument is the size of the region and the second is the
+needed alignment. Depending on the alignment requested and platform details,
+the actual available storage may be smaller than the compile-time parameter. To
+make sure that at least  bytes are available in the region, use
+.
+
+</div>
+<div class="section">
+<h3>Functions</h3>
+<table>
+<tr><td><a href="std/allocator.InSituRegion.allocate98328.html">allocate</a></td><td></td><td>Allocates  and returns them, or  if the region cannot
+   accommodate the request. For efficiency reasons, if  the
+   function returns an empty non-null slice.</td></tr><tr><td><a href="std/allocator.InSituRegion.alignedAllocate99218.html">alignedAllocate</a></td><td></td><td>As above, but the memory allocated is aligned at  bytes.</td></tr><tr><td><a href="std/allocator.InSituRegion.owns99749.html">owns</a></td><td></td><td>Returns  if and only if  is the result of a successful
+   allocation. For efficiency reasons, if  the function returns
+   .</td></tr><tr><td><a href="std/allocator.InSituRegion.deallocateAll100013.html">deallocateAll</a></td><td></td><td>Deallocates all memory allocated with this allocator.</td></tr><tr><td><a href="std/allocator.InSituRegion.allocateAll100170.html">allocateAll</a></td><td></td><td>Allocates all memory available with this allocator.</td></tr><tr><td><a href="std/allocator.InSituRegion.available100405.html">available</a></td><td></td><td>Nonstandard function that returns the bytes available for allocation.</td></tr></table>
+<h3>Variables</h3>
+<table>
+<tr><td><a href="std/allocator.InSituRegion.alignment.html">alignment</a></td><td><pre><code>uint</code></pre></td><td>An alias for , which must be a valid alignment (nonzero power
+   of 2). The start of the region and all allocation requests will be rounded
+   up to a multiple of the alignment.</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

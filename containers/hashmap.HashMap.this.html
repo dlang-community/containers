@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>this</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+containers.<a href="containers/hashmap.HashMap.html">hashmap</a>.<a href="containers/hashmap.HashMap.html">HashMap</a>.this</div>
+<pre><code>public this(size_t bucketCount)
+</code></pre><div class="section">
+Constructs an HashMap with an initial bucket count of bucketCount. bucketCount
+must be a power of two.
+</div>
+<div class="section"><h3>Contracts</h3><pre><code>in
+{
+    assert ((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
+}</code></pre></div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

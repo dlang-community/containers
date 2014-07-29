@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>GCAllocator</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.html">allocator</a>.GCAllocator</div>
+<pre><code>struct GCAllocator</code></pre>
+<div class="section">
+D's built-in garbage-collected allocator.
+</div>
+<div class="section">
+<h3>Functions</h3>
+<table>
+<tr><td><a href="std/allocator.GCAllocator.allocate24084.html">allocate</a></td><td></td><td>Standard allocator methods per the semantics defined above. The
+    and  methods are  because they
+   may move memory around, leaving dangling pointers in user code.</td></tr><tr><td><a href="std/allocator.GCAllocator.expand24248.html">expand</a></td><td></td><td>Standard allocator methods per the semantics defined above. The
+    and  methods are  because they
+   may move memory around, leaving dangling pointers in user code.</td></tr><tr><td><a href="std/allocator.GCAllocator.reallocate24645.html">reallocate</a></td><td></td><td>Standard allocator methods per the semantics defined above. The
+    and  methods are  because they
+   may move memory around, leaving dangling pointers in user code.</td></tr><tr><td><a href="std/allocator.GCAllocator.deallocate25080.html">deallocate</a></td><td></td><td>Standard allocator methods per the semantics defined above. The
+    and  methods are  because they
+   may move memory around, leaving dangling pointers in user code.</td></tr></table>
+<h3>Variables</h3>
+<table>
+<tr><td><a href="std/allocator.GCAllocator.alignment.html">alignment</a></td><td><pre><code>uint</code></pre></td><td>The alignment is a static constant equal to , which
+   ensures proper alignment for any D data type.</td></tr><tr><td><a href="std/allocator.GCAllocator._it.html">_it</a></td><td><pre><code>GCAllocator</code></pre></td><td>Returns the global instance of this allocator type. The garbage collected allocator is thread-safe, therefore all of its methods and  itself are .</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

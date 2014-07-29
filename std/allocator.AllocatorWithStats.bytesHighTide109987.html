@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>bytesHighTide</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.AllocatorWithStats.html">allocator</a>.<a href="std/allocator.AllocatorWithStats.html">AllocatorWithStats</a>.bytesHighTide</div>
+<pre><code>@propertyulong bytesHighTide() @property const
+</code></pre><div class="section">
+Read-only properties enabled by the homonym  chosen by the
+       user.
+</div>
+<div class="section">
+<h3>Example</h3>
+
+       <pre><code>       AllocatorWithStats!(Mallocator,
+           Options.bytesAllocated | Options.bytesDeallocated) a;
+       auto d1 = a.allocate(10);
+       auto d2 = a.allocate(11);
+       a.deallocate(d1);
+       assert(a.bytesAllocated == 21);
+       assert(a.bytesDeallocated == 10);
+      </code></pre>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

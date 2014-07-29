@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>NodeAllocator</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+memory.<a href="memory/allocators.html">allocators</a>.NodeAllocator</div>
+<pre><code>public template NodeAllocator(size_t nodeSize, size_t blockSize = 1024)</code></pre>
+<div class="section">
+Allocator used for allocating nodes of a fixed size.
+</div>
+<div class="section"><h3>Example</h3>
+<pre><code>enum testSize = 4_000;
+static struct Node { Node* next; int payload; }
+NodeAllocator!(Node.sizeof, 2048) nodeAllocator;
+Node*[testSize] nodes;
+foreach (i; 0 .. testSize)
+	nodes[i] = allocate!Node(nodeAllocator);
+foreach (i; 0 .. testSize)
+	assert (nodes[i] !is null);
+foreach (i; 0 .. testSize)
+	deallocate(nodeAllocator, nodes[i]);
+</code></pre>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

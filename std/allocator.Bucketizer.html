@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>Bucketizer</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.html">allocator</a>.Bucketizer</div>
+<pre><code>struct Bucketizer(Allocator, size_t min, size_t max, size_t step)</code></pre>
+<div class="section">
+A  uses distinct allocators for handling allocations of sizes in
+the intervals , ,
+, , .
+</div>
+<div class="section">
+ holds a fixed-size array of allocators and dispatches calls to
+them appropriately. The size of the array is , which
+must be an exact division.
+
+Allocations for sizes smaller than  or larger than  are illegal
+for . To handle them separately,  may be of use.
+
+</div>
+<div class="section">
+<h3>Functions</h3>
+<table>
+<tr><td><a href="std/allocator.Bucketizer.goodAllocSize139314.html">goodAllocSize</a></td><td></td><td>Rounds up to the maximum size of the bucket in which  falls.</td></tr><tr><td><a href="std/allocator.Bucketizer.owns139638.html">owns</a></td><td></td><td>Returns .</td></tr><tr><td><a href="std/allocator.Bucketizer.allocate139816.html">allocate</a></td><td></td><td>Directs the call to either one of the  allocators.</td></tr><tr><td><a href="std/allocator.Bucketizer.expand140345.html">expand</a></td><td></td><td>This method allows expansion within the respective bucket range. It succeeds
+   if both  and  fall in a range of the form
+   .</td></tr></table>
+<h3>Variables</h3>
+<table>
+<tr><td><a href="std/allocator.Bucketizer.buckets.html">buckets</a></td><td><pre><code>Allocator</code></pre></td><td>and inspection.</td></tr><tr><td><a href="std/allocator.Bucketizer.alignment.html">alignment</a></td><td><pre><code>uint</code></pre></td><td>The alignment offered is the same as .</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

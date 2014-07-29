@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>alignment</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.Freelist.html">allocator</a>.<a href="std/allocator.Freelist.html">Freelist</a>.alignment</div>
+<div class="section">
+Alignment is defined as . However, if , objects returned from the freelist will have a
+   smaller _alignment, namely  rounded up to the nearest multiple
+   of 2. This allows  to minimize internal fragmentation by
+   allocating several small objects within an allocated block. Also, there is
+   no disruption because no object has smaller size than its _alignment.
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

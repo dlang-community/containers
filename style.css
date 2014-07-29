@@ -1,0 +1,249 @@
+html {
+	font-family: sans;
+	margin: 0;
+	padding: 0;
+	background-color: #eee;
+	border-left: .2em solid #333;
+	min-height: 100%;
+}
+
+body {
+	margin: 0;
+	padding: 0;
+}
+
+div.breadcrumbs {
+	color: white;
+	background-color: #333;
+	padding: 1em;
+	box-shadow: 0 0 .5em .5em black;
+	background: linear-gradient(180deg, #333, #222);
+	text-align: right;
+	margin: 0 0 2em 0;
+}
+
+div.breadcrumbs a {
+	color: white;
+
+}
+
+div.breadcrumbs input {
+	float: left;
+}
+
+.paramDoc:before {
+	content: "- ";
+}
+
+#results {
+	position: absolute;
+	max-height: 30em;
+	background-color: #eee;
+	box-shadow: 0 .25em .25em black;
+	display: none;
+	text-align: left;
+	color: black;
+	margin-top: 2em;
+	z-index: 1000;
+	overflow-y: scroll;
+}
+
+#results a {
+	color: blue;
+}
+
+div.section {
+	padding: .5em;
+	margin: .5em;
+}
+
+div.section h3 {
+	margin: 0 0 .5em 0;
+}
+
+div.section tr {
+	margin: 0;
+}
+
+div.section table {
+	border-collapse: collapse;
+	border-bottom: 1px dashed grey;
+	margin: 1em 0;
+}
+
+div.section td {
+	border-top: 1px dashed grey;
+	margin: 0;
+	padding: .25em;
+}
+
+div.section code {
+	background-color: #333;
+	color: #eee;
+	padding: 1em;
+	border-radius: .5em;
+	display: block;
+}
+
+pre > code {
+	margin: .5em;
+	border-radius: .5em;
+	padding: 1em;
+}
+
+.d_inlinecode {
+	font-family: monospace;
+	font-weight: bold;
+}
+
+.hljs {
+	display: block; padding: 1em;
+	background: #282B2E;
+	overflow-x: auto;
+	display: block;
+}
+
+.hljs-keyword,
+.hljs-literal,
+.hljs-change,
+.hljs-winutils,
+.hljs-flow,
+.lisp .hljs-title,
+.clojure .hljs-built_in,
+.nginx .hljs-title,
+.css .hljs-id,
+.tex .hljs-special {
+	color: #93C763;
+}
+
+.hljs-number {
+	color: #FFCD22;
+}
+
+.hljs {
+	color: #E0E2E4;
+}
+
+.css .hljs-tag,
+.css .hljs-pseudo {
+	color: #D0D2B5;
+}
+
+.hljs-attribute,
+.hljs .hljs-constant {
+	color: #668BB0;
+}
+
+.xml .hljs-attribute {
+	color: #B3B689;
+}
+
+.xml .hljs-tag .hljs-value {
+	color: #E8E2B7;
+}
+
+.hljs-code,
+.hljs-class .hljs-title,
+.hljs-header {
+	color: white;
+}
+
+.hljs-class,
+.hljs-hexcolor {
+	color: #93C763;
+}
+
+.hljs-regexp {
+	color: #D39745;
+}
+
+.hljs-at_rule,
+.hljs-at_rule .hljs-keyword {
+	color: #A082BD;
+}
+
+.hljs-doctype {
+	color: #557182;
+}
+
+.hljs-link_url,
+.hljs-tag,
+.hljs-tag .hljs-title,
+.hljs-bullet,
+.hljs-subst,
+.hljs-emphasis,
+.haskell .hljs-type,
+.hljs-preprocessor,
+.hljs-pragma,
+.ruby .hljs-class .hljs-parent,
+.hljs-built_in,
+.sql .hljs-aggregate,
+.django .hljs-template_tag,
+.django .hljs-variable,
+.smalltalk .hljs-class,
+.hljs-javadoc,
+.django .hljs-filter .hljs-argument,
+.smalltalk .hljs-localvars,
+.smalltalk .hljs-array,
+.hljs-attr_selector,
+.hljs-pseudo,
+.hljs-addition,
+.hljs-stream,
+.hljs-envvar,
+.apache .hljs-tag,
+.apache .hljs-cbracket,
+.tex .hljs-command,
+.hljs-prompt {
+	color: #8CBBAD;
+}
+
+.hljs-string {
+	color: #EC7600;
+}
+
+.hljs-comment,
+.java .hljs-annotation,
+.hljs-blockquote,
+.hljs-horizontal_rule,
+.python .hljs-decorator,
+.hljs-template_comment,
+.hljs-pi,
+.hljs-deletion,
+.hljs-shebang,
+.apache .hljs-sqbracket,
+.tex .hljs-formula {
+	color: #818E96;
+}
+
+.hljs-keyword,
+.hljs-literal,
+.css .hljs-id,
+.hljs-phpdoc,
+.hljs-title,
+.hljs-header,
+.haskell .hljs-type,
+.vbscript .hljs-built_in,
+.sql .hljs-aggregate,
+.rsl .hljs-built_in,
+.smalltalk .hljs-class,
+.diff .hljs-header,
+.hljs-chunk,
+.hljs-winutils,
+.bash .hljs-variable,
+.apache .hljs-tag,
+.tex .hljs-special,
+.hljs-request,
+.hljs-at_rule .hljs-keyword,
+.hljs-status {
+	font-weight: bold;
+}
+
+.coffeescript .javascript,
+.javascript .xml,
+.tex .hljs-formula,
+.xml .javascript,
+.xml .vbscript,
+.xml .css,
+.xml .hljs-cdata {
+	opacity: 0.5;
+}

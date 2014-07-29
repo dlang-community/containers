@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>NullAllocator</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.html">allocator</a>.NullAllocator</div>
+<pre><code>struct NullAllocator</code></pre>
+<div class="section">
+ is an emphatically empty implementation of the allocator interface. Although it has no direct use, it is useful as a "terminator" in composite allocators.
+</div>
+<div class="section">
+<h3>Functions</h3>
+<table>
+<tr><td><a href="std/allocator.NullAllocator.allocate22432.html">allocate</a></td><td></td><td>Always returns .</td></tr><tr><td><a href="std/allocator.NullAllocator.owns22514.html">owns</a></td><td></td><td>Returns .</td></tr><tr><td><a href="std/allocator.NullAllocator.expand22718.html">expand</a></td><td></td><td>These methods return .
+   </td></tr><tr><td><a href="std/allocator.NullAllocator.reallocate22818.html">reallocate</a></td><td></td><td>These methods return .
+   </td></tr><tr><td><a href="std/allocator.NullAllocator.deallocate22967.html">deallocate</a></td><td></td><td>No-op.
+   </td></tr><tr><td><a href="std/allocator.NullAllocator.deallocateAll23053.html">deallocateAll</a></td><td></td><td>No-op.</td></tr></table>
+<h3>Variables</h3>
+<table>
+<tr><td><a href="std/allocator.NullAllocator.alignment.html">alignment</a></td><td><pre><code>uint</code></pre></td><td> advertises a relatively large _alignment equal to 64 KB.
+   This is because  never actually needs to honor this
+   alignment and because composite allocators using 
+   shouldn't be unnecessarily constrained.</td></tr><tr><td><a href="std/allocator.NullAllocator._it.html">_it</a></td><td><pre><code>NullAllocator</code></pre></td><td>Returns the  global instance of the .</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

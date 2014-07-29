@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>FallbackAllocator</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.html">allocator</a>.FallbackAllocator</div>
+<pre><code>struct FallbackAllocator(Primary, Fallback)</code></pre>
+<div class="section">
+ is the allocator equivalent of an "or" operator in
+algebra. An allocation request is first attempted with the 
+allocator. If that returns , the request is forwarded to the  allocator. All other requests are dispatched appropriately to one of
+the two allocators.
+</div>
+<div class="section">
+In order to work,  requires that  defines the
+ method. This is needed in order to decide which allocator was
+responsible for a given allocation.
+
+ is useful for fast, special-purpose allocators backed up
+by general-purpose allocators. The example below features a stack region backed
+up by the .
+</div>
+<div class="section">
+<h3>Functions</h3>
+<table>
+<tr><td><a href="std/allocator.FallbackAllocator.allocate66801.html">allocate</a></td><td></td><td>Allocates memory trying the primary allocator first. If it returns , the fallback allocator is tried.</td></tr><tr><td><a href="std/allocator.FallbackAllocator.reallocate68307.html">reallocate</a></td><td></td><td> works as follows. If , then  is attempted. If it fails, an attempt is
+   made to move the allocation from  to .</td></tr></table>
+<h3>Variables</h3>
+<table>
+<tr><td><a href="std/allocator.FallbackAllocator.alignment.html">alignment</a></td><td><pre><code>uint</code></pre></td><td>The alignment offered is the minimum of the two allocators' alignment.</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

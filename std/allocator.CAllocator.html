@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>CAllocator</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.html">allocator</a>.CAllocator</div>
+<pre><code>class CAllocator</code></pre>
+<div class="section">
+Dynamic version of an allocator. This should be used wherever a uniform type is
+required for encapsulating various allocator implementations.
+</div>
+<div class="section">
+<h3>TODO</h3>
+ add support for .
+</div>
+<div class="section">
+<h3>Functions</h3>
+<table>
+<tr><td><a href="std/allocator.CAllocator.alignment141834.html">alignment</a></td><td></td><td>platformAlignment).</td></tr><tr><td><a href="std/allocator.CAllocator.alignment142199.html">alignment</a></td><td></td><td>Sets the alignment and returns  on success,  if not
+   supported. By default returns . An allocator implementation could
+   throw an exception if it does allow setting the alignment but an invalid
+   value is passed.</td></tr><tr><td><a href="std/allocator.CAllocator.goodAllocSize142469.html">goodAllocSize</a></td><td></td><td>Returns the good allocation size that guarantees zero internal
+   fragmentation. By default returns  rounded up to the nearest multiple
+   of .</td></tr><tr><td><a href="std/allocator.CAllocator.allocate142641.html">allocate</a></td><td></td><td>Allocates memory.</td></tr><tr><td><a href="std/allocator.CAllocator.supportsOwns142797.html">supportsOwns</a></td><td></td><td>Returns  if the allocator supports . By default returns
+   .</td></tr><tr><td><a href="std/allocator.CAllocator.owns142965.html">owns</a></td><td></td><td>Returns  if the allocator owns . By default issues .</td></tr><tr><td><a href="std/allocator.CAllocator.expand143075.html">expand</a></td><td></td><td>Expands a memory block in place.</td></tr><tr><td><a href="std/allocator.CAllocator.reallocate143171.html">reallocate</a></td><td></td><td>Reallocates a memory block.</td></tr><tr><td><a href="std/allocator.CAllocator.deallocate143334.html">deallocate</a></td><td></td><td>supported.</td></tr><tr><td><a href="std/allocator.CAllocator.deallocateAll143455.html">deallocateAll</a></td><td></td><td>Deallocates all memory. Returns  if not supported.</td></tr><tr><td><a href="std/allocator.CAllocator.supportsAllocateAll143600.html">supportsAllocateAll</a></td><td></td><td>returns .</td></tr><tr><td><a href="std/allocator.CAllocator.allocateAll143791.html">allocateAll</a></td><td></td><td>Allocates and returns all memory available to this allocator. By default
+   issues .</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

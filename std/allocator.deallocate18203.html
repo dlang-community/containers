@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>deallocate</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.html">allocator</a>.deallocate</div>
+<pre><code>void deallocate(T, Allocator)(auto ref Allocator a, T* structInstance) pure nothrow @trusted if(is(T == struct))
+</code></pre><div class="section">
+Encapsulates some casts and pointer slicing to deallocate .
+This function does NOT call T's destructor.
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

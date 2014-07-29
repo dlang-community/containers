@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>TreeMap</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+containers.<a href="containers/treemap.html">treemap</a>.TreeMap</div>
+<pre><code>public struct TreeMap(K, V, alias less = "a < b", bool supportGC = true, size_t cacheLineSize = 64)</code></pre>
+<div class="section">
+A key→value mapping where the keys are guaranteed to be sorted.
+
+</div>
+<div class="section">
+<h3>Parameters</h3>
+<table class="params">
+<tr class="param"><td class="paramName">K</td><td class="paramDoc">the key type</td></tr>
+<tr class="param"><td class="paramName">V</td><td class="paramDoc">the value type</td></tr>
+<tr class="param"><td class="paramName">less</td><td class="paramDoc">the key comparison function to use</td></tr>
+<tr class="param"><td class="paramName">supportGC</td><td class="paramDoc">true to support storing GC-allocated objects, false otherwise</td></tr>
+<tr class="param"><td class="paramName">cacheLineSize</td><td class="paramDoc">the size of the internal nodes in bytes
+</td></tr>
+</table></div>
+<div class="section">
+<h3>Functions</h3>
+<table>
+<tr><td><a href="containers/treemap.TreeMap.opIndexAssign.html">opIndexAssign</a></td><td></td><td>Supports <b>treeMap[key] = value;</b> syntax.</td></tr><tr><td><a href="containers/treemap.TreeMap.opIndex.html">opIndex</a></td><td></td><td>Supports <b>treeMap[key]</b> syntax.</td></tr><tr><td><a href="containers/treemap.TreeMap.remove.html">remove</a></td><td></td><td>Removes the key→value mapping for the given key.
+</td></tr><tr><td><a href="containers/treemap.TreeMap.containsKey.html">containsKey</a></td><td></td><td>Returns:  true if the mapping contains the given key</td></tr><tr><td><a href="containers/treemap.TreeMap.empty.html">empty</a></td><td></td><td>Returns:  true if the mapping is empty</td></tr><tr><td><a href="containers/treemap.TreeMap.length.html">length</a></td><td></td><td>Returns:  the number of key→value pairs in the map</td></tr><tr><td><a href="containers/treemap.TreeMap.opApply.html">opApply</a></td><td></td><td>Supports <b>foreach(k, v; treeMap)</b> syntax.</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

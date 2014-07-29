@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>reallocate</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.html">allocator</a>.reallocate</div>
+<pre><code>bool reallocate(Allocator)(ref Allocator a, ref void[] b, size_t s)
+</code></pre><div class="section">
+The default  function first attempts to use . If  is not defined or returns , 
+allocates a new block of memory of appropriate size and copies data from the old
+block to the new block. Finally, if  defines ,  uses it to free the old memory block.
+</div>
+<div class="section">
+ does not attempt to use  even if
+defined. This is deliberate so allocators may use it internally within their own
+implementation of .
+
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

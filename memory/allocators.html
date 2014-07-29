@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>memory.allocators</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+memory.allocators</div>
+<div class="section">
+(Hopefully) useful _allocators.
+
+</div>
+<div class="section">
+<h3>Copyright</h3>
+ © 2014 Economic Modeling Specialists, Intl.
+
+</div>
+<div class="section">
+<h3>Authors</h3>
+ Brian Schott
+
+</div>
+<div class="section">
+<h3>License</h3>
+ <a href="http://www.boost.org/LICENSE_1_0.txt Boost License 1.0"></a>
+</div>
+<div class="section">
+<h3>Structs</h3>
+<table>
+<tr><td><a href="memory/allocators.BlockAllocator.html">BlockAllocator</a></td><td></td><td>Simple allocator that allocates memory in chucks of blockSize, and then frees
+all of its blocks when it goes out of scope. The block allocator is reference
+counted, so it may be copied safely. It does not support freeing any
+memory allocated by it. Deallocation only occurs by destroying the entire
+allocator. Note that it is not possible to allocate blockSize bytes with this
+allocator due to some memory being used for internal record keeping.</td></tr></table>
+<h3>Templates</h3>
+<table>
+<tr><td><a href="memory/allocators.NodeAllocator.html">NodeAllocator</a></td><td></td><td>Allocator used for allocating nodes of a fixed size.</td></tr><tr><td><a href="memory/allocators.QuickAllocator.html">QuickAllocator</a></td><td></td><td>Allocator that performs most small allocations on the stack, then falls over
+to malloc/free when necessary.</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

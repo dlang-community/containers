@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>Options</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.html">allocator</a>.Options</div>
+<div class="section">
+_Options for  defined below. Each enables during
+compilation one specific counter, statistic, or other piece of information.
+</div>
+<div class="section">
+<h3>Values</h3>
+<table>
+<tr><td>numOwns</td><td></td><td>Counts the number of calls to .</td></tr><tr><td>numAllocate</td><td></td><td>Counts the number of calls to . All calls are counted,
+   including requests for zero bytes or failed requests.</td></tr><tr><td>numAllocateOK</td><td></td><td>Counts the number of calls to  that succeeded, i.e. they were
+   for more than zero bytes and returned a non-null block.</td></tr><tr><td>numExpand</td><td></td><td>Counts the number of calls to , regardless of arguments or
+   result.</td></tr><tr><td>numExpandOK</td><td></td><td>Counts the number of calls to  that resulted in a successful
+   expansion.</td></tr><tr><td>numReallocate</td><td></td><td>Counts the number of calls to , regardless of arguments or
+   result.</td></tr><tr><td>numReallocateOK</td><td></td><td>Counts the number of calls to  that succeeded. (Reallocations
+   to zero bytes count as successful.)</td></tr><tr><td>numReallocateInPlace</td><td></td><td>Counts the number of calls to  that resulted in an in-place
+   reallocation (no memory moved). If this number is close to the total number
+   of reallocations, that indicates the allocator finds room at the current
+   block's end in a large fraction of the cases, but also that internal
+   fragmentation may be high (the size of the unit of allocation is large
+   compared to the typical allocation size of the application).</td></tr><tr><td>numDeallocate</td><td></td><td>Counts the number of calls to .</td></tr><tr><td>numDeallocateAll</td><td></td><td>Counts the number of calls to .</td></tr><tr><td>numAll</td><td></td><td>Chooses all  flags.</td></tr><tr><td>bytesAllocated</td><td></td><td>Tracks total cumulative bytes allocated by means of ,
+   , and  (when resulting in an expansion). This
+   number always grows and indicates allocation traffic. To compute bytes
+   currently allocated, subtract  (below) from
+   .</td></tr><tr><td>bytesDeallocated</td><td></td><td>Tracks total cumulative bytes deallocated by means of  and
+    (when resulting in a contraction). This number always grows
+   and indicates deallocation traffic.</td></tr><tr><td>bytesExpanded</td><td></td><td>Tracks the sum of all  values in calls of the form
+    that succeed (return ).</td></tr><tr><td>bytesContracted</td><td></td><td>Tracks the sum of all  with  in calls of
+   the form  that succeed (return ).</td></tr><tr><td>bytesMoved</td><td></td><td>Tracks the sum of all bytes moved as a result of calls to  that
+   were unable to reallocate in place. A large number (relative to ) indicates that the application should use larger
+   preallocations.</td></tr><tr><td>bytesSlack</td><td></td><td>Measures the sum of extra bytes allocated beyond the bytes requested, i.e.
+   the . This is the current
+   effective number of slack bytes, and it goes up and down with time.</td></tr><tr><td>bytesHighTide</td><td></td><td>Measures the maximum bytes allocated over the time. This is useful for
+   dimensioning allocators.</td></tr><tr><td>bytesAll</td><td></td><td>Chooses all  flags.</td></tr><tr><td>callerSize</td><td></td><td>Instructs  to store the size asked by the caller for
+   each allocation. All per-allocation data is stored just before the actually
+   allocation (see ).</td></tr><tr><td>callerModule</td><td></td><td>Instructs  to store the caller module for each
+   allocation.</td></tr><tr><td>callerFile</td><td></td><td>Instructs  to store the caller's file for each
+   allocation.</td></tr><tr><td>callerFunction</td><td></td><td>Instructs  to store the caller  for
+   each allocation.</td></tr><tr><td>callerLine</td><td></td><td>Instructs  to store the caller's line for each
+   allocation.</td></tr><tr><td>callerTime</td><td></td><td>Instructs  to store the time of each allocation.</td></tr><tr><td>callerAll</td><td></td><td>Chooses all  flags.</td></tr><tr><td>all</td><td></td><td>Combines all flags above.</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>allocatorForSize</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.Segregator.html">allocator</a>.<a href="std/allocator.Segregator.html">Segregator</a>.allocatorForSize</div>
+<pre><code>refautoauto ref allocatorForSize(size_t s)() ref auto
+</code></pre><div class="section">
+Composite allocators involving nested instantiations of  make
+   it difficult to access individual sub-allocators stored within.  simplifies the task by supplying the allocator nested
+   inside a  that is responsible for a specific size .
+</div>
+<div class="section">
+<h3>Example</h3>
+
+   <pre><code>   alias A = Segregator!(300,
+       Segregator!(200, A1, A2),
+       A3);
+   A a;
+   static assert(typeof(a.allocatorForSize!10) == A1);
+   static assert(typeof(a.allocatorForSize!250) == A2);
+   static assert(typeof(a.allocatorForSize!301) == A3);
+  </code></pre>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>deallocateAll</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.HeapBlock.html">allocator</a>.<a href="std/allocator.HeapBlock.html">HeapBlock</a>.deallocateAll</div>
+<pre><code>void deallocateAll()
+</code></pre><div class="section">
+Standard allocator methods per the semantics defined above. The  and  methods are  because they may
+   move memory around, leaving dangling pointers in user code.
+</div>
+<div class="section">
+<h3>BUGS</h3>
+ Neither  nor the destructor free the original memory
+   block. Either user code or the parent allocator should carry that.
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>CascadingAllocator</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.html">allocator</a>.CascadingAllocator</div>
+<pre><code>struct CascadingAllocator(alias make)</code></pre>
+<div class="section">
+Given  as a function that returns fresh allocators,  creates an allocator that lazily creates as many allocators
+are needed for satisfying client allocation requests.
+</div>
+<div class="section">
+The management data of the allocators is stored in memory obtained from the
+allocators themselves, in a private linked list.
+</div>
+<div class="section">
+<h3>Aliases</h3>
+<table>
+<tr><td><a href="std/allocator.CascadingAllocator.Allocator.html">Allocator</a></td><td><pre><code>typeof(make())</code></pre></td><td>Alias for .</td></tr></table>
+<h3>Functions</h3>
+<table>
+<tr><td><a href="std/allocator.CascadingAllocator.allocate122322.html">allocate</a></td><td></td><td>Standard primitives.</td></tr><tr><td><a href="std/allocator.CascadingAllocator.reallocate125269.html">reallocate</a></td><td></td><td>Allows moving data from one  to another.</td></tr></table>
+<h3>Variables</h3>
+<table>
+<tr><td><a href="std/allocator.CascadingAllocator.alignment.html">alignment</a></td><td><pre><code>uint</code></pre></td><td>Standard primitives.</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

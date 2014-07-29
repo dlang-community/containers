@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>AllocatorWithStats</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+std.<a href="std/allocator.html">allocator</a>.AllocatorWithStats</div>
+<pre><code>struct AllocatorWithStats(Allocator, uint flags = Options.all)</code></pre>
+<div class="section">
+Allocator that collects extra data about allocations. Since each piece of
+information adds size and time overhead, statistics can be individually enabled
+or disabled through compile-time .
+</div>
+<div class="section">
+All stats of the form  record counts of events occurring, such as
+calls to functions and specific results. The stats of the form 
+collect cumulative sizes.
+
+In addition, the data , , , , and  is associated with each specific allocation.
+This data prefixes each allocation.
+
+</div>
+<div class="section">
+<h3>Functions</h3>
+<table>
+<tr><td><a href="std/allocator.AllocatorWithStats.numOwns108949.html">numOwns</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.numAllocate109008.html">numAllocate</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.numAllocateOK109071.html">numAllocateOK</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.numExpand109136.html">numExpand</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.numExpandOK109197.html">numExpandOK</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.numReallocate109260.html">numReallocate</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.numReallocateOK109325.html">numReallocateOK</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.numReallocateInPlace109392.html">numReallocateInPlace</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.numDeallocate109464.html">numDeallocate</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.numDeallocateAll109529.html">numDeallocateAll</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.bytesAllocated109597.html">bytesAllocated</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.bytesDeallocated109663.html">bytesDeallocated</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.bytesExpanded109731.html">bytesExpanded</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.bytesContracted109796.html">bytesContracted</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.bytesMoved109863.html">bytesMoved</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.bytesSlack109925.html">bytesSlack</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr><tr><td><a href="std/allocator.AllocatorWithStats.bytesHighTide109987.html">bytesHighTide</a></td><td></td><td>Read-only properties enabled by the homonym  chosen by the
+       user.</td></tr></table>
+<h3>Structs</h3>
+<table>
+<tr><td><a href="std/allocator.AllocatorWithStats.AllocationInfo.html">AllocationInfo</a></td><td></td><td>Per-allocation information that can be iterated upon by using
+       . This only tracks live allocations and is useful for
+       e.g. tracking memory leaks.</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>
