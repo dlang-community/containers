@@ -274,7 +274,7 @@ private:
 				}
 				else
 				{
-					size_t hash = generateHash(node.value);
+					size_t hash = generateHash(node.key);
 					size_t index = hashToIndex(hash);
 					buckets[index].put(Node(node.key, node.value));
 				}
