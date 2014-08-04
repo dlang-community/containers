@@ -39,6 +39,8 @@ module containers.internal.storage_type;
  *     ))
  * $(LI $(B Basic types:) Basic types will have their const or immutable status
  *     removed.)
+ * $(LI $(B Pointers:) Pointers will have their type constructors shifted. E.g.
+ *     const(int*) becomes const(int)*)
  * )
  */
 template ContainerStorageType(T)
@@ -47,7 +49,7 @@ template ContainerStorageType(T)
 	import std.typecons;
 	static if (is (T == const) || is (T == immutable))
 	{
-		static if (isBasicType!T || isDynamicArray!T)
+		static if (isBasicType!T || isDynamicArray!T || isPointer!T)
 			alias ContainerStorageType = Unqual!T;
 		else static if (is (T == class) || is (T == interface))
 			alias ContainerStorageType = Rebindable!T;
@@ -102,4 +104,10 @@ unittest
 	// Arrays can be stored because the entire pointer-length pair is moved as
 	// a unit.
 	static assert (is (ContainerStorageType!(const(int[])) == const(int)[]));
+}
+
+///
+unittest
+{
+	static assert (is (ContainerStorageType!(const(int*)) == const(int)*));
 }
