@@ -95,3 +95,12 @@ private:
 	}
 	TTree!(TreeMapElement, false, "a.opCmp(b) > 0", supportGC, cacheLineSize) tree;
 }
+
+unittest
+{
+	TreeMap!(string, string) tm;
+	tm["test1"] = "hello";
+	tm["test2"] = "world";
+	tm.remove("test1");
+	tm.remove("test2");
+}

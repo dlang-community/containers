@@ -39,14 +39,18 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	}
 
 	private import containers.internal.node;
+	private import containers.internal.storage_type;
 
 	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 3, size_t, cacheLineSize);
 	static assert (nodeCapacity <= (size_t.sizeof * 4), "cannot fit height info and registry in size_t");
 
 	invariant()
 	{
-		assert ((root is null || _length != 0) || (root.parent is null && _length > 0));
+		assert (root is null || _length != 0);
 	}
+
+
+	alias Value = ContainerStorageType!T;
 
 	/// $(B tree ~= item) operator overload.
 	void opOpAssign(string op)(T value) if (op == "~")
@@ -103,9 +107,11 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	 */
 	bool remove(T value, void delegate(T) cleanup = null)
 	{
-		bool removed = root !is null && root.remove(value, root, cleanup);
+		bool removed = root !is null && root.remove(cast(Value) value, root, cleanup);
 		if (removed)
 			--_length;
+		if (_length == 0)
+			deallocateNode(root);
 		return removed;
 	}
 
@@ -231,11 +237,6 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 		enum Type : ubyte {all, lower, equal, upper}
 
-		import containers.unrolledlist;
-		import std.allocator;
-		import memory.allocators;
-		import std.array;
-
 		void currentToLeftmost()
 		{
 			if (current is null)
@@ -252,7 +253,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 					current = current.left;
 				else if (current.isFull)
 				{
-					if (_less(current.values[$ - 1], val))
+					if (_less(current.values[$ - 1], cast(Value) val))
 						current = current.right;
 					else
 						break;
@@ -337,12 +338,10 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 private:
 
-	import std.allocator;
-	import std.algorithm;
-	import std.array;
 	import containers.internal.node;
-	import std.functional;
-	import std.traits;
+	import std.allocator: Mallocator, allocate, deallocate;
+	import std.functional: binaryFun;
+	import std.traits: isPointer, PointerTarget;
 
 	// If we're storing a struct that defines opCmp, don't compare pointers as
 	// that is almost certainly not what the user intended.
@@ -364,7 +363,7 @@ private:
 		Node* n = allocate!Node(Mallocator.it);
 		n.parent = parent;
 		n.markUsed(0);
-		n.values[0] = value;
+		n.values[0] = cast(Value) value;
 		static if (supportGC && shouldAddGCRange!T)
 			GC.addRange(n, Node.sizeof);
 		return n;
@@ -431,11 +430,11 @@ private:
 			return (registry & fullBits!nodeCapacity) == 0;
 		}
 
-		bool contains(T value) const
+		bool contains(Value value) const
 		{
 			import std.range;
 			size_t i = nextAvailableIndex();
-			if (_less(value, values[0]))
+			if (_less(value, cast(Value) values[0]))
 				return left !is null && left.contains(value);
 			if (_less(values[i - 1], value))
 				return right !is null && right.contains(value);
@@ -483,9 +482,14 @@ private:
 			{
 				immutable size_t index = nextAvailableIndex();
 				static if (!allowDuplicates)
-					if (!assumeSorted!_less(values[0 .. index]).equalRange(value).empty)
+				{
+					if (!assumeSorted!_less(values[0 .. index]).equalRange(
+						cast(Value) value).empty)
+					{
 						return false;
-				values[index] = value;
+					}
+				}
+				values[index] = cast(Value) value;
 				markUsed(index);
 				sort!_less(values[0 .. index + 1]);
 				return true;
@@ -504,7 +508,7 @@ private:
 				calcHeight();
 				return b;
 			}
-			if (_less(values[$ - 1], value))
+			if (_less(values[$ - 1], cast(Value) value))
 			{
 				if (right is null)
 				{
@@ -519,11 +523,11 @@ private:
 				return b;
 			}
 			static if (!allowDuplicates)
-				if (!assumeSorted!_less(values[]).equalRange(value).empty)
+				if (!assumeSorted!_less(values[]).equalRange(cast(Value) value).empty)
 					return false;
-			T[nodeCapacity + 1] temp = void;
+			Value[nodeCapacity + 1] temp = void;
 			temp[0 .. $ - 1] = values[];
-			temp[$ - 1] = value;
+			temp[$ - 1] = cast(Value) value;
 			sort!_less(temp[]);
 			if (right is null)
 			{
@@ -554,11 +558,11 @@ private:
 			return b;
 		}
 
-		bool remove(T value, ref Node* n, void delegate(T) cleanup = null)
+		bool remove(Value value, ref Node* n, void delegate(T) cleanup = null)
 		{
 			import std.range;
 			assert (!isEmpty());
-			if (_less(value, values[0]))
+			if (isFull() && _less(value, values[0]))
 			{
 				bool r = left !is null && left.remove(value, left, cleanup);
 				if (left.isEmpty())
@@ -583,7 +587,7 @@ private:
 			immutable size_t l = tri[0].length;
 			if (right is null && left is null)
 			{
-				T[nodeCapacity - 1] temp;
+				Value[nodeCapacity - 1] temp;
 				temp[0 .. l] = values[0 .. l];
 				temp[l .. $] = values[l + 1 .. $];
 				values[0 .. $ - 1] = temp[];
@@ -591,7 +595,7 @@ private:
 			}
 			else if (right !is null)
 			{
-				T[nodeCapacity - 1] temp;
+				Value[nodeCapacity - 1] temp;
 				temp[0 .. l] = values[0 .. l];
 				temp[l .. $] = values[l + 1 .. $];
 				values[0 .. $ - 1] = temp[];
@@ -601,7 +605,7 @@ private:
 			}
 			else if (left !is null)
 			{
-				T[nodeCapacity - 1] temp;
+				Value[nodeCapacity - 1] temp;
 				temp[0 .. l] = values[0 .. l];
 				temp[l .. $] = values[l + 1 .. $];
 				values[1 .. $] = temp[];
@@ -612,7 +616,7 @@ private:
 			return true;
 		}
 
-		T removeSmallest()
+		Value removeSmallest()
 		in
 		{
 			assert (!isEmpty());
@@ -621,8 +625,8 @@ private:
 		{
 			if (left is null && right is null)
 			{
-				T r = values[0];
-				T[nodeCapacity - 1] temp = void;
+				Value r = values[0];
+				Value[nodeCapacity - 1] temp = void;
 				temp[] = values[1 .. $];
 				values[0 .. $ - 1] = temp[];
 				markUnused(nextAvailableIndex() - 1);
@@ -635,8 +639,8 @@ private:
 					deallocateNode(left);
 				return r;
 			}
-			T r = values[0];
-			T[nodeCapacity - 1] temp = void;
+			Value r = values[0];
+			Value[nodeCapacity - 1] temp = void;
 			temp[] = values[1 .. $];
 			values[0 .. $ - 1] = temp[];
 			values[$ - 1] = right.removeSmallest();
@@ -645,7 +649,7 @@ private:
 			return r;
 		}
 
-		T removeLargest()
+		Value removeLargest()
 		in
 		{
 			assert (!isEmpty());
@@ -660,7 +664,7 @@ private:
 			if (left is null && right is null)
 			{
 				size_t i = nextAvailableIndex() - 1;
-				T r = values[i];
+				Value r = values[i];
 				markUnused(i);
 				return r;
 			}
@@ -671,8 +675,8 @@ private:
 					deallocateNode(right);
 				return r;
 			}
-			T r = values[$ - 1];
-			T[nodeCapacity - 1] temp = void;
+			Value r = values[$ - 1];
+			Value[nodeCapacity - 1] temp = void;
 			temp[] = values[0 .. $ - 1];
 			values[1 .. $] = temp[];
 			values[0] = left.removeLargest();
@@ -860,7 +864,8 @@ private:
 		Node* left;
 		Node* right;
 		Node* parent;
-		T[nodeCapacity] values;
+
+		Value[nodeCapacity] values;
 		size_t registry = (cast(size_t) 1) << (size_t.sizeof * 4);
 	}
 
@@ -1124,5 +1129,20 @@ unittest
 //				writeln("Failed on ", i);
 		}
 		assert (ints.length == 49 - 11);
+	}
+
+	// This test ensures that the container works with const elements
+	{
+		const(TTree!(const(int))) getInts()
+		{
+			TTree!(const(int)) t;
+			t.insert(1);
+			t.insert(2);
+			t.insert(3);
+			return t;
+		}
+		auto t = getInts();
+		static assert (is (typeof(t[].front) == const(int)));
+		assert (equal(t[].filter!(a => a & 1), [1, 3]));
 	}
 }
