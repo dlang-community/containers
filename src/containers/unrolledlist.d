@@ -22,8 +22,6 @@ module containers.unrolledlist;
  */
 struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 {
-	private import std.traits;
-
 	this(this) @disable;
 
 	~this()
@@ -212,7 +210,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 
 	invariant()
 	{
-		import std.string;
+		import std.string: format;
 		assert (_front is null || _front.registry != 0, format("%x, %b", _front, _front.registry));
 		assert (_front !is null || _back is null);
 	}
@@ -226,8 +224,8 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	}
 	body
 	{
-		import core.bitop;
-		import std.string;
+		import core.bitop: bsf;
+		import std.string: format;
 		size_t index = bsf(_front.registry);
 		assert (index < nodeCapacity, format("%d", index));
 		return cast(T) _front.items[index];
@@ -253,7 +251,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 
 		this(inout(Node)* current)
 		{
-			import core.bitop;
+			import core.bitop: bsf;
 			this.current = current;
 			if (current !is null)
 			{
@@ -305,8 +303,9 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 
 private:
 
-	import std.allocator;
+	import std.allocator: allocate, deallocate, Mallocator;
 	import containers.internal.node;
+	import containers.internal.storage_type;
 
 	Node* _back;
 	Node* _front;
@@ -318,7 +317,7 @@ private:
 		Node* n = allocate!Node(Mallocator.it);
 		static if (supportGC && shouldAddGCRange!T)
 		{
-			import core.memory;
+			import core.memory: GC;
 			GC.addRange(n, Node.sizeof);
 		}
 		n.items[0] = item;
@@ -331,7 +330,7 @@ private:
 		deallocate(Mallocator.it, n);
 		static if (supportGC && shouldAddGCRange!T)
 		{
-			import core.memory;
+			import core.memory: GC;
 			GC.removeRange(n);
 		}
 	}
@@ -344,9 +343,9 @@ private:
 	}
 	body
 	{
-		import core.bitop;
+		import core.bitop: bsf;
 		size_t i;
-		T[nodeCapacity] temp;
+		ContainerStorageType!T[nodeCapacity] temp;
 		foreach (j; 0 .. nodeCapacity)
 			if (!first.isFree(j))
 				temp[i++] = first.items[j];
@@ -373,7 +372,7 @@ private:
 	{
 		size_t nextAvailableIndex() const nothrow pure
 		{
-			import core.bitop;
+			import core.bitop: bsf;
 			return bsf(~registry);
 		}
 
@@ -408,7 +407,7 @@ private:
 //		}
 
 		ushort registry;
-		T[nodeCapacity] items;
+		ContainerStorageType!T[nodeCapacity] items;
 		Node* prev;
 		Node* next;
 	}
@@ -456,4 +455,14 @@ unittest
 		assert (x == i, format("%d %d", i, x));
 	}
 	assert (l3.empty);
+}
+
+unittest
+{
+	import std.stdio;
+	struct A { int a; int b; }
+	UnrolledList!(const(A)) objs;
+	objs.insert(A(10, 11));
+	static assert (is (typeof(objs.front) == const));
+	static assert (is (typeof(objs[].front) == const));
 }
