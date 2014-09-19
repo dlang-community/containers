@@ -69,8 +69,16 @@ struct HashMap(K, V, alias hashFunction)
 		size_t index = hashToIndex(hash);
 		foreach (r; buckets[index].range)
 		{
-			if (r == key)
-				return r.value;
+			static if (storeHash)
+			{
+				if (r.hash == hash && r == key)
+					return r.value;
+			}
+			else
+			{
+				if (r == key)
+					return r.value;
+			}
 		}
 		throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
 	}
@@ -88,11 +96,20 @@ struct HashMap(K, V, alias hashFunction)
 	 */
 	V* opBinaryRight(string op)(K key) const nothrow if (op == "in")
 	{
-		size_t index = hashIndex(key);
+		size_t hash = generateHash(key);
+		size_t index = hashToIndex(hash);
 		foreach (ref node; buckets[index].range)
 		{
-			if (node.key == key)
-				return &node.value;
+			static if (storeHash)
+			{
+				if (node.hash == hash && node == key)
+					return &node.value;
+			}
+			else
+			{
+				if (node == key)
+					return &node.value;
+			}
 		}
 		return null;
 	}
