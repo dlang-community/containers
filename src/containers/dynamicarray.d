@@ -62,7 +62,7 @@ struct DynamicArray(T, bool supportGC = true)
 			arr = cast(T[]) Mallocator.it.allocate(T.sizeof * 4);
 			static if (supportGC && shouldAddGCRange!T)
 			{
-				import core.memory;
+				import core.memory: GC;
 				GC.addRange(arr.ptr, arr.length * T.sizeof);
 			}
 		}
@@ -74,7 +74,7 @@ struct DynamicArray(T, bool supportGC = true)
 			arr = cast(T[]) a;
 			static if (supportGC && shouldAddGCRange!T)
 			{
-				import core.memory;
+				import core.memory: GC;
 				GC.removeRange(arr.ptr);
 				GC.addRange(arr.ptr, arr.length * T.sizeof);
 			}
@@ -107,8 +107,8 @@ struct DynamicArray(T, bool supportGC = true)
 	size_t length() @property { return l; }
 
 private:
-	import std.allocator;
-	import containers.internal.node;
+	import std.allocator: Mallocator;
+	import containers.internal.node: shouldAddGCRange;
 	T[] arr;
 	size_t l;
 }
