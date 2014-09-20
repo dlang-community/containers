@@ -67,6 +67,12 @@ unittest
 struct BlockAllocator(size_t blockSize)
 {
 	/**
+	 * Copy construction disabled because this struct clears its memory with a
+	 * destructor.
+	 */
+	@disable this(this);
+
+	/**
 	 * Frees all memory allocated by this allocator
 	 */
 	~this() pure nothrow @trusted
