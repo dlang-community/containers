@@ -190,7 +190,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 		/**
 		 * Standard range operations
 		 */
-		const T front() const @property
+		T front() const @property
 		in
 		{
 			assert (!empty);
