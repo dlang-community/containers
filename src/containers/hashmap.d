@@ -46,7 +46,7 @@ struct HashMap(K, V, alias hashFunction)
 
 	~this()
 	{
-		import std.allocator;
+		import std.allocator : Mallocator, deallocate;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
 		GC.removeRange(buckets.ptr);
@@ -132,7 +132,7 @@ struct HashMap(K, V, alias hashFunction)
 	/**
 	 * Returns: the number of key/value pairs in this aa
 	 */
-	size_t length() const @property
+	size_t length() const nothrow pure @property @safe @nogc
 	{
 		return _length;
 	}
@@ -147,7 +147,7 @@ struct HashMap(K, V, alias hashFunction)
 	}
 	body
 	{
-		import std.array;
+		import std.array : appender;
 		auto app = appender!(K[])();
 		foreach (ref const bucket; buckets)
 		{
@@ -167,7 +167,7 @@ struct HashMap(K, V, alias hashFunction)
 	}
 	body
 	{
-		import std.array;
+		import std.array : appender;
 		auto app = appender!(V[])();
 		foreach (ref const bucket; buckets)
 		{
@@ -207,8 +207,8 @@ private:
 
 	void initialize(size_t bucketCount = 4)
 	{
-		import std.conv;
-		import std.allocator;
+		import std.conv : emplace;
+		import std.allocator : allocate;
 		sListNodeAllocator = allocate!(SListNodeAllocator)(Mallocator.it);
 		emplace(sListNodeAllocator);
 		buckets = cast(Bucket[]) Mallocator.it.allocate( // Valgrind
@@ -221,7 +221,6 @@ private:
 
 	void insert(K key, V value)
 	{
-		import std.algorithm;
 		if (buckets.length == 0)
 			initialize();
 		size_t hash = generateHash(key);
@@ -257,7 +256,7 @@ private:
 	/**
 	 * Returns: true if the load factor has been exceeded
 	 */
-	bool shouldRehash() const pure nothrow @safe
+	bool shouldRehash() const pure nothrow @safe @nogc
 	{
 		return cast(float) _length / cast(float) buckets.length > 0.75;
 	}
@@ -267,8 +266,8 @@ private:
 	 */
 	void rehash() @trusted
 	{
-		import std.allocator;
-		import std.conv;
+		import std.allocator : allocate, deallocate;
+		import std.conv : emplace;
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
@@ -307,15 +306,14 @@ private:
 		sListNodeAllocator = newAllocator;
 	}
 
-	size_t hashToIndex(size_t hash) const pure nothrow @safe
+	size_t hashToIndex(size_t hash) const pure nothrow @safe @nogc
 	in
 	{
 		assert (buckets.length > 0);
 	}
 	out (result)
 	{
-		import std.string;
-		assert (result < buckets.length, "%d, %d".format(result, buckets.length));
+		assert (result < buckets.length);
 	}
 	body
 	{
@@ -363,8 +361,7 @@ private:
 ///
 unittest
 {
-	import std.stdio;
-	import std.uuid;
+	import std.uuid : randomUUID;
 	auto hm = HashMap!(string, int)(16);
 	assert (hm.length == 0);
 	assert (!hm.remove("abc"));

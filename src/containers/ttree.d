@@ -38,13 +38,12 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 		deallocateNode(root);
 	}
 
-	private import containers.internal.node;
-	private import containers.internal.storage_type;
+	private import containers.internal.storage_type : ContainerStorageType;
 
 	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 3, size_t, cacheLineSize);
 	static assert (nodeCapacity <= (size_t.sizeof * 4), "cannot fit height info and registry in size_t");
 
-	invariant()
+	debug(EMSI_CONTAINERS) invariant()
 	{
 		assert (root is null || _length != 0);
 	}
@@ -817,9 +816,9 @@ private:
 			}
 		}
 
-		invariant()
+		debug(EMSI_CONTAINERS) invariant()
 		{
-			import std.string;
+			import std.string : format;
 			assert (&this !is null);
 			assert (left !is &this, "%x, %x".format(left, &this));
 			assert (right !is &this, "%x, %x".format(right, &this));
@@ -875,12 +874,12 @@ private:
 
 unittest
 {
-	import std.uuid;
-	import std.stdio;
-	import core.memory;
-	import std.string;
-	import std.range;
-	import std.algorithm;
+	import core.memory : GC;
+	import std.algorithm : equal, sort, map, filter;
+	import std.array : array;
+	import std.range : iota, walkLength, isForwardRange;
+	import std.string : format;
+	import std.uuid : randomUUID;
 
 	{
 		TTree!int kt;
@@ -1042,13 +1041,12 @@ unittest
 	}
 
 	{
-		import std.stdio;
+//		import std.stdio;
 		static struct S
 		{
 			string x;
 			int opCmp (ref const S other) const
 			{
-				import std.string;
 				if (x < other.x)
 					return -1;
 				if (x > other.x)
@@ -1105,7 +1103,7 @@ unittest
 	}
 
 	{
-		import std.algorithm;
+		import std.algorithm : canFind;
 		TTree!int ints;
 		foreach (i; 0 .. 50)
 			ints ~= i;

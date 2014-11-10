@@ -7,9 +7,12 @@
 
 module containers.slist;
 
+/**
+ * Returns: A singly-linked list of type T backed by malloc().
+ */
 auto slist(T)()
 {
-	import std.allocator;
+	import std.allocator : Mallocator;
 	return SList!(T, shared Mallocator)(Mallocator.it);
 }
 
@@ -25,12 +28,13 @@ struct SList(T, A)
 	 * Disable default-construction and postblit
 	 */
 	this() @disable;
+	/// ditto
 	this(this) @disable;
 
 	/**
 	 * Params: allocator = the allocator instance used to allocate nodes
 	 */
-	this(A allocator) pure nothrow
+	this(A allocator) pure nothrow @safe @nogc
 	{
 		this.allocator = allocator;
 	}
@@ -46,7 +50,7 @@ struct SList(T, A)
 			typeid(Node).destroy(prev);
 			static if (shouldAddGCRange!T)
 			{
-				import core.memory;
+				import core.memory : GC;
 				GC.removeRange(prev);
 			}
 			deallocate(allocator, prev);
@@ -57,7 +61,7 @@ struct SList(T, A)
 	/**
 	 * Returns: the most recently inserted item
 	 */
-	T front() inout pure nothrow @property
+	T front() inout pure nothrow @property @safe @nogc
 	in
 	{
 		assert (!empty);
@@ -82,7 +86,7 @@ struct SList(T, A)
 		T r = f.value;
 		static if (shouldAddGCRange!T)
 		{
-			import core.memory;
+			import core.memory : GC;
 			GC.removeRange(f);
 		}
 		deallocate(allocator, f);
@@ -99,7 +103,7 @@ struct SList(T, A)
 		_front = f.next;
 		static if (shouldAddGCRange!T)
 		{
-			import core.memory;
+			import core.memory : GC;
 			GC.removeRange(f);
 		}
 		deallocate(allocator, f);
@@ -109,7 +113,7 @@ struct SList(T, A)
 	/**
 	 * Returns: true if this list is empty
 	 */
-	bool empty() inout pure nothrow @property
+	bool empty() inout pure nothrow @property @safe @nogc
 	{
 		return _front is null;
 	}
@@ -117,7 +121,7 @@ struct SList(T, A)
 	/**
 	 * Returns: the number of items in the list
 	 */
-	size_t length() inout pure nothrow @property
+	size_t length() inout pure nothrow @property @safe @nogc
 	{
 		return _length;
 	}
@@ -131,7 +135,7 @@ struct SList(T, A)
 		_front = allocate!Node(allocator, _front, t);
 		static if (shouldAddGCRange!T)
 		{
-			import core.memory;
+			import core.memory : GC;
 			GC.addRange(_front, Node.sizeof);
 		}
 		_length++;
@@ -167,7 +171,7 @@ struct SList(T, A)
 					_front = cur.next;
 				static if (shouldAddGCRange!T)
 				{
-					import core.memory;
+					import core.memory : GC;
 					GC.removeRange(cur);
 				}
 				deallocate(allocator, cur);
@@ -204,7 +208,7 @@ struct SList(T, A)
 			cur = prev.next;
 			static if (shouldAddGCRange!T)
 			{
-				import core.memory;
+				import core.memory : GC;
 				GC.removeRange(prev);
 			}
 			deallocate(allocator, prev);
@@ -215,24 +219,24 @@ struct SList(T, A)
 
 private:
 
-	import std.allocator;
-	import memory.allocators;
-	import containers.internal.node;
+	import std.allocator : allocate, deallocate;
+	import memory.allocators : NodeAllocator;
+	import containers.internal.node : shouldAddGCRange;
 
 	static struct Range
 	{
 	public:
-		inout(T) front() inout pure nothrow @property
+		inout(T) front() inout pure nothrow @property @trusted @nogc
 		{
 			return cast(typeof(return)) current.value;
 		}
 
-		void popFront() pure nothrow
+		void popFront() pure nothrow @safe @nogc
 		{
 			current = current.next;
 		}
 
-		bool empty() const pure nothrow @property
+		bool empty() const pure nothrow @property @safe @nogc
 		{
 			return current is null;
 		}
@@ -256,10 +260,9 @@ private:
 
 unittest
 {
-	import std.range;
-	import std.allocator;
-	import std.string;
-	import std.algorithm;
+	import std.allocator : CAllocatorImpl, Mallocator;
+	import std.string : format;
+	import std.algorithm : canFind;
 	auto allocator = new CAllocatorImpl!(Mallocator);
 	SList!(int, CAllocatorImpl!Mallocator) intList = SList!(int, CAllocatorImpl!(Mallocator))(allocator);
 	foreach (i; 0 .. 100)

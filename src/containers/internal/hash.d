@@ -8,7 +8,7 @@ size_t builtinHash(K)(K key) nothrow @trusted
 /**
  * Hash function for strings
  */
-size_t hashString(string str) pure nothrow @trusted
+size_t hashString(string str) pure nothrow @trusted @nogc
 in
 {
 	assert (str !is null);

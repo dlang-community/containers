@@ -116,13 +116,13 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	}
 
 	/// Returns: the length of the list
-	size_t length() const nothrow pure @property
+	size_t length() const nothrow pure @property @safe @nogc
 	{
 		return _length;
 	}
 
 	/// Returns: true if the list is empty
-	bool empty() const nothrow pure @property
+	bool empty() const nothrow pure @property @safe @nogc
 	{
 		return _length == 0;
 	}
@@ -133,7 +133,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	 */
 	bool remove(T item)
 	{
-		import core.bitop;
+		import core.bitop : popcnt;
 		if (_front is null)
 			return false;
 		Node* n = _front;
@@ -182,8 +182,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	}
 	body
 	{
-		import std.stdio;
-		import core.bitop;
+		import core.bitop : bsf, popcnt;
 		size_t index = bsf(_front.registry);
 		T r = _front.items[index];
 		_front.markUnused(index);
@@ -208,7 +207,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		return r;
 	}
 
-	invariant()
+	debug(EMSI_CONTAINERS) invariant()
 	{
 		import std.string: format;
 		assert (_front is null || _front.registry != 0, format("%x, %b", _front, _front.registry));
@@ -216,7 +215,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	}
 
 	/// Returns: the item at the front of the list
-	inout T front() const @property
+	T front() inout @property
 	in
 	{
 		assert (!empty);
@@ -260,7 +259,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 			}
 		}
 
-		T front() const @property
+		T front() const @property @trusted @nogc
 		{
 			return cast(T) current.items[index];
 		}
@@ -287,12 +286,12 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 			}
 		}
 
-		bool empty() const nothrow pure @property
+		bool empty() const nothrow pure @property @safe @nogc
 		{
 			return current is null;
 		}
 
-		Range save() const nothrow pure @property
+		Range save() const nothrow pure @property @safe @nogc
 		{
 			return this;
 		}
@@ -304,13 +303,13 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 private:
 
 	import std.allocator: allocate, deallocate, Mallocator;
-	import containers.internal.node;
-	import containers.internal.storage_type;
+	import containers.internal.node : fatNodeCapacity, shouldAddGCRange,
+		fullBits, shouldNullSlot;
+	import containers.internal.storage_type : ContainerStorageType;
 
 	Node* _back;
 	Node* _front;
 	size_t _length;
-//	uint refCount = 1;
 
 	Node* allocateNode(T item)
 	{
@@ -360,7 +359,7 @@ private:
 		assert (first.registry <= fullBits!nodeCapacity);
 		static if (supportGC && shouldAddGCRange!T)
 		{
-			import core.memory;
+			import core.memory : GC;
 			GC.removeRange(second);
 			if (_back is second)
 				_back = null;
@@ -370,41 +369,41 @@ private:
 
 	static struct Node
 	{
-		size_t nextAvailableIndex() const nothrow pure
+		size_t nextAvailableIndex() const nothrow pure @safe @nogc
 		{
 			import core.bitop: bsf;
 			return bsf(~registry);
 		}
 
-		void markUsed(size_t index) nothrow pure
+		void markUsed(size_t index) nothrow pure @safe @nogc
 		{
 			registry |= (1 << index);
 		}
 
-		void markUnused(size_t index) nothrow pure
+		void markUnused(size_t index) nothrow pure @safe @nogc
 		{
 			registry &= ~(1 << index);
 			static if (shouldNullSlot!T)
 				items[index] = null;
 		}
 
-		bool empty() const nothrow pure
+		bool empty() const nothrow pure @safe @nogc
 		{
 			return registry == 0;
 		}
 
-		bool isFree(size_t index) const nothrow pure
+		bool isFree(size_t index) const nothrow pure @safe @nogc
 		{
 			return (registry & (1 << index)) == 0;
 		}
 
-//		invariant()
-//		{
-//			import std.string;
-//			assert (registry <= fullBits!nodeCapacity, format("%016b %016b", registry, fullBits!nodeCapacity));
-//			assert (prev !is &this);
-//			assert (next !is &this);
-//		}
+		debug(EMSI_CONTAINERS) invariant()
+		{
+			import std.string : format;
+			assert (registry <= fullBits!nodeCapacity, format("%016b %016b", registry, fullBits!nodeCapacity));
+			assert (prev !is &this);
+			assert (next !is &this);
+		}
 
 		ushort registry;
 		ContainerStorageType!T[nodeCapacity] items;
@@ -415,10 +414,9 @@ private:
 
 unittest
 {
-	import std.algorithm;
-	import std.range;
-	import std.stdio;
-	import std.string;
+	import std.algorithm : equal;
+	import std.range : iota;
+	import std.string : format;
 	UnrolledList!int l;
 	static assert (l.Node.sizeof <= 64);
 	assert (l.empty);
@@ -459,7 +457,6 @@ unittest
 
 unittest
 {
-	import std.stdio;
 	struct A { int a; int b; }
 	UnrolledList!(const(A)) objs;
 	objs.insert(A(10, 11));

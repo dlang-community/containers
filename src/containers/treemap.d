@@ -55,13 +55,13 @@ struct TreeMap(K, V, alias less = "a < b", bool supportGC = true,
 	}
 
 	/// Returns: true if the mapping is empty
-	bool empty() const pure nothrow @property
+	bool empty() const pure nothrow @property @safe @nogc
 	{
 		return tree.empty;
 	}
 
 	/// Returns: the number of key→value pairs in the map
-	size_t length() const pure nothrow @property
+	size_t length() const pure nothrow @property @safe @nogc
 	{
 		return tree.length;
 	}
@@ -81,7 +81,7 @@ struct TreeMap(K, V, alias less = "a < b", bool supportGC = true,
 
 private:
 
-	import containers.ttree;
+	import containers.ttree : TTree;
 
 	static struct TreeMapElement
 	{
@@ -89,7 +89,7 @@ private:
 		V value;
 		int opCmp(ref const TreeMapElement other) const
 		{
-			import std.functional;
+			import std.functional : binaryFun;
 			return binaryFun!less(key, other.key);
 		}
 	}

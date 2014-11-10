@@ -28,26 +28,26 @@ struct DynamicArray(T, bool supportGC = true)
 			typeid(T).destroy(&item);
 		static if (shouldAddGCRange!T)
 		{
-			import core.memory;
+			import core.memory : GC;
 			GC.removeRange(arr.ptr);
 		}
 		Mallocator.it.deallocate(arr);
 	}
 
 	/// Slice operator overload
-	T[] opSlice()
+	T[] opSlice() @nogc
 	{
 		return arr[0 .. l];
 	}
 
 	/// ditto
-	T[] opSlice(size_t a, size_t b)
+	T[] opSlice(size_t a, size_t b) @nogc
 	{
 		return arr[a .. b];
 	}
 
 	/// Index operator overload
-	T opIndex(size_t i)
+	T opIndex(size_t i) @nogc
 	{
 		return arr[i];
 	}
@@ -86,25 +86,25 @@ struct DynamicArray(T, bool supportGC = true)
 	alias put = insert;
 
 	/// Index assignment support
-	void opIndexAssign(T value, size_t i)
+	void opIndexAssign(T value, size_t i) @nogc
 	{
 		arr[i] = value;
 	}
 
 	/// Slice assignment support
-	void opSliceAssign(T value)
+	void opSliceAssign(T value) @nogc
 	{
 		arr[0 .. l] = value;
 	}
 
 	/// ditto
-	void opSliceAssign(T value, size_t i, size_t j)
+	void opSliceAssign(T value, size_t i, size_t j) @nogc
 	{
 		arr[i .. j] = value;
 	}
 
 	/// Returns: the number of items in the array
-	size_t length() @property { return l; }
+	size_t length() const nothrow pure @property @safe @nogc { return l; }
 
 private:
 	import std.allocator: Mallocator;
@@ -115,8 +115,7 @@ private:
 
 unittest
 {
-	import std.stdio;
-	import std.range;
+	import std.range : equal, iota;
 	DynamicArray!int ints;
 	foreach (i; 0 .. 100)
 		ints.insert(i);

@@ -26,8 +26,8 @@ struct ImmutableHashSet(T, alias hashFunction)
 	this(const T[] values) immutable
 	in
 	{
-		import std.algorithm;
-		import std.array;
+		import std.algorithm : sort, uniq;
+		import std.array : array;
 		assert (values.dup.sort.uniq.array.length == values.length);
 	}
 	body
@@ -104,7 +104,7 @@ struct ImmutableHashSet(T, alias hashFunction)
 	/**
 	 * Returns: A GC-allocated array containing the contents of this set.
 	 */
-	immutable(T)[] opSlice() immutable
+	immutable(T)[] opSlice() immutable @safe
 	{
 		if (empty)
 			return [];
@@ -151,10 +151,10 @@ struct ImmutableHashSet(T, alias hashFunction)
 
 private:
 
-	import std.allocator;
-	import std.traits;
-	import containers.internal.node;
-	import core.memory;
+	import std.allocator : Mallocator;
+	import std.traits : isBasicType, hasMember;
+	import containers.internal.node : shouldAddGCRange;
+	import core.memory : GC;
 
 	static struct Node
 	{
