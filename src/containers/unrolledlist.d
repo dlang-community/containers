@@ -221,7 +221,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	 * Time complexity is O(1)
 	 * Returns: the item at the front of the list
 	 */
-	T front() inout @property
+	inout(T) front() inout @property
 	in
 	{
 		assert (!empty);
@@ -233,14 +233,14 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		import std.string: format;
 		size_t index = bsf(_front.registry);
 		assert (index < nodeCapacity, format("%d", index));
-		return cast(T) _front.items[index];
+		return _front.items[index];
 	}
 
 	/**
 	 * Time complexity is O(n)
 	 * Returns: the item at the back of the list
 	 */
-	T back() inout @property
+	inout(T) back() inout @property
 	in
 	{
 		assert (!empty);
