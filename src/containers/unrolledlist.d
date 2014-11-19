@@ -55,6 +55,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 			if (index >= nodeCapacity)
 			{
 				Node* n = allocateNode(item);
+				n.prev = _back;
 				_back.next = n;
 				_back = n;
 				index = 0;
@@ -190,6 +191,8 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		if (_front.registry == 0)
 		{
 			auto f = _front;
+			if (_front.next !is null)
+				_front.next.prev = null;
 			assert (_front.next !is _front);
 			_front = _front.next;
 			if (_front is null)
@@ -214,7 +217,10 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		assert (_front !is null || _back is null);
 	}
 
-	/// Returns: the item at the front of the list
+	/**
+	 * Time complexity is O(1)
+	 * Returns: the item at the front of the list
+	 */
 	T front() inout @property
 	in
 	{
@@ -228,6 +234,71 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		size_t index = bsf(_front.registry);
 		assert (index < nodeCapacity, format("%d", index));
 		return cast(T) _front.items[index];
+	}
+
+	/**
+	 * Time complexity is O(n)
+	 * Returns: the item at the back of the list
+	 */
+	T back() inout @property
+	in
+	{
+		assert (!empty);
+		assert (!_back.empty);
+	}
+	body
+	{
+		size_t i = nodeCapacity - 1;
+		while (_back.isFree(i))
+			i--;
+		return _back.items[i];
+	}
+
+	/// Pops the back item off of the list.
+	void popBack()
+	{
+		moveBack();
+	}
+
+	/// Removes an item from the back of the list and returns it.
+	T moveBack()
+	in
+	{
+		assert (!empty);
+		assert (!_back.empty);
+	}
+	body
+	{
+		import core.bitop : popcnt;
+		size_t i = nodeCapacity - 1;
+		while (_back.isFree(i))
+		{
+			if (i == 0)
+				break;
+			else
+				i--;
+		}
+		assert (!_back.isFree(i));
+		T item = _back.items[i];
+		_back.markUnused(i);
+		_length--;
+		if (_back.registry == 0)
+		{
+			auto b = _back;
+			if (_back.prev !is null)
+				_back.prev.next = null;
+			else
+				_front = null;
+			_back = _back.prev;
+			deallocateNode(b);
+			return item;
+		}
+		if (_back.prev !is null
+			&& (popcnt(_back.prev.registry) + popcnt(_back.registry) <= nodeCapacity))
+		{
+			mergeNodes(_back.prev, _back);
+		}
+		return item;
 	}
 
 	/**
@@ -361,9 +432,9 @@ private:
 		{
 			import core.memory : GC;
 			GC.removeRange(second);
-			if (_back is second)
-				_back = null;
 		}
+		if (_back is second)
+			_back = first;
 		deallocate(Mallocator.it, second);
 	}
 
@@ -451,6 +522,16 @@ unittest
 	{
 		auto x = l3.moveFront();
 		assert (x == i, format("%d %d", i, x));
+	}
+	assert (l3.empty);
+	foreach (i; 0 .. 200)
+		l3.insert(i);
+	assert (l3.length == 200);
+	foreach (i; 0 .. 200)
+	{
+		assert (l3.length == 200 - i);
+		auto x = l3.moveBack();
+		assert (x == 200 - i - 1, format("%d %d", 200 - 1 - 1, x));
 	}
 	assert (l3.empty);
 }
