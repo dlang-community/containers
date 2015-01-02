@@ -357,8 +357,7 @@ private:
 	}
 	body
 	{
-		import std.traits;
-		import core.memory;
+		import core.memory : GC;
 		Node* n = allocate!Node(Mallocator.it);
 		n.parent = parent;
 		n.markUsed(0);
@@ -375,8 +374,7 @@ private:
 	}
 	body
 	{
-		import std.traits;
-		import core.memory;
+		import core.memory : GC;
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(n);
 		typeid(Node).destroy(n);
