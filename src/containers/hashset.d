@@ -57,14 +57,17 @@ struct HashSet(T, alias hashFunction, bool supportGC = true)
 
 	~this()
 	{
-		import std.allocator;
+		import std.allocator : Mallocator, deallocate;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(buckets.ptr);
 		Mallocator.it.deallocate(buckets);
-		typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
-		deallocate(Mallocator.it, sListNodeAllocator);
+		if (sListNodeAllocator !is null)
+		{
+			typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
+			deallocate(Mallocator.it, sListNodeAllocator);
+		}
 	}
 
 	/**
