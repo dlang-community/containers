@@ -55,11 +55,6 @@ struct HashSet(T, alias hashFunction, bool supportGC = true)
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(buckets.ptr);
 		Mallocator.it.deallocate(buckets);
-		if (sListNodeAllocator !is null)
-		{
-			typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
-			deallocate(Mallocator.it, sListNodeAllocator);
-		}
 	}
 
 	/**
@@ -209,8 +204,6 @@ private:
 	void initialize(size_t bucketCount)
 	{
 		import std.conv : emplace;
-		sListNodeAllocator = allocate!(HashSetAllocatorType!T)(Mallocator.it);
-		assert (sListNodeAllocator);
 		buckets = cast(Bucket[]) Mallocator.it.allocate(
 			bucketCount * Bucket.sizeof);
 		assert (buckets.length == bucketCount);
@@ -261,7 +254,6 @@ private:
 	}
 
 	alias Bucket = UnrolledList!(Node, supportGC);
-	HashSetAllocatorType!T* sListNodeAllocator;
 
 	bool shouldRehash() const pure nothrow @safe
 	{
@@ -306,9 +298,6 @@ private:
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(oldBuckets.ptr);
 		Mallocator.it.deallocate(oldBuckets);
-		typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
-		deallocate(Mallocator.it, sListNodeAllocator);
-		sListNodeAllocator = newAllocator;
 	}
 
 	size_t hashToIndex(hash_t hash) const pure nothrow @safe

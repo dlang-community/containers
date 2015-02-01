@@ -367,6 +367,8 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 			return this;
 		}
 
+	private:
+
 		const(Node)* current;
 		size_t index;
 	}
