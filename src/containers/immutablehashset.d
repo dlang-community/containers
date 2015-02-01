@@ -16,7 +16,9 @@ module containers.immutablehashset;
  */
 struct ImmutableHashSet(T, alias hashFunction)
 {
+	///
 	@disable this();
+	///
 	@disable this(this);
 
 	/**
@@ -32,7 +34,6 @@ struct ImmutableHashSet(T, alias hashFunction)
 	}
 	body
 	{
-		import std.stdio;
 		empty = values.length == 0;
 		length = values.length;
 		if (empty)
@@ -123,8 +124,8 @@ struct ImmutableHashSet(T, alias hashFunction)
 	{
 		if (empty)
 			return false;
-		size_t hash = hashFunction(value);
-		size_t index = hash & (buckets.length - 1);
+		immutable size_t hash = hashFunction(value);
+		immutable size_t index = hash & (buckets.length - 1);
 		if (buckets[index].length == 0)
 			return false;
 		foreach (ref node; buckets[index])
