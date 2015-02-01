@@ -23,14 +23,6 @@ template HashSet(T, bool supportGC = true) if (!is (T == string))
 	alias HashSet = HashSet!(T, builtinHash!T, supportGC);
 }
 
-template HashSetAllocatorType(T)
-{
-	import memory.allocators;
-	enum size_t hashSetNodeSize = (void*).sizeof + T.sizeof + hash_t.sizeof;
-	enum size_t hashSetBlockSize = 512;
-	alias HashSetAllocatorType = NodeAllocator!(hashSetNodeSize, hashSetBlockSize);
-}
-
 /**
  * Hash Set.
  * Params:
@@ -63,11 +55,6 @@ struct HashSet(T, alias hashFunction, bool supportGC = true)
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(buckets.ptr);
 		Mallocator.it.deallocate(buckets);
-		if (sListNodeAllocator !is null)
-		{
-			typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
-			deallocate(Mallocator.it, sListNodeAllocator);
-		}
 	}
 
 	/**
@@ -76,7 +63,7 @@ struct HashSet(T, alias hashFunction, bool supportGC = true)
 	void clear()
 	{
 		foreach (ref bucket; buckets)
-			bucket.clear();
+			destroy(bucket);
 		_length = 0;
 	}
 
@@ -180,7 +167,7 @@ struct HashSet(T, alias hashFunction, bool supportGC = true)
 	/**
 	 * Returns: true if the set has no items
 	 */
-	bool empty() const @property
+	bool empty() inout nothrow pure @nogc @safe @property
 	{
 		return _length == 0;
 	}
@@ -188,7 +175,7 @@ struct HashSet(T, alias hashFunction, bool supportGC = true)
 	/**
 	 * Returns: the number of items in the set
 	 */
-	size_t length() const @property
+	size_t length() inout nothrow pure @nogc @safe @property
 	{
 		return _length;
 	}
@@ -196,7 +183,7 @@ struct HashSet(T, alias hashFunction, bool supportGC = true)
 	/**
 	 * Forward range interface
 	 */
-	Range range() @property
+	Range range() inout nothrow @nogc @safe @property
 	{
 		return Range(buckets);
 	}
@@ -206,26 +193,22 @@ struct HashSet(T, alias hashFunction, bool supportGC = true)
 
 private:
 
-	import containers.internal.node;
-	import containers.slist;
-	import memory.allocators;
-	import std.allocator;
-	import std.traits;
-	import core.memory;
+	import containers.internal.node : shouldAddGCRange;
+	import containers.unrolledlist : UnrolledList;
+	import std.allocator : Mallocator, allocate;
+	import std.traits : isBasicType;
+	import core.memory : GC;
 
 	enum bool storeHash = !isBasicType!T;
 
 	void initialize(size_t bucketCount)
 	{
-		import std.conv;
-		import std.allocator;
-		sListNodeAllocator = allocate!(HashSetAllocatorType!T)(Mallocator.it);
-		assert (sListNodeAllocator);
+		import std.conv : emplace;
 		buckets = cast(Bucket[]) Mallocator.it.allocate(
 			bucketCount * Bucket.sizeof);
 		assert (buckets.length == bucketCount);
 		foreach (ref bucket; buckets)
-			emplace(&bucket, sListNodeAllocator);
+			emplace(&bucket);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 	}
@@ -235,22 +218,20 @@ private:
 		this(const(Bucket)[] buckets)
 		{
 			this.buckets = buckets;
-			while (i < buckets.length)
+			r = buckets[i].range;
+			while (i < buckets.length && r.empty)
 			{
+				i++;
 				r = buckets[i].range;
-				if (r.empty)
-					i++;
-				else
-					break;
 			}
 		}
 
-		bool empty() const @property
+		bool empty() const nothrow @safe @nogc @property
 		{
 			return i >= buckets.length;
 		}
 
-		T front() @property
+		T front() const nothrow @safe @nogc @property
 		{
 			return r.front.value;
 		}
@@ -272,8 +253,7 @@ private:
 		size_t i;
 	}
 
-	alias Bucket = SList!(Node, HashSetAllocatorType!T*);
-	HashSetAllocatorType!T* sListNodeAllocator;
+	alias Bucket = UnrolledList!(Node, supportGC);
 
 	bool shouldRehash() const pure nothrow @safe
 	{
@@ -282,9 +262,8 @@ private:
 
 	void rehash() @trusted
 	{
-		import std.stdio;
-		import std.allocator;
-		import std.conv;
+		import std.allocator : allocate, deallocate;
+		import std.conv : emplace;
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
@@ -294,7 +273,7 @@ private:
 		auto newAllocator = allocate!(HashSetAllocatorType!T)(Mallocator.it);
 		assert (newAllocator);
 		foreach (ref bucket; buckets)
-			emplace(&bucket, newAllocator);
+			emplace(&bucket);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		foreach (ref const bucket; oldBuckets)
@@ -319,9 +298,6 @@ private:
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(oldBuckets.ptr);
 		Mallocator.it.deallocate(oldBuckets);
-		typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
-		deallocate(Mallocator.it, sListNodeAllocator);
-		sListNodeAllocator = newAllocator;
 	}
 
 	size_t hashToIndex(hash_t hash) const pure nothrow @safe
@@ -331,7 +307,7 @@ private:
 	}
 	out (result)
 	{
-		import std.string;
+		import std.string : format;
 		assert (result < buckets.length, "%d, %d".format(result, buckets.length));
 	}
 	body
@@ -341,7 +317,7 @@ private:
 
 	hash_t generateHash(T value) const pure nothrow @safe
 	{
-		import std.functional;
+		import std.functional : unaryFun;
 		hash_t h = unaryFun!(hashFunction, true)(value);
 		h ^= (h >>> 20) ^ (h >>> 12);
 		return h ^ (h >>> 7) ^ (h >>> 4);
@@ -374,9 +350,9 @@ private:
 ///
 unittest
 {
-	import std.array;
-	import std.algorithm;
-	import std.uuid;
+	import std.array : array;
+	import std.algorithm : canFind;
+	import std.uuid : randomUUID;
 	auto s = HashSet!string(16);
 	assert (!s.contains("nonsense"));
 	s.put("test");
@@ -407,4 +383,14 @@ unittest
 		s.put(randomUUID().toString);
 	}
 	assert (s.length == 10_001);
+}
+
+private:
+
+template HashSetAllocatorType(T)
+{
+	import memory.allocators;
+	enum size_t hashSetNodeSize = (void*).sizeof + T.sizeof + hash_t.sizeof;
+	enum size_t hashSetBlockSize = 512;
+	alias HashSetAllocatorType = NodeAllocator!(hashSetNodeSize, hashSetBlockSize);
 }

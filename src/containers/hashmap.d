@@ -7,16 +7,16 @@
 
 module containers.hashmap;
 
-template HashMap(K, V) if (is (K == string))
+template HashMap(K, V, bool supportGC = true) if (is (K == string))
 {
 	import containers.internal.hash;
-	alias HashMap = HashMap!(K, V, hashString);
+	alias HashMap = HashMap!(K, V, supportGC, hashString);
 }
 
-template HashMap(K, V) if (!is (K == string))
+template HashMap(K, V, bool supportGC = true) if (!is (K == string))
 {
 	import containers.internal.hash;
-	alias HashMap = HashMap!(K, V, builtinHash!K);
+	alias HashMap = HashMap!(K, V, supportGC, builtinHash!K);
 }
 
 /**
@@ -26,7 +26,7 @@ template HashMap(K, V) if (!is (K == string))
  *     V = the value type
  *     hashFunction = the hash function to use on the keys
  */
-struct HashMap(K, V, alias hashFunction)
+struct HashMap(K, V, bool supportGC, alias hashFunction)
 {
 	this(this) @disable;
 
@@ -49,10 +49,9 @@ struct HashMap(K, V, alias hashFunction)
 		import std.allocator : Mallocator, deallocate;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
-		GC.removeRange(buckets.ptr);
+		static if (supportGC)
+			GC.removeRange(buckets.ptr);
 		Mallocator.it.deallocate(buckets);
-		typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
-		deallocate(Mallocator.it, sListNodeAllocator);
 	}
 
 	/**
@@ -122,8 +121,12 @@ struct HashMap(K, V, alias hashFunction)
 	{
 		if (buckets.length == 0)
 			return false;
-		size_t index = hashIndex(key);
-		bool removed = buckets[index].remove(key);
+		size_t hash = generateHash(key);
+		size_t index = hashToIndex(hash);
+		static if (storeHash)
+			bool removed = buckets[index].remove(Node(hash, key));
+		else
+			bool removed = buckets[index].remove(Node(key));
 		if (removed)
 			_length--;
 		return removed;
@@ -197,11 +200,10 @@ struct HashMap(K, V, alias hashFunction)
 
 private:
 
-	import std.allocator;
-	import std.traits;
-	import memory.allocators;
-	import containers.slist;
-	import core.memory;
+	import std.allocator : Mallocator, allocate;
+	import std.traits : isBasicType;
+	import containers.unrolledlist : UnrolledList;
+	import core.memory : GC;
 
 	enum bool storeHash = !isBasicType!K;
 
@@ -209,14 +211,13 @@ private:
 	{
 		import std.conv : emplace;
 		import std.allocator : allocate;
-		sListNodeAllocator = allocate!(SListNodeAllocator)(Mallocator.it);
-		emplace(sListNodeAllocator);
-		buckets = cast(Bucket[]) Mallocator.it.allocate( // Valgrind
-			bucketCount * Bucket.sizeof);
+		buckets = (cast(Bucket*) Mallocator.it.allocate( // Valgrind
+			bucketCount * Bucket.sizeof))[0 .. bucketCount];
 		assert (buckets.length == bucketCount);
+		static if (supportGC)
+			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		foreach (ref bucket; buckets)
-			emplace(&bucket, sListNodeAllocator);
-		GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
+			emplace(&bucket);
 	}
 
 	void insert(K key, V value)
@@ -273,12 +274,12 @@ private:
 		Bucket[] oldBuckets = buckets;
 		assert (oldBuckets.ptr == buckets.ptr);
 		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize);
-		GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
-		auto newAllocator = allocate!(SListNodeAllocator)(Mallocator.it);
+		static if (supportGC)
+			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		assert (buckets);
 		assert (buckets.length == newLength);
 		foreach (ref bucket; buckets)
-			emplace(&bucket, newAllocator);
+			emplace(&bucket);
 		foreach (ref bucket; oldBuckets)
 		{
 			foreach (node; bucket.range)
@@ -297,13 +298,9 @@ private:
 			}
 			typeid(typeof(bucket)).destroy(&bucket);
 		}
-		typeid(typeof(*sListNodeAllocator)).destroy(sListNodeAllocator);
-		deallocate(Mallocator.it, sListNodeAllocator);
-		foreach (ref bucket; oldBuckets)
-			typeid(typeof(bucket)).destroy(&bucket);
-		GC.removeRange(oldBuckets.ptr);
+		static if (supportGC)
+			GC.removeRange(oldBuckets.ptr);
 		Mallocator.it.deallocate(cast(void[]) oldBuckets);
-		sListNodeAllocator = newAllocator;
 	}
 
 	size_t hashToIndex(size_t hash) const pure nothrow @safe @nogc
@@ -328,7 +325,7 @@ private:
 		return h ^ (h >>> 7) ^ (h >>> 4);
 	}
 
-	size_t hashIndex(K key) const nothrow @safe
+	size_t hashIndex(K key) const
 	out (result)
 	{
 		assert (result < buckets.length);
@@ -345,15 +342,21 @@ private:
 			return key == this.key;
 		}
 
+		bool opEquals(ref const Node n) const
+		{
+			static if (storeHash)
+				return this.hash == n.hash && this.key == n.key;
+			else
+				return this.key == n.key;
+		}
+
 		static if (storeHash)
 			size_t hash;
 		K key;
 		V value;
 	}
 
-	alias SListNodeAllocator = NodeAllocator!(Node.sizeof, 1024);
-	alias Bucket = SList!(Node, SListNodeAllocator*);
-	SListNodeAllocator* sListNodeAllocator;
+	alias Bucket = UnrolledList!(Node, supportGC);
 	Bucket[] buckets;
 	size_t _length;
 }

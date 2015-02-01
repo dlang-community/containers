@@ -1,0 +1,6 @@
+*.o
+*.lst
+*.s
+test/tests
+perf.data
+doc/
