@@ -315,7 +315,7 @@ private:
 		return hash & (buckets.length - 1);
 	}
 
-	hash_t generateHash(T value) const pure nothrow @safe
+	hash_t generateHash(T value) const nothrow @safe
 	{
 		import std.functional : unaryFun;
 		hash_t h = unaryFun!(hashFunction, true)(value);
