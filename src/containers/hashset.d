@@ -80,7 +80,7 @@ struct HashSet(T, alias hashFunction, bool supportGC = true)
 		static if (storeHash)
 			bool removed = buckets[index].remove(Node(hash, value));
 		else
-			bool removed = buckets[index].remove(value);
+			bool removed = buckets[index].remove(Node(value));
 		if (removed)
 			--_length;
 		return removed;
@@ -218,12 +218,17 @@ private:
 		this(const(Bucket)[] buckets)
 		{
 			this.buckets = buckets;
-			r = buckets[i].range;
-			while (i < buckets.length && r.empty)
+			if (buckets.length)
 			{
-				i++;
 				r = buckets[i].range;
+				while (i < buckets.length && r.empty)
+				{
+					i++;
+					r = buckets[i].range;
+				}
 			}
+			else
+				r = typeof(buckets[i].range()).init;
 		}
 
 		bool empty() const nothrow @safe @nogc @property
@@ -383,6 +388,11 @@ unittest
 		s.put(randomUUID().toString);
 	}
 	assert (s.length == 10_001);
+
+	// Make sure that there's no range violation slicing an empty set
+	HashSet!int e;
+	foreach (i; e[])
+		assert (i > 0);
 }
 
 private:
