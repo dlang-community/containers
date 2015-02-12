@@ -1,6 +1,8 @@
 *.o
+*.a
 *.lst
 *.s
 test/tests
 perf.data
 doc/
+.dub/
