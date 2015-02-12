@@ -115,7 +115,8 @@ private:
 
 unittest
 {
-	import std.range : equal, iota;
+	import std.algorithm : equal;
+	import std.range : iota;
 	DynamicArray!int ints;
 	foreach (i; 0 .. 100)
 		ints.insert(i);

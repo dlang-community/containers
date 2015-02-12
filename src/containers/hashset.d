@@ -7,21 +7,8 @@
 
 module containers.hashset;
 
-/**
- * Template that automatically chooses a hash function
- */
-template HashSet(T, bool supportGC = true) if (is (T == string))
-{
-	import containers.internal.hash;
-	alias HashSet = HashSet!(T, hashString, supportGC);
-}
-
-/// ditto
-template HashSet(T, bool supportGC = true) if (!is (T == string))
-{
-	import containers.internal.hash;
-	alias HashSet = HashSet!(T, builtinHash!T, supportGC);
-}
+import containers.internal.hash : generateHash;
+import containers.internal.node : shouldAddGCRange;
 
 /**
  * Hash Set.
@@ -29,7 +16,7 @@ template HashSet(T, bool supportGC = true) if (!is (T == string))
  *     T = the element type
  *     hashFunction = the hash function to use on the elements
  */
-struct HashSet(T, alias hashFunction, bool supportGC = true)
+struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAddGCRange!T)
 {
 	this(this) @disable;
 
@@ -318,14 +305,6 @@ private:
 	body
 	{
 		return hash & (buckets.length - 1);
-	}
-
-	hash_t generateHash(T value) const nothrow @safe
-	{
-		import std.functional : unaryFun;
-		hash_t h = unaryFun!(hashFunction, true)(value);
-		h ^= (h >>> 20) ^ (h >>> 12);
-		return h ^ (h >>> 7) ^ (h >>> 4);
 	}
 
 	struct Node
