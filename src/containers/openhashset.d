@@ -47,7 +47,7 @@ struct OpenHashSet(T, alias hashFunction = generateHash!T, bool supportGC = shou
 		foreach (ref node; nodes)
 			typeid(typeof(node)).destroy(&node);
 		static if (supportGC)
-			GC.removeRange();
+			GC.removeRange(nodes.ptr);
 		Mallocator.it.deallocate(nodes);
 	}
 
@@ -129,6 +129,26 @@ struct OpenHashSet(T, alias hashFunction = generateHash!T, bool supportGC = shou
 	bool opOpAssign(string op)(T item) if (op == "~")
 	{
 		return insert(item);
+	}
+
+	/**
+	 * Params:
+	 *     item = the item to remove
+	 * Returns:
+	 *     $(B true) if the item was removed, $(B false) if it was not present
+	 */
+	bool remove(T item)
+	{
+		if (empty)
+			return false;
+		immutable size_t hash = hashFunction(item);
+		size_t index = toIndex(nodes, item, hash);
+		if (index == size_t.max)
+			return false;
+		nodes[index].used = false;
+		destroy(nodes[index].data);
+		_length--;
+		return true;
 	}
 
 	/**
