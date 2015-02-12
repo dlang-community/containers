@@ -337,7 +337,8 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 private:
 
-	import containers.internal.node;
+	import containers.internal.node : fatNodeCapacity, fullBits, shouldAddGCRange, shouldNullSlot;
+    import std.algorithm : sort;
 	import std.allocator: Mallocator, allocate, deallocate;
 	import std.functional: binaryFun;
 	import std.traits: isPointer, PointerTarget;
