@@ -7,17 +7,8 @@
 
 module containers.hashmap;
 
-template HashMap(K, V, bool supportGC = true) if (is (K == string))
-{
-	import containers.internal.hash;
-	alias HashMap = HashMap!(K, V, supportGC, hashString);
-}
-
-template HashMap(K, V, bool supportGC = true) if (!is (K == string))
-{
-	import containers.internal.hash;
-	alias HashMap = HashMap!(K, V, supportGC, builtinHash!K);
-}
+import containers.internal.hash : generateHash;
+import containers.internal.node : shouldAddGCRange;
 
 /**
  * Associative array / hash map.
@@ -26,7 +17,8 @@ template HashMap(K, V, bool supportGC = true) if (!is (K == string))
  *     V = the value type
  *     hashFunction = the hash function to use on the keys
  */
-struct HashMap(K, V, bool supportGC, alias hashFunction)
+struct HashMap(K, V, alias hashFunction = generateHash!K,
+	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V)
 {
 	this(this) @disable;
 
@@ -315,14 +307,6 @@ private:
 	body
 	{
 		return hash & (buckets.length - 1);
-	}
-
-	// Move the bits a bit to the right. This trick was taken from the JRE
-	size_t generateHash(K key) const nothrow @safe
-	{
-		size_t h = hashFunction(key);
-		h ^= (h >>> 20) ^ (h >>> 12);
-		return h ^ (h >>> 7) ^ (h >>> 4);
 	}
 
 	size_t hashIndex(K key) const
