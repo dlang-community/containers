@@ -296,6 +296,7 @@ unittest
 	assert (equal(ints[].array.sort, iota(0, 100)));
 	assert (ints.insert(10) == false);
 	auto ohs = OpenHashSet!int(8);
+	assert (!ohs.remove(1000));
 	assert (ohs.contains(99) == false);
 	assert (ohs.insert(10) == true);
 	assert (ohs.insert(10) == false);
@@ -303,4 +304,7 @@ unittest
 		ohs.insert(i);
 	assert (ohs.contains(6));
 	assert (!ohs.contains(100));
+	assert (!ohs.remove(9999));
+	assert (ohs.remove(0));
+	assert (ohs.remove(1));
 }
