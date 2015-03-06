@@ -475,6 +475,7 @@ private:
 		}
 		body
 		{
+			import std.algorithm : sort;
 			import std.range;
 			if (!isFull())
 			{
