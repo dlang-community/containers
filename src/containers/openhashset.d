@@ -265,9 +265,10 @@ private:
 
 unittest
 {
-	import std.string:format;
-	import std.algorithm : equal, iota, sort;
-	import std.array:array;
+	import std.string : format;
+	import std.algorithm : equal, sort;
+	import std.range : iota;
+	import std.array : array;
 	OpenHashSet!int ints;
 	assert (ints.empty);
 	assert (equal(ints[], cast(int[]) []));
