@@ -9,19 +9,14 @@ module containers.simdset;
 /**
  * Set implementation that is well suited for small sets and simple items.
  *
- * Uses SSE instructions to compare multiple elements simultaneously. SimdSet
- * has the following time complexities for contains:
- * $(UL
- * $(LI T == ubyte: n / 16)
- * $(LI T == ushort: n / 8)
- * $(LI T == uint: n / 4)
- * $(LI T == ulong: n / 2)
- * )
+ * Uses SSE instructions to compare multiple elements simultaneously, but has
+ * linear time complexity. Use this container when you need to
  *
  * Note: Only works on x86_64. Does NOT add GC ranges. Do not store pointers in
  * this container unless they are also stored somewhere else.
  */
-version (D_InlineAsm_X86_64) struct SimdSet(T)
+version (D_InlineAsm_X86_64) struct SimdSet(T) if (T.sizeof == 1
+	|| T.sizeof == 2 || T.sizeof == 4 || T.sizeof == 8)
 {
 	this(this) @disable;
 
@@ -145,7 +140,12 @@ private:
 		else
 			static assert(false);
 
-		return `asm /+pure nothrow @nogc+/
+		static if (__VERSION__ >= 2067)
+			string s = `asm pure nothrow @nogc`;
+		else
+			string s = `asm`;
+
+		return s ~ `
 		{
 			mov R8, ptrStart;
 			mov R9, ptrEnd;
@@ -221,6 +221,26 @@ version (D_InlineAsm_X86_64) unittest
 	testSimdSet!int();
 	testSimdSet!long();
 }
+
+version (D_InlineAsm_X86_64) struct SimdSet(T) if (!(T.sizeof == 1
+	|| T.sizeof == 2 || T.sizeof == 4 || T.sizeof == 8))
+{
+	import std.string : format;
+	static assert (false, ("Cannot instantiate SimdSet of type %s because its size "
+		~ "(%d) does not fit evenly into XMM registers.").format(T.stringof, T.sizeof));
+}
+
+//unittest
+//{
+//	static struct ThreeBytes
+//	{
+//		ubyte one;
+//		ubyte two;
+//		ubyte three;
+//	}
+//
+//	SimdSet!ThreeBytes shouldNotCompile;
+//}
 
 private extern (C) void* realloc(void*, size_t);
 private extern (C) void free(void*);
