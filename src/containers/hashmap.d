@@ -178,7 +178,7 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 	int opApply(int delegate(ref K, ref V) del)
 	{
 		int result = 0;
-		outer: foreach (ref bucket; buckets)
+		foreach (ref bucket; buckets)
 		{
 			foreach (ref node; bucket.range)
 			{

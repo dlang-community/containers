@@ -262,8 +262,6 @@ private:
 		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize);
 		assert (buckets);
 		assert (buckets.length == newLength);
-		auto newAllocator = allocate!(HashSetAllocatorType!T)(Mallocator.it);
-		assert (newAllocator);
 		foreach (ref bucket; buckets)
 			emplace(&bucket);
 		static if (supportGC && shouldAddGCRange!T)

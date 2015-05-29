@@ -7,8 +7,6 @@
 
 module containers.ttree;
 
-//version(graphviz_debugging) import std.stdio;
-
 /**
  * Implements a binary search tree with multiple items per tree node.
  *
@@ -136,13 +134,6 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	bool empty() const nothrow pure @property
 	{
 		return _length == 0;
-	}
-
-	version(graphviz_debugging) void print(File f)
-	{
-		f.writeln("digraph g {");
-		root.print(f);
-		f.writeln("}");
 	}
 
 	/**
@@ -430,7 +421,7 @@ private:
 
 		bool contains(Value value) const
 		{
-			import std.range;
+			import std.range : assumeSorted;
 			size_t i = nextAvailableIndex();
 			if (_less(value, cast(Value) values[0]))
 				return left !is null && left.contains(value);
@@ -441,8 +432,8 @@ private:
 
 		size_t calcHeight() nothrow pure
 		{
-			size_t l = left !is null ? left.height() : 0;
-			size_t r = right !is null ? right.height() : 0;
+			immutable size_t l = left !is null ? left.height() : 0;
+			immutable size_t r = right !is null ? right.height() : 0;
 			size_t h = 1 + (l > r ? l : r);
 			registry &= fullBits!nodeCapacity;
 			registry |= (h << (size_t.sizeof * 4));
@@ -476,7 +467,7 @@ private:
 		body
 		{
 			import std.algorithm : sort;
-			import std.range;
+			import std.range : assumeSorted, isForwardRange;
 			if (!isFull())
 			{
 				immutable size_t index = nextAvailableIndex();
@@ -559,7 +550,7 @@ private:
 
 		bool remove(Value value, ref Node* n, void delegate(T) cleanup = null)
 		{
-			import std.range;
+			import std.range : assumeSorted;
 			assert (!isEmpty());
 			if (isFull() && _less(value, values[0]))
 			{
@@ -788,34 +779,6 @@ private:
 			}
 		}
 
-		version(graphviz_debugging) void print(File f)
-		{
-			f.writef("\"%016x\"[shape=record, label=\"<f0>%d|", &this, height());
-			f.write("<f1>|");
-			foreach (i, v; values)
-			{
-				if (isFree(i))
-					f.write("<f> |");
-				else
-					f.writef("<f> %s|", v);
-			}
-			f.write("<f2>\"];");
-			if (left !is null)
-			{
-				f.writefln("\"%016x\":f1 -> \"%016x\";", &this, left);
-				left.print(f);
-			}
-			if (right !is null)
-			{
-				f.writefln("\"%016x\":f2 -> \"%016x\";", &this, right);
-				right.print(f);
-			}
-			if (parent !is null)
-			{
-				f.writefln("\"%016x\" -> \"%016x\";", &this, parent);
-			}
-		}
-
 		debug(EMSI_CONTAINERS) invariant()
 		{
 			import std.string : format;
@@ -835,30 +798,6 @@ private:
 				assert (right.parent is &this);
 			}
 		}
-
-//		version(graphviz_debugging) void print(File f)
-//		{
-//			f.writef("\"%016x\"[shape=record, label=\"", &this);
-//			f.write("<f1>|");
-//			foreach (i, v; values)
-//			{
-//				if (isFree(i))
-//					f.write("<f> |");
-//				else
-//					f.writef("<f> %s|", v);
-//			}
-//			f.write("<f2>\"];");
-//			if (left !is null)
-//			{
-//				f.writefln("\"%016x\":f1 -> \"%016x\";", &this, left);
-//				left.print(f);
-//			}
-//			if (right !is null)
-//			{
-//				f.writefln("\"%016x\":f2 -> \"%016x\";", &this, right);
-//				right.print(f);
-//			}
-//		}
 
 		Node* left;
 		Node* right;
@@ -885,18 +824,10 @@ unittest
 		TTree!int kt;
 		assert (kt.empty);
 		foreach (i; 0 .. 200)
-		{
 			assert (kt.insert(i));
-//			version(graphviz_debugging)
-//			{
-//				File f = File("graph%04d.dot".format(i), "w");
-//				kt.print(f);
-//			}
-		}
 		assert (!kt.empty);
 		assert (kt.length == 200);
 		assert (kt.contains(30));
-//		writeln(__LINE__, " passed");
 	}
 
 	{
@@ -909,17 +840,13 @@ unittest
 			assert (kt.insert(i));
 		}
 		assert (!kt.contains(100_000));
-//		writeln(__LINE__, " passed");
 	}
 
 	{
-		import std.random;
+		import std.random : uniform;
 		TTree!int kt;
 		foreach (i; 0 .. 1_000)
-		{
 			kt.insert(uniform(0, 100_000));
-		}
-//		writeln(__LINE__, " passed");
 	}
 
 	{
@@ -928,7 +855,6 @@ unittest
 		assert (kt.length == 1);
 		assert (!kt.insert(10));
 		assert (kt.length == 1);
-//		writeln(__LINE__, " passed");
 	}
 
 	{
@@ -938,30 +864,16 @@ unittest
 		assert (kt.insert(1));
 		assert (kt.length == 2);
 		assert (kt.contains(1));
-//		writeln(__LINE__, " passed");
 	}
 
 	{
 		TTree!(int) kt;
 		foreach (i; 0 .. 200)
-		{
 			assert (kt.insert(i));
-//			version(graphviz_debugging)
-//			{
-//				File f = File("graph%04d.dot".format(i), "w");
-//				kt.print(f);
-//			}
-		}
 		assert (kt.length == 200);
 		assert (kt.remove(79));
 		assert (!kt.remove(79));
-//		version(graphviz_debugging)
-//		{
-//			File f = File("graph%04d.dot".format(999), "w");
-//			kt.print(f);
-//		}
 		assert (kt.length == 199);
-//		writeln(__LINE__, " passed");
 	}
 
 	{
@@ -979,18 +891,9 @@ unittest
 		];
 		TTree!string strings;
 		foreach (i, s; strs)
-		{
 			assert (strings.insert(s));
-//			version(graphviz_debugging)
-//			{
-//				File f = File("graph%04d.dot".format(i), "w");
-//				strings.print(f);
-//			}
-		}
 		sort(strs[]);
-//		writeln(strings[]);
 		assert (equal(strs, strings[]));
-//		writeln(__LINE__, " passed");
 	}
 
 	foreach (x; 0 .. 1000)
@@ -998,32 +901,16 @@ unittest
 		TTree!string strings;
 		string[] strs = iota(10).map!(a => randomUUID().toString()).array();
 		foreach (i, s; strs)
-		{
 			assert (strings.insert(s));
-//			version(graphviz_debugging)
-//			{
-//				File f = File("graph%04d.dot".format(i), "w");
-//				strings.print(f);
-//			}
-		}
 		assert (strings.length == strs.length);
-//		version(graphviz_debugging)
-//		{
-//			File f = File("graph%04d.dot".format(1000), "w");
-//			strings.print(f);
-//		}
 		sort(strs);
-//		writeln(strings[]);
 		assert (equal(strs, strings[]));
-//		writeln(__LINE__, " passed");
 	}
 
 	{
 		TTree!string strings;
 		strings.insert(["e", "f", "a", "b", "c", "d"]);
-//		writeln(strings[]);
 		assert (equal(strings[], ["a", "b", "c", "d", "e", "f"]));
-//		writeln(__LINE__, " passed");
 	}
 
 	{
@@ -1037,11 +924,9 @@ unittest
 		assert (equal(strings.equalRange("d"), ["d", "d"]));
 		assert (equal(strings.lowerBound("d"), ["a", "b", "c"]));
 		assert (equal(strings.upperBound("c"), ["d", "d"]));
-//		writeln(__LINE__, " passed");
 	}
 
 	{
-//		import std.stdio;
 		static struct S
 		{
 			string x;
@@ -1062,7 +947,6 @@ unittest
 		assert (stringTree.equalRange(&two).empty);
 		assert (!stringTree.equalRange(&one).empty);
 		assert (stringTree[].front.x == "offset");
-//		writeln(__LINE__, " passed");
 	}
 
 	{
@@ -1099,7 +983,6 @@ unittest
 		TestStruct a = TestStruct(30, 100);
 		auto eqArray = array(tsTree.equalRange(&a));
 		assert (eqArray.length == 1, format("%d", eqArray.length));
-//		writeln(__LINE__, " passed");
 	}
 
 	{
@@ -1110,7 +993,6 @@ unittest
 		assert (canFind(ints[], 20));
 		assert (walkLength(ints[]) == 50);
 		assert (walkLength(filter!(a => (a & 1) == 0)(ints[])) == 25);
-//		writeln(__LINE__, " passed");
 	}
 
 	{
@@ -1120,16 +1002,10 @@ unittest
 		ints.remove(0);
 		assert (ints.length == 49);
 		foreach (i; 1 .. 12)
-		{
-//			try
-				ints.remove(i);
-//			catch (Error)
-//				writeln("Failed on ", i);
-		}
+			ints.remove(i);
 		assert (ints.length == 49 - 11);
 	}
 
-	// This test ensures that the container works with const elements
 	{
 		const(TTree!(const(int))) getInts()
 		{
