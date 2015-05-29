@@ -40,7 +40,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 	private import containers.internal.storage_type : ContainerStorageType;
 
-	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 3, size_t, cacheLineSize);
+	private enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 3, size_t, cacheLineSize);
 	static assert (nodeCapacity <= (size_t.sizeof * 4), "cannot fit height info and registry in size_t");
 
 	debug(EMSI_CONTAINERS) invariant()
@@ -70,7 +70,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 			++_length;
 			return true;
 		}
-		bool r = root.insert(value, root);
+		immutable bool r = root.insert(value, root);
 		if (r)
 			++_length;
 		return r;
@@ -397,8 +397,10 @@ private:
 
 		private size_t nextAvailableIndex() const nothrow pure
 		{
-			import core.bitop;
-			return bsf(~(registry & fullBits!nodeCapacity));
+			import core.bitop : bsf;
+			immutable i = ~(registry & fullBits!nodeCapacity);
+			assert(i != 0);
+			return bsf(i);
 		}
 
 		private void markUsed(size_t index) pure nothrow

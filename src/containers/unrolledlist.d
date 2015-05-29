@@ -184,6 +184,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	body
 	{
 		import core.bitop : bsf, popcnt;
+		assert (_front.registry != 0);
 		size_t index = bsf(_front.registry);
 		T r = _front.items[index];
 		_front.markUnused(index);
@@ -225,12 +226,13 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	in
 	{
 		assert (!empty);
-		assert (_front.registry != 0);
+		assert(_front.registry != 0);
 	}
 	body
 	{
 		import core.bitop: bsf;
 		import std.string: format;
+		assert (_front.registry != 0);
 		size_t index = bsf(_front.registry);
 		assert (index < nodeCapacity, format("%d", index));
 		return _front.items[index];
@@ -315,7 +317,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	/// ditto
 	alias opSlice = range;
 
-	static struct Range
+	private static struct Range
 	{
 		@disable this();
 
@@ -325,6 +327,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 			this.current = current;
 			if (current !is null)
 			{
+				assert(current.registry != 0);
 				index = bsf(current.registry);
 				assert (index < nodeCapacity);
 			}
@@ -445,6 +448,7 @@ private:
 		size_t nextAvailableIndex() const nothrow pure @safe @nogc
 		{
 			import core.bitop: bsf;
+			assert((~registry) != 0);
 			return bsf(~registry);
 		}
 
