@@ -53,11 +53,6 @@ version (D_InlineAsm_X86_64) struct SimdSet(T) if (T.sizeof == 1
 			static assert(false);
 		mixin(asmSearch());
 	end:
-		//stderr.writeln("storage:   ", storage);
-		//stderr.writeln("item:      ", item);
-		//stderr.writefln("T.sizeof:   %d", T.sizeof);
-		//stderr.writefln("mask:       %016b", mask);
-		//stderr.writefln("resultMask: %016b", resultMask);
 		return retVal;
 	}
 
@@ -229,18 +224,6 @@ version (D_InlineAsm_X86_64) struct SimdSet(T) if (!(T.sizeof == 1
 	static assert (false, ("Cannot instantiate SimdSet of type %s because its size "
 		~ "(%d) does not fit evenly into XMM registers.").format(T.stringof, T.sizeof));
 }
-
-//unittest
-//{
-//	static struct ThreeBytes
-//	{
-//		ubyte one;
-//		ubyte two;
-//		ubyte three;
-//	}
-//
-//	SimdSet!ThreeBytes shouldNotCompile;
-//}
 
 private extern (C) void* realloc(void*, size_t);
 private extern (C) void free(void*);

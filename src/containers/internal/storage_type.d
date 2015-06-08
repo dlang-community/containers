@@ -78,7 +78,7 @@ unittest
 ///
 unittest
 {
-	import std.typecons;
+	import std.typecons : Rebindable;
 	static assert (is (ContainerStorageType!(Object) == Object));
 	static assert (is (ContainerStorageType!(const(Object)) == Rebindable!(const(Object))));
 }
@@ -86,7 +86,6 @@ unittest
 ///
 unittest
 {
-	import std.traits;
 	struct A { int foo; }
 	struct B { void opAssign(typeof(this)) { this.foo *= 2; }  int foo;}
 
