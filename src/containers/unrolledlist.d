@@ -73,7 +73,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	/**
 	 * Inserts the given range into the end of the list
 	 */
-	void insertBack(R)(R range)
+	void insertBack(R)(auto ref R range)
 	{
 		foreach (ref r; range)
 			insertBack(r);
