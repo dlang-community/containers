@@ -217,12 +217,6 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 			}
 		}
 
-		/// ditto
-		Range save() @property
-		{
-			return this;
-		}
-
 	private:
 
 		enum Type : ubyte {all, lower, equal, upper}
