@@ -84,13 +84,6 @@ struct BlockAllocator(size_t blockSize)
 			previous = current;
 			current = current.next;
 			assert (previous == previous.memory.ptr);
-			debug
-			{
-				const before = previous.memory.ptr;
-				foreach (ref ubyte u; (cast(ubyte[]) previous.memory).ptr[Node.sizeof .. previous.memory.length])
-					u = 0;
-				assert (before == previous.memory.ptr);
-			}
 			Mallocator.it.deallocate(previous.memory);
 		}
 		root = null;
