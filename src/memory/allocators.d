@@ -84,6 +84,13 @@ struct BlockAllocator(size_t blockSize)
 			previous = current;
 			current = current.next;
 			assert (previous == previous.memory.ptr);
+			debug
+			{
+				const before = previous.memory.ptr;
+				foreach (ref ubyte u; (cast(ubyte[]) previous.memory).ptr[Node.sizeof .. previous.memory.length])
+					u = 0;
+				assert (before == previous.memory.ptr);
+			}
 			Mallocator.it.deallocate(previous.memory);
 		}
 		root = null;
@@ -95,14 +102,14 @@ struct BlockAllocator(size_t blockSize)
 	void[] allocate(size_t bytes) pure nothrow @trusted
 	in
 	{
-		import std.string;
+		import std.string : format;
 		assert (bytes <= maxAllocationSize, format("Cannot allocate %d bytes"
 			~ " from an allocator with block size of %d and max allocation"
 			~ " size of %d", bytes, blockSize, maxAllocationSize));
 	}
 	out (result)
 	{
-		import std.string;
+		import std.string : format;
 		assert (result.length == bytes, format("Allocated %d bytes when %d"
 			~ " bytes were requested.", result.length, bytes));
 	}
@@ -199,9 +206,9 @@ private:
 unittest
 {
 	BlockAllocator!(1024 * 4 * 10) blockAllocator;
-	void[] mem = blockAllocator.allocate(10);
+	const void[] mem = blockAllocator.allocate(10);
 	assert (mem);
-	void[] mem2 = blockAllocator.allocate(10_000);
+	const void[] mem2 = blockAllocator.allocate(10_000);
 	assert (mem2);
 }
 
