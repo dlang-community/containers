@@ -461,7 +461,7 @@ private:
 		body
 		{
 			import std.algorithm : sort;
-			import std.range : assumeSorted, isForwardRange;
+			import std.range : assumeSorted;
 			if (!isFull())
 			{
 				immutable size_t index = nextAvailableIndex();
@@ -810,7 +810,7 @@ unittest
 	import core.memory : GC;
 	import std.algorithm : equal, sort, map, filter;
 	import std.array : array;
-	import std.range : iota, walkLength, isForwardRange;
+	import std.range : iota, walkLength, isInputRange;
 	import std.string : format;
 	import std.uuid : randomUUID;
 
@@ -954,7 +954,7 @@ unittest
 			int y;
 		}
 		TTree!(TestStruct*, false) tsTree;
-		static assert (isForwardRange!(typeof(tsTree).Range));
+		static assert (isInputRange!(typeof(tsTree).Range));
 		foreach (i; 0 .. 100)
 		{
 			assert(tsTree.insert(new TestStruct(i, i * 2)));
