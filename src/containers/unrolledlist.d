@@ -28,6 +28,12 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	{
 		Node* prev = null;
 		Node* cur = _front;
+		debug
+		{
+			ulong nodeCount = 0;
+			for (Node* c = _front; c !is null; c = c.next)
+				++nodeCount;
+		}
 		while (cur !is null)
 		{
 			prev = cur;
@@ -36,6 +42,16 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 				foreach (ref item; cur.items)
 					typeid(T).destroy(&item);
 			deallocateNode(prev);
+		}
+		debug
+		{
+			import std.string:format;
+			assert (allocCount == deallocCount, "
+	Nodes: %d
+	allocations: %d
+	deallocations: %d
+	nodeCapacity: %d
+	length: %d".format(nodeCount, allocCount, deallocCount, nodeCapacity, length));
 		}
 	}
 
@@ -46,6 +62,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	{
 		if (_back is null)
 		{
+			assert (_front is null);
 			_back = allocateNode(item);
 			_front = _back;
 		}
@@ -137,9 +154,8 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		import core.bitop : popcnt;
 		if (_front is null)
 			return false;
-		Node* n = _front;
-		bool r = false;
-		loop: while (n !is null)
+		bool retVal = false;
+		loop: for (Node* n = _front; n !is null; n = n.next)
 		{
 			foreach (i; 0 .. nodeCapacity)
 			{
@@ -147,24 +163,18 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 				{
 					n.markUnused(i);
 					--_length;
-					r = true;
-					if (n.next !is null
-						&& (popcnt(n.next.registry) + popcnt(n.registry) <= nodeCapacity))
-					{
+					retVal = true;
+					if (n.registry == 0)
+						deallocateNode(n);
+					else if (shouldMerge(n, n.next))
 						mergeNodes(n, n.next);
-					}
+					else if (shouldMerge(n.prev, n))
+						mergeNodes(n.prev, n);
 					break loop;
 				}
 			}
-			n = n.next;
 		}
-		if (_front.registry == 0)
-		{
-			deallocateNode(_front);
-			_front = null;
-			_back = null;
-		}
-		return r;
+		return retVal;
 	}
 
 	/// Pops the front item off of the list
@@ -202,19 +212,23 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 			deallocateNode(f);
 			return r;
 		}
-		if (_front.next !is null
-			&& (popcnt(_front.next.registry) + popcnt(_front.registry) <= nodeCapacity))
-		{
+		if (shouldMerge(_front, _front.next))
 			mergeNodes(_front, _front.next);
-		}
 		return r;
 	}
 
-	debug(EMSI_CONTAINERS) invariant()
+	debug invariant
 	{
 		import std.string: format;
 		assert (_front is null || _front.registry != 0, format("%x, %b", _front, _front.registry));
 		assert (_front !is null || _back is null);
+		if (_front !is null)
+		{
+			const(Node)* c = _front;
+			while (c.next !is null)
+				c = c.next;
+			assert(c is _back, "_back pointer is wrong");
+		}
 	}
 
 	/**
@@ -284,20 +298,11 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		_length--;
 		if (_back.registry == 0)
 		{
-			auto b = _back;
-			if (_back.prev !is null)
-				_back.prev.next = null;
-			else
-				_front = null;
-			_back = _back.prev;
-			deallocateNode(b);
+			deallocateNode(_back);
 			return item;
 		}
-		if (_back.prev !is null
-			&& (popcnt(_back.prev.registry) + popcnt(_back.registry) <= nodeCapacity))
-		{
+		else if (shouldMerge(_back.prev, _back))
 			mergeNodes(_back.prev, _back);
-		}
 		return item;
 	}
 
@@ -383,10 +388,16 @@ private:
 	Node* _back;
 	Node* _front;
 	size_t _length;
+	debug
+	{
+		ulong allocCount;
+		ulong deallocCount;
+	}
 
 	Node* allocateNode(T item)
 	{
 		Node* n = allocate!Node(Mallocator.it);
+		debug ++allocCount;
 		static if (supportGC && shouldAddGCRange!T)
 		{
 			import core.memory: GC;
@@ -399,6 +410,16 @@ private:
 
 	void deallocateNode(Node* n)
 	{
+		if (n.prev !is null)
+			n.prev.next = n.next;
+		if (n.next !is null)
+			n.next.prev = n.prev;
+		if (_front is n)
+			_front = n.next;
+		if (_back is n)
+			_back = n.prev;
+
+		debug ++deallocCount;
 		deallocate(Mallocator.it, n);
 		static if (supportGC && shouldAddGCRange!T)
 		{
@@ -407,10 +428,22 @@ private:
 		}
 	}
 
+	static bool shouldMerge(const Node* first, const Node* second)
+	{
+		import core.bitop : popcnt;
+
+		if (first is null || second is null)
+			return false;
+		immutable f = popcnt(first.registry);
+		immutable s = popcnt(second.registry);
+		return f + s <= nodeCapacity;
+	}
+
 	void mergeNodes(Node* first, Node* second)
 	in
 	{
 		assert (first !is null);
+		assert (second !is null);
 		assert (second is first.next);
 	}
 	body
@@ -424,20 +457,12 @@ private:
 		foreach (j; 0 .. nodeCapacity)
 			if (!second.isFree(j))
 				temp[i++] = second.items[j];
-		first.next = second.next;
 		first.items[0 .. i] = temp[0 .. i];
 		first.registry = 0;
 		foreach (k; 0 .. i)
 			first.markUsed(k);
 		assert (first.registry <= fullBits!nodeCapacity);
-		static if (supportGC && shouldAddGCRange!T)
-		{
-			import core.memory : GC;
-			GC.removeRange(second);
-		}
-		if (_back is second)
-			_back = first;
-		deallocate(Mallocator.it, second);
+		deallocateNode(second);
 	}
 
 	static struct Node
