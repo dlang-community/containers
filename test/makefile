@@ -7,12 +7,21 @@ test:
 	dmd $(FLAGS) $(SRC) -oftests
 	./tests
 
+looptest: loops.d
+	dmd -O -inline -release -boundscheck=safeonly \
+	looptest.d \
+	../src/memory/allocators.d \
+	../src/std/allocator.d \
+	../src/containers/ttree.d \
+	-I../src/
+
 clean:
 	rm -f tests
 	rm -f *.o
 	rm -f *.dot
 	rm -f *.png
 	rm -f ..*.lst
+	rm -f loops
 
 graphs: clean
 	dmd $(FLAGS) $(SRC) -oftests -version=graphviz_debugging
