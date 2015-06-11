@@ -1,7 +1,7 @@
 .PHONY: test graphs clean
 
 SRC=$(shell find ../src/ -name "*.d")
-FLAGS=-unittest -main -g -cov -I../src/
+FLAGS=-unittest -main -g -cov -I../src/ -debug -wi
 
 test:
 	dmd $(FLAGS) $(SRC) -oftests

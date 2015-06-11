@@ -294,7 +294,7 @@ unittest
 	assert (!ints.empty);
 	foreach (i; 0 .. 100)
 		assert (i in ints);
-	assert (equal(ints[].array.sort, iota(0, 100)));
+	assert (equal(ints[].array().sort(), iota(0, 100)));
 	assert (ints.insert(10) == false);
 	auto ohs = OpenHashSet!int(8);
 	assert (!ohs.remove(1000));
