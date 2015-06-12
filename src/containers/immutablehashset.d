@@ -152,7 +152,7 @@ struct ImmutableHashSet(T, alias hashFunction)
 
 private:
 
-	import std.allocator : Mallocator;
+	import std.experimental.allocator.mallocator : Mallocator;
 	import std.traits : isBasicType, hasMember;
 	import containers.internal.node : shouldAddGCRange;
 	import core.memory : GC;

@@ -380,7 +380,8 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 
 private:
 
-	import std.allocator: allocate, deallocate, Mallocator;
+	import std.experimental.allocator: make, dispose;
+	import std.experimental.allocator.mallocator : Mallocator;
 	import containers.internal.node : fatNodeCapacity, shouldAddGCRange,
 		fullBits, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
@@ -396,7 +397,7 @@ private:
 
 	Node* allocateNode(T item)
 	{
-		Node* n = allocate!Node(Mallocator.it);
+		Node* n = Mallocator.it.make!Node();
 		debug ++allocCount;
 		static if (supportGC && shouldAddGCRange!T)
 		{
@@ -420,7 +421,7 @@ private:
 			_back = n.prev;
 
 		debug ++deallocCount;
-		deallocate(Mallocator.it, n);
+		Mallocator.it.dispose(n);
 		static if (supportGC && shouldAddGCRange!T)
 		{
 			import core.memory: GC;

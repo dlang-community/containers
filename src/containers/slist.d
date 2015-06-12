@@ -12,7 +12,7 @@ module containers.slist;
  */
 auto slist(T)()
 {
-	import std.allocator : Mallocator;
+	import std.experimental.allocator.mallocator : Mallocator;
 	return SList!(T, shared Mallocator)(Mallocator.it);
 }
 
@@ -53,7 +53,7 @@ struct SList(T, A)
 				import core.memory : GC;
 				GC.removeRange(prev);
 			}
-			deallocate(allocator, prev);
+			allocator.dispose(prev);
 		}
 		_front = null;
 	}
@@ -89,7 +89,7 @@ struct SList(T, A)
 			import core.memory : GC;
 			GC.removeRange(f);
 		}
-		deallocate(allocator, f);
+		allocator.dispose(f);
 		--_length;
 		return r;
 	}
@@ -106,7 +106,7 @@ struct SList(T, A)
 			import core.memory : GC;
 			GC.removeRange(f);
 		}
-		deallocate(allocator, f);
+		allocator.dispose(f);
 		--_length;
 	}
 
@@ -130,9 +130,9 @@ struct SList(T, A)
 	 * Inserts an item at the front of the list.
 	 * Params: t = the item to insert into the list
 	 */
-	void insert(T t) nothrow @trusted
+	void insert(T t) @trusted
 	{
-		_front = allocate!Node(allocator, _front, t);
+		_front = allocator.make!Node(_front, t);
 		static if (shouldAddGCRange!T)
 		{
 			import core.memory : GC;
@@ -157,7 +157,7 @@ struct SList(T, A)
 	 * Removes the first instance of value found in the list.
 	 * Returns: true if a value was removed.
 	 */
-	bool remove(V)(V value) nothrow @trusted /+ if (is(T == V) || __traits(compiles, (T.init.opEquals(V.init))))+/
+	bool remove(V)(V value) @trusted /+ if (is(T == V) || __traits(compiles, (T.init.opEquals(V.init))))+/
 	{
 		Node* prev = null;
 		Node* cur = _front;
@@ -174,7 +174,7 @@ struct SList(T, A)
 					import core.memory : GC;
 					GC.removeRange(cur);
 				}
-				deallocate(allocator, cur);
+				allocator.dispose(cur);
 				_length--;
 				return true;
 			}
@@ -211,7 +211,7 @@ struct SList(T, A)
 				import core.memory : GC;
 				GC.removeRange(prev);
 			}
-			deallocate(allocator, prev);
+			allocator.dispose(prev);
 		}
 		_front = null;
 		_length = 0;
@@ -219,7 +219,7 @@ struct SList(T, A)
 
 private:
 
-	import std.allocator : allocate, deallocate;
+	import std.experimental.allocator : make, dispose;
 	import memory.allocators : NodeAllocator;
 	import containers.internal.node : shouldAddGCRange;
 
@@ -260,7 +260,8 @@ private:
 
 unittest
 {
-	import std.allocator : CAllocatorImpl, Mallocator;
+	import std.experimental.allocator.mallocator : Mallocator;
+	import std.experimental.allocator : CAllocatorImpl;
 	import std.string : format;
 	import std.algorithm : canFind;
 	auto allocator = new CAllocatorImpl!(Mallocator);

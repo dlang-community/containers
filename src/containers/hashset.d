@@ -36,7 +36,9 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 
 	~this()
 	{
-		import std.allocator : Mallocator, deallocate;
+		import std.experimental.allocator.mallocator : Mallocator;
+		import std.experimental.allocator : dispose;
+		import core.memory : GC;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
 		static if (supportGC && shouldAddGCRange!T)
@@ -182,15 +184,18 @@ private:
 
 	import containers.internal.node : shouldAddGCRange;
 	import containers.unrolledlist : UnrolledList;
-	import std.allocator : Mallocator, allocate;
 	import std.traits : isBasicType;
-	import core.memory : GC;
+
 
 	enum bool storeHash = !isBasicType!T;
 
 	void initialize(size_t bucketCount)
 	{
+		import std.experimental.allocator : make;
+		import std.experimental.allocator.mallocator : Mallocator;
 		import std.conv : emplace;
+		import core.memory : GC;
+
 		buckets = cast(Bucket[]) Mallocator.it.allocate(
 			bucketCount * Bucket.sizeof);
 		assert (buckets.length == bucketCount);
@@ -254,8 +259,11 @@ private:
 
 	void rehash() @trusted
 	{
-		import std.allocator : allocate, deallocate;
+		import std.experimental.allocator : make, dispose;
+		import std.experimental.allocator.mallocator : Mallocator;
 		import std.conv : emplace;
+		import core.memory : GC;
+
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
@@ -287,7 +295,7 @@ private:
 			typeid(Bucket).destroy(&bucket);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(oldBuckets.ptr);
-		Mallocator.it.deallocate(oldBuckets);
+		Mallocator.it.dispose(oldBuckets);
 	}
 
 	size_t hashToIndex(hash_t hash) const pure nothrow @safe

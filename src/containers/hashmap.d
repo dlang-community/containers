@@ -38,12 +38,13 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 
 	~this()
 	{
-		import std.allocator : Mallocator, deallocate;
+		import std.experimental.allocator.mallocator : Mallocator;
+		import std.experimental.allocator : dispose;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
 		static if (supportGC)
 			GC.removeRange(buckets.ptr);
-		Mallocator.it.deallocate(buckets);
+		Mallocator.it.dispose(buckets);
 	}
 
 	/**
@@ -192,7 +193,8 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 
 private:
 
-	import std.allocator : Mallocator, allocate;
+	import std.experimental.allocator.mallocator : Mallocator;
+	import std.experimental.allocator : make;
 	import std.traits : isBasicType;
 	import containers.unrolledlist : UnrolledList;
 	import core.memory : GC;
@@ -202,8 +204,8 @@ private:
 	void initialize(size_t bucketCount = 4)
 	{
 		import std.conv : emplace;
-		import std.allocator : allocate;
-		buckets = (cast(Bucket*) Mallocator.it.allocate( // Valgrind
+		import std.experimental.allocator.mallocator : Mallocator;
+		buckets = (cast(Bucket*) Mallocator.it.allocate(
 			bucketCount * Bucket.sizeof))[0 .. bucketCount];
 		assert (buckets.length == bucketCount);
 		static if (supportGC)
@@ -259,7 +261,8 @@ private:
 	 */
 	void rehash() @trusted
 	{
-		import std.allocator : allocate, deallocate;
+//		import std.experimental.allocator : make, dispose;
+		import std.experimental.allocator.mallocator : Mallocator;
 		import std.conv : emplace;
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;

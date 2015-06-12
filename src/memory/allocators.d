@@ -7,7 +7,8 @@
 
 module memory.allocators;
 
-import std.allocator;
+import std.experimental.allocator;
+import std.experimental.allocator.free_list;
 
 /**
  * Allocator used for allocating nodes of a fixed size.
@@ -17,7 +18,7 @@ template NodeAllocator(size_t nodeSize, size_t blockSize = 1024)
 	enum ns = roundUpToMultipleOf(
 		nodeSize >= (void*).sizeof ? nodeSize : (void*).sizeof, (void*).sizeof);
 	static assert (ns <= BlockAllocator!(blockSize).maxAllocationSize);
-	alias NodeAllocator = Freelist!(BlockAllocator!(blockSize), ns, ns);
+	alias NodeAllocator = FreeList!(BlockAllocator!blockSize, ns);
 }
 
 ///
@@ -28,11 +29,11 @@ unittest
 	NodeAllocator!(Node.sizeof, 2048) nodeAllocator;
 	Node*[testSize] nodes;
 	foreach (i; 0 .. testSize)
-		nodes[i] = allocate!Node(nodeAllocator);
+		nodes[i] = nodeAllocator.make!Node();
 	foreach (i; 0 .. testSize)
 		assert (nodes[i] !is null);
 	foreach (i; 0 .. testSize)
-		deallocate(nodeAllocator, nodes[i]);
+		nodeAllocator.dispose(nodes[i]);
 }
 
 /**
@@ -75,7 +76,7 @@ struct BlockAllocator(size_t blockSize)
 	/**
 	 * Frees all memory allocated by this allocator
 	 */
-	~this() pure nothrow @trusted
+	~this() @trusted
 	{
 		Node* current = root;
 		Node* previous = void;
@@ -92,7 +93,7 @@ struct BlockAllocator(size_t blockSize)
 	/**
 	 * Standard allocator operation.
 	 */
-	void[] allocate(size_t bytes) pure nothrow @trusted
+	void[] allocate(size_t bytes) @trusted
 	in
 	{
 		import std.string : format;
@@ -143,7 +144,7 @@ private:
 	/**
 	 * Allocates a new node along with its memory
 	 */
-	Node* allocateNewNode() pure nothrow const @trusted
+	Node* allocateNewNode() const @trusted
 	{
 		void[] memory = Mallocator.it.allocate(blockSize);
 		Node* n = cast(Node*) memory.ptr;
@@ -156,7 +157,7 @@ private:
 	/**
 	 * Allocates memory from the given node
 	 */
-	void[] allocateInNode(Node* node, size_t bytes) pure nothrow const @safe
+	void[] allocateInNode(Node* node, size_t bytes) const @safe
 	in
 	{
 		assert (node !is null);

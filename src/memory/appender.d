@@ -15,6 +15,7 @@ struct Appender(T, A, size_t initialSize = 10)
 public:
 
 	@disable this();
+	@disable this(this);
 
 	/**
 	 * Params:
@@ -51,7 +52,7 @@ public:
 			assert (mem);
 			assert (original);
 			assert (original.length == mem.length * T.sizeof);
-			bool success = allocator.reallocate(original, newSize);
+			immutable bool success = allocator.reallocate(original, newSize);
 			assert (success);
 			mem = cast(T[]) original;
 			assert (mem.ptr == original.ptr);
@@ -60,6 +61,9 @@ public:
 		mem[next++] = item;
 	}
 
+	/**
+	 * Appends several items.
+	 */
 	void append(inout(T)[] items) @trusted
 	{
 		foreach (ref i; items)
@@ -74,15 +78,13 @@ public:
 	T[] mem;
 
 private:
-	import memory.allocators;
 	size_t next;
-
 	A allocator;
 }
 
 unittest
 {
-	import std.allocator;
+	import std.experimental.allocator.mallocator : Mallocator;
 	auto a = Appender!(int, shared Mallocator, 64)(Mallocator.it);
 	foreach (i; 0 .. 20)
 		a.append(i);

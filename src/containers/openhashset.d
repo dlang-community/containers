@@ -166,7 +166,7 @@ struct OpenHashSet(T, alias hashFunction = generateHash!T, bool supportGC = shou
 private:
 
 	import containers.internal.storage_type : ContainerStorageType;
-	import std.allocator:Mallocator;
+	import std.experimental.allocator.mallocator : Mallocator;
 	import core.memory : GC;
 
 	enum DEFAULT_INITIAL_CAPACITY = 8;

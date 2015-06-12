@@ -324,7 +324,8 @@ private:
 
 	import containers.internal.node : fatNodeCapacity, fullBits, shouldAddGCRange, shouldNullSlot;
     import std.algorithm : sort;
-	import std.allocator: Mallocator, allocate, deallocate;
+	import std.experimental.allocator.mallocator : Mallocator;
+	import std.experimental.allocator : make, dispose;
 	import std.functional: binaryFun;
 	import std.traits: isPointer, PointerTarget;
 
@@ -344,7 +345,7 @@ private:
 	body
 	{
 		import core.memory : GC;
-		Node* n = allocate!Node(Mallocator.it);
+		Node* n = make!Node(Mallocator.it);
 		n.parent = parent;
 		n.markUsed(0);
 		n.values[0] = cast(Value) value;
@@ -364,7 +365,7 @@ private:
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(n);
 		typeid(Node).destroy(n);
-		deallocate!Node(Mallocator.it, n);
+		dispose(Mallocator.it, n);
 		n = null;
 	}
 
@@ -461,7 +462,7 @@ private:
 		body
 		{
 			import std.algorithm : sort;
-			import std.range : assumeSorted, isForwardRange;
+			import std.range : assumeSorted, isInputRange;
 			if (!isFull())
 			{
 				immutable size_t index = nextAvailableIndex();
@@ -810,7 +811,7 @@ unittest
 	import core.memory : GC;
 	import std.algorithm : equal, sort, map, filter;
 	import std.array : array;
-	import std.range : iota, walkLength, isForwardRange;
+	import std.range : iota, walkLength, isInputRange;
 	import std.string : format;
 	import std.uuid : randomUUID;
 
@@ -954,7 +955,7 @@ unittest
 			int y;
 		}
 		TTree!(TestStruct*, false) tsTree;
-		static assert (isForwardRange!(typeof(tsTree).Range));
+		static assert (isInputRange!(typeof(tsTree).Range));
 		foreach (i; 0 .. 100)
 		{
 			assert(tsTree.insert(new TestStruct(i, i * 2)));
