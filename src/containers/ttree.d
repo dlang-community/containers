@@ -7,6 +7,8 @@
 
 module containers.ttree;
 
+import std.range : ElementType, isInputRange;
+
 /**
  * Implements a binary search tree with multiple items per tree node.
  *
@@ -68,16 +70,16 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 			++_length;
 			return true;
 		}
-		bool r = root.insert(value, root);
+		immutable bool r = root.insert(value, root);
 		if (r)
 			++_length;
 		return r;
 	}
 
 	/// ditto
-	bool insert(R)(R r)
+	bool insert(R)(R r) if (isInputRange!R && is(ElementType!R == T))
 	{
-		bool retVal = false;
+		immutable bool retVal = false;
 		while (!r.empty)
 		{
 			retVal = insert(r.front()) || retVal;
@@ -324,8 +326,7 @@ private:
 
 	import containers.internal.node : fatNodeCapacity, fullBits, shouldAddGCRange, shouldNullSlot;
     import std.algorithm : sort;
-	import std.experimental.allocator.mallocator : Mallocator;
-	import std.experimental.allocator : make, dispose;
+	import std.allocator: Mallocator, allocate, deallocate;
 	import std.functional: binaryFun;
 	import std.traits: isPointer, PointerTarget;
 
@@ -345,7 +346,7 @@ private:
 	body
 	{
 		import core.memory : GC;
-		Node* n = make!Node(Mallocator.it);
+		Node* n = allocate!Node(Mallocator.it);
 		n.parent = parent;
 		n.markUsed(0);
 		n.values[0] = cast(Value) value;
@@ -365,7 +366,7 @@ private:
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(n);
 		typeid(Node).destroy(n);
-		dispose(Mallocator.it, n);
+		deallocate!Node(Mallocator.it, n);
 		n = null;
 	}
 
@@ -462,7 +463,7 @@ private:
 		body
 		{
 			import std.algorithm : sort;
-			import std.range : assumeSorted, isInputRange;
+			import std.range : assumeSorted;
 			if (!isFull())
 			{
 				immutable size_t index = nextAvailableIndex();
