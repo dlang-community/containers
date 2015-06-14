@@ -21,7 +21,7 @@ clean:
 	rm -f *.dot
 	rm -f *.png
 	rm -f ..*.lst
-	rm -f loops
+	rm -f looptest
 
 graphs: clean
 	dmd $(FLAGS) $(SRC) -oftests -version=graphviz_debugging

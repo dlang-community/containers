@@ -7,6 +7,8 @@
 
 module containers.ttree;
 
+import std.range.primitives : ElementType, isInputRange;
+
 /**
  * Implements a binary search tree with multiple items per tree node.
  *
@@ -75,7 +77,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	}
 
 	/// ditto
-	bool insert(R)(R r)
+	bool insert(R)(R r) if (isInputRange!R && is(ElementType!R == T))
 	{
 		bool retVal = false;
 		while (!r.empty)
@@ -486,7 +488,7 @@ private:
 					calcHeight();
 					return true;
 				}
-				bool b = left.insert(value, root);
+				immutable bool b = left.insert(value, root);
 				if (imbalanced() == -1)
 					rotateRight(root);
 				calcHeight();
@@ -500,7 +502,7 @@ private:
 					calcHeight();
 					return true;
 				}
-				bool b = right.insert(value, root);
+				immutable bool b = right.insert(value, root);
 				if (imbalanced() == 1)
 					rotateLeft(root);
 				calcHeight();
