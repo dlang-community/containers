@@ -79,7 +79,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	/// ditto
 	bool insert(R)(R r) if (isInputRange!R && is(ElementType!R == T))
 	{
-		immutable bool retVal = false;
+		bool retVal = false;
 		while (!r.empty)
 		{
 			retVal = insert(r.front()) || retVal;
@@ -326,7 +326,6 @@ private:
 
 	import containers.internal.node : fatNodeCapacity, fullBits, shouldAddGCRange, shouldNullSlot;
     import std.algorithm : sort;
-	import std.allocator: Mallocator, allocate, deallocate;
 	import std.functional: binaryFun;
 	import std.traits: isPointer, PointerTarget;
 
@@ -346,7 +345,10 @@ private:
 	body
 	{
 		import core.memory : GC;
-		Node* n = allocate!Node(Mallocator.it);
+		import std.experimental.allocator : make;
+		import std.experimental.allocator.mallocator : Mallocator;
+
+		Node* n = make!Node(Mallocator.it);
 		n.parent = parent;
 		n.markUsed(0);
 		n.values[0] = cast(Value) value;
@@ -362,11 +364,14 @@ private:
 	}
 	body
 	{
+		import std.experimental.allocator : dispose;
+		import std.experimental.allocator.mallocator : Mallocator;
 		import core.memory : GC;
+
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(n);
 		typeid(Node).destroy(n);
-		deallocate!Node(Mallocator.it, n);
+		dispose(Mallocator.it, n);
 		n = null;
 	}
 
@@ -384,7 +389,7 @@ private:
 
 		private size_t nextAvailableIndex() const nothrow pure
 		{
-			import core.bitop;
+			import core.bitop : bsf;
 			return bsf(~(registry & fullBits!nodeCapacity));
 		}
 
