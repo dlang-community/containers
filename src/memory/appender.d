@@ -6,7 +6,7 @@
  */
 
 module memory.appender;
-
+/+
 /**
  * Allocator-backed array appender.
  */
@@ -91,3 +91,4 @@ unittest
 	assert (a[].length == 20);
 	Mallocator.it.deallocate(a.mem);
 }
++/

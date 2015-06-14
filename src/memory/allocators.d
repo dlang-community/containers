@@ -9,6 +9,8 @@ module memory.allocators;
 
 import std.experimental.allocator;
 import std.experimental.allocator.free_list;
+import std.experimental.allocator.mallocator;
+import std.experimental.allocator.heap_block;
 
 /**
  * Allocator used for allocating nodes of a fixed size.
@@ -17,7 +19,7 @@ template NodeAllocator(size_t nodeSize, size_t blockSize = 1024)
 {
 	enum ns = roundUpToMultipleOf(
 		nodeSize >= (void*).sizeof ? nodeSize : (void*).sizeof, (void*).sizeof);
-	static assert (ns <= BlockAllocator!(blockSize).maxAllocationSize);
+	static assert (ns <= HeapBlock!(blockSize, platformAlignment, Mallocator).maxAllocationSize);
 	alias NodeAllocator = FreeList!(BlockAllocator!blockSize, ns);
 }
 
