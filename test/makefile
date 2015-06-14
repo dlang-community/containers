@@ -8,8 +8,7 @@ test:
 	./tests
 
 looptest: looptest.d
-	dmd -O -inline -release -boundscheck=safeonly \
-	looptest.d \
+	dmd looptest.d -O -inline -release -boundscheck=safeonly \
 	../src/memory/allocators.d \
 	../src/std/allocator.d \
 	../src/containers/ttree.d \
@@ -21,7 +20,7 @@ clean:
 	rm -f *.dot
 	rm -f *.png
 	rm -f ..*.lst
-	rm -f loops
+	rm -f looptest
 
 graphs: clean
 	dmd $(FLAGS) $(SRC) -oftests -version=graphviz_debugging
