@@ -7,7 +7,7 @@ test:
 	dmd $(FLAGS) $(SRC) -oftests
 	./tests
 
-looptest: loops.d
+looptest: looptest.d
 	dmd -O -inline -release -boundscheck=safeonly \
 	looptest.d \
 	../src/memory/allocators.d \
