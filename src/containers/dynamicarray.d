@@ -47,7 +47,7 @@ struct DynamicArray(T, bool supportGC = true)
 	}
 
 	/// Index operator overload
-	T opIndex(size_t i) @nogc
+	ref T opIndex(size_t i) @nogc
 	{
 		return arr[i];
 	}
@@ -130,4 +130,15 @@ unittest
 	ints[] = 432;
 	foreach (i; ints[])
 		assert (i == 432);
+}
+
+unittest 
+{
+	DynamicArray!int ints;
+	ints.insert(1); 
+
+	int* oneP = &ints[0];
+	*oneP = 1337;
+
+	assert(ints[0] == 1337);
 }
