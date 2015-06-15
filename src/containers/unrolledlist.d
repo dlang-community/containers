@@ -28,7 +28,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	{
 		Node* prev = null;
 		Node* cur = _front;
-		debug
+		debug (EMSI_CONTAINERS)
 		{
 			ulong nodeCount = 0;
 			for (Node* c = _front; c !is null; c = c.next)
@@ -43,7 +43,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 					typeid(T).destroy(&item);
 			deallocateNode(prev);
 		}
-		debug
+		debug (EMSI_CONTAINERS)
 		{
 			import std.string:format;
 			assert (allocCount == deallocCount, "
@@ -217,7 +217,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		return r;
 	}
 
-	debug invariant
+	debug (EMSI_CONTAINERS) invariant
 	{
 		import std.string: format;
 		assert (_front is null || _front.registry != 0, format("%x, %b", _front, _front.registry));
@@ -389,7 +389,7 @@ private:
 	Node* _back;
 	Node* _front;
 	size_t _length;
-	debug
+	debug (EMSI_CONTAINERS)
 	{
 		ulong allocCount;
 		ulong deallocCount;
@@ -398,7 +398,7 @@ private:
 	Node* allocateNode(T item)
 	{
 		Node* n = Mallocator.it.make!Node();
-		debug ++allocCount;
+		debug (EMSI_CONTAINERS) ++allocCount;
 		static if (supportGC && shouldAddGCRange!T)
 		{
 			import core.memory: GC;
@@ -420,7 +420,7 @@ private:
 		if (_back is n)
 			_back = n.prev;
 
-		debug ++deallocCount;
+		debug (EMSI_CONTAINERS) ++deallocCount;
 		Mallocator.it.dispose(n);
 		static if (supportGC && shouldAddGCRange!T)
 		{
