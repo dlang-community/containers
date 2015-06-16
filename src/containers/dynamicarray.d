@@ -106,6 +106,14 @@ struct DynamicArray(T, bool supportGC = true)
 	/// Returns: the number of items in the array
 	size_t length() const nothrow pure @property @safe @nogc { return l; }
 
+	/**
+	 * Returns: a slice to the underlying array.
+	 *
+	 * As the memory of the array may be freed, access to this array is
+	 * highly unsafe.
+	 */
+	@property T* ptr() @nogc { return arr.ptr; }
+
 private:
 	import std.allocator: Mallocator;
 	import containers.internal.node: shouldAddGCRange;
@@ -130,4 +138,9 @@ unittest
 	ints[] = 432;
 	foreach (i; ints[])
 		assert (i == 432);
+
+	auto arr = ints.ptr;
+	arr[0] = 1337;
+	assert(arr[0] == 1337);
+	assert(ints[0] == 1337);
 }
