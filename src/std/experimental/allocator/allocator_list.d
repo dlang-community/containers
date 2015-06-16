@@ -281,7 +281,6 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
         }
         else
         {
-//            stderr.writeln("Moving");
             immutable toAlloc = (allocators.length + 1) * Node.sizeof
                 + atLeastBytes + 128; // TODO: Why 128?
             auto newAlloc = SAllocator(makeAllocator(toAlloc));
@@ -471,6 +470,7 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
         Node* special;
         foreach (ref n; allocators)
         {
+            if (n.unused) continue;
             if (n.owns(allocators) == Ternary.yes)
             {
                 special = &n;
