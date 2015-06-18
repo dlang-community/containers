@@ -25,7 +25,12 @@ struct DynamicArray(T, bool supportGC = true)
 		if (arr is null)
 			return;
 		foreach (ref item; arr[0 .. l])
-			typeid(T).destroy(&item);
+		{
+			static if (is(T == class))
+				destroy(item);
+			else
+				typeid(T).destroy(&item);
+		}
 		static if (shouldAddGCRange!T)
 		{
 			import core.memory : GC;
@@ -143,4 +148,29 @@ unittest
 	arr[0] = 1337;
 	assert(arr[0] == 1337);
 	assert(ints[0] == 1337);
+}
+
+unittest
+{
+	class Cls
+	{
+		int* a;
+
+		this(int* a)
+		{
+			this.a = a;
+		}
+
+		~this()
+		{
+			++(*a);
+		}
+	}
+
+	int a = 0;
+	{
+		DynamicArray!(Cls) arr;
+		arr.insert(new Cls( & a));
+	}
+	assert(a == 1);
 }
