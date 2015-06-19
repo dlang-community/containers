@@ -18,6 +18,7 @@ module containers.dynamicarray;
  */
 struct DynamicArray(T, bool supportGC = true)
 {
+	import std.traits : hasMember;
 	this(this) @disable;
 
 	~this()
@@ -90,6 +91,31 @@ struct DynamicArray(T, bool supportGC = true)
 	/// ditto
 	alias put = insert;
 
+	void remove(const size_t i)
+	{
+		if (i < this.l)
+		{
+			static if (is(T == class))
+				destroy(arr[i]);
+			else
+				typeid(T).destroy(&arr[i]);
+
+			auto next = i + 1;
+			while (next < this.l)
+			{
+				arr[next - 1] = arr[next];
+				++next;
+			}
+
+			--l;
+		}
+		else
+		{
+			import core.exception : RangeError;
+			throw new RangeError("Out of range index used to remove element");
+		}
+	}
+
 	/// Index assignment support
 	void opIndexAssign(T value, size_t i) @nogc
 	{
@@ -150,7 +176,7 @@ unittest
 	assert(ints[0] == 1337);
 }
 
-unittest
+version(unittest)
 {
 	class Cls
 	{
@@ -166,11 +192,72 @@ unittest
 			++(*a);
 		}
 	}
+}
 
+unittest
+{
 	int a = 0;
 	{
 		DynamicArray!(Cls) arr;
 		arr.insert(new Cls( & a));
 	}
 	assert(a == 1);
+}
+
+unittest
+{
+	import std.exception : assertThrown;
+	import core.exception : RangeError;
+	DynamicArray!int empty;
+	assertThrown!RangeError(empty.remove(1337));
+	assert(empty.length == 0);
+
+	DynamicArray!int one;
+	one.insert(0);
+	assert(one.length == 1);
+	assertThrown!RangeError(one.remove(1337));
+	assert(one.length == 1);
+	one.remove(0);
+	assert(one.length == 0);
+
+	DynamicArray!int two;
+	two.insert(0);
+	two.insert(1);
+	assert(two.length == 2);
+	assertThrown!RangeError(two.remove(1337));
+	assert(two.length == 2);
+	two.remove(0);
+	assert(two.length == 1);
+	assert(two[0] == 1);
+	two.remove(0);
+	assert(two.length == 0);
+
+	two.insert(0);
+	two.insert(1);
+	assert(two.length == 2);
+
+	two.remove(1);
+	assert(two.length == 1);
+	assert(two[0] == 0);
+	assertThrown!RangeError(two.remove(1));
+	assert(two.length == 1);
+	assert(two[0] == 0);
+	two.remove(0);
+	assert(two.length == 0);
+}
+
+unittest
+{
+	int a = 0;
+	DynamicArray!(Cls,true) arr;
+	arr.insert(new Cls(&a));
+
+	arr.remove(0);
+	assert(a == 1);
+}
+
+unittest
+{
+	DynamicArray!(int*,true) arr;
+	arr.insert(new int(1));
 }
