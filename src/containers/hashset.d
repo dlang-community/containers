@@ -191,8 +191,8 @@ private:
 	void initialize(size_t bucketCount)
 	{
 		import std.conv : emplace;
-		buckets = cast(Bucket[]) Mallocator.it.allocate(
-			bucketCount * Bucket.sizeof);
+		buckets = (cast(Bucket*) Mallocator.it.allocate(
+			bucketCount * Bucket.sizeof))[0 .. bucketCount];
 		assert (buckets.length == bucketCount);
 		foreach (ref bucket; buckets)
 			emplace(&bucket);
@@ -259,7 +259,7 @@ private:
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
-		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize);
+		buckets = (cast(Bucket*) Mallocator.it.allocate(newSize))[0 .. newLength];
 		assert (buckets);
 		assert (buckets.length == newLength);
 		foreach (ref bucket; buckets)
