@@ -370,7 +370,6 @@ private:
 
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(n);
-		typeid(Node).destroy(n);
 		dispose(Mallocator.it, n);
 		n = null;
 	}
