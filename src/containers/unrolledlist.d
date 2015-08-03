@@ -26,6 +26,14 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 
 	~this()
 	{
+		clear();
+	}
+
+	/**
+	 * Removes all items from the list
+	 */
+	void clear()
+	{
 		Node* prev = null;
 		Node* cur = _front;
 		debug (EMSI_CONTAINERS)
@@ -53,6 +61,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	nodeCapacity: %d
 	length: %d".format(nodeCount, allocCount, deallocCount, nodeCapacity, length));
 		}
+		_length = 0;
 	}
 
 	/**
