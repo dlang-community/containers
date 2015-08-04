@@ -1,4 +1,4 @@
-module std.experimental.allocator.scoped_allocator;
+module std.experimental.allocator.building_blocks.scoped_allocator;
 
 import std.experimental.allocator.common;
 
@@ -21,7 +21,8 @@ struct ScopedAllocator(ParentAllocator)
         testAllocator!(() => ScopedAllocator());
     }
 
-    private import std.experimental.allocator.affix_allocator : AffixAllocator;
+    private import std.experimental.allocator.building_blocks.affix_allocator
+        : AffixAllocator;
     private import std.traits : hasMember;
 
     private struct Node
@@ -36,7 +37,7 @@ struct ScopedAllocator(ParentAllocator)
     // state {
     /**
     If $(D ParentAllocator) is stateful, $(D parent) is a property giving access
-    to an $(D AffixAllocator!ParentAllocator). Otherwise, $(D parent) is an alias for $(D AffixAllocator!ParentAllocator.it).
+    to an $(D AffixAllocator!ParentAllocator). Otherwise, $(D parent) is an alias for `AffixAllocator!ParentAllocator.instance`.
     */
     static if (stateSize!ParentAllocator)
     {
@@ -44,7 +45,7 @@ struct ScopedAllocator(ParentAllocator)
     }
     else
     {
-        alias parent = Allocator.it;
+        alias parent = Allocator.instance;
     }
     private Node* root;
     // }
@@ -176,7 +177,8 @@ struct ScopedAllocator(ParentAllocator)
     }
 
     /**
-    Returns $(D true) if this allocator is not responsible for any memory.
+    Returns `Ternary.yes` if this allocator is not responsible for any memory,
+    `Ternary.no` otherwise. (Never returns `Ternary.unknown`.)
     */
     Ternary empty() const
     {

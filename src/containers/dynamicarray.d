@@ -34,7 +34,7 @@ struct DynamicArray(T, bool supportGC = true)
 			import core.memory : GC;
 			GC.removeRange(arr.ptr);
 		}
-		Mallocator.it.deallocate(arr);
+		Mallocator.instance.deallocate(arr);
 	}
 
 	/// Slice operator overload
@@ -65,7 +65,7 @@ struct DynamicArray(T, bool supportGC = true)
 
 		if (arr.length == 0)
 		{
-			arr = cast(T[]) Mallocator.it.allocate(T.sizeof * 4);
+			arr = cast(T[]) Mallocator.instance.allocate(T.sizeof * 4);
 			static if (supportGC && shouldAddGCRange!T)
 			{
 				import core.memory: GC;
@@ -76,7 +76,7 @@ struct DynamicArray(T, bool supportGC = true)
 		{
 			immutable size_t c = arr.length > 512 ? arr.length + 1024 : arr.length << 1;
 			void[] a = cast(void[]) arr;
-			Mallocator.it.reallocate(a, c * T.sizeof);
+			Mallocator.instance.reallocate(a, c * T.sizeof);
 			arr = cast(T[]) a;
 			static if (supportGC && shouldAddGCRange!T)
 			{

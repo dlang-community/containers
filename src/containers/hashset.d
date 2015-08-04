@@ -43,7 +43,7 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 			typeid(typeof(bucket)).destroy(&bucket);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(buckets.ptr);
-		Mallocator.it.deallocate(buckets);
+		Mallocator.instance.deallocate(buckets);
 	}
 
 	/**
@@ -196,7 +196,7 @@ private:
 		import std.conv : emplace;
 		import core.memory : GC;
 
-		buckets = cast(Bucket[]) Mallocator.it.allocate(
+		buckets = cast(Bucket[]) Mallocator.instance.allocate(
 			bucketCount * Bucket.sizeof);
 		assert (buckets.length == bucketCount);
 		foreach (ref bucket; buckets)
@@ -267,7 +267,7 @@ private:
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
-		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize);
+		buckets = cast(Bucket[]) Mallocator.instance.allocate(newSize);
 		assert (buckets);
 		assert (buckets.length == newLength);
 		foreach (ref bucket; buckets)
@@ -295,7 +295,7 @@ private:
 			typeid(Bucket).destroy(&bucket);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(oldBuckets.ptr);
-		Mallocator.it.dispose(oldBuckets);
+		Mallocator.instance.dispose(oldBuckets);
 	}
 
 	size_t hashToIndex(hash_t hash) const pure nothrow @safe

@@ -44,7 +44,7 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 			typeid(typeof(bucket)).destroy(&bucket);
 		static if (supportGC)
 			GC.removeRange(buckets.ptr);
-		Mallocator.it.dispose(buckets);
+		Mallocator.instance.dispose(buckets);
 	}
 
 	/**
@@ -205,7 +205,7 @@ private:
 	{
 		import std.conv : emplace;
 		import std.experimental.allocator.mallocator : Mallocator;
-		buckets = (cast(Bucket*) Mallocator.it.allocate(
+		buckets = (cast(Bucket*) Mallocator.instance.allocate(
 			bucketCount * Bucket.sizeof))[0 .. bucketCount];
 		assert (buckets.length == bucketCount);
 		static if (supportGC)
@@ -268,7 +268,7 @@ private:
 		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
 		assert (oldBuckets.ptr == buckets.ptr);
-		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize);
+		buckets = cast(Bucket[]) Mallocator.instance.allocate(newSize);
 		static if (supportGC)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		assert (buckets);
@@ -295,7 +295,7 @@ private:
 		}
 		static if (supportGC)
 			GC.removeRange(oldBuckets.ptr);
-		Mallocator.it.deallocate(cast(void[]) oldBuckets);
+		Mallocator.instance.deallocate(cast(void[]) oldBuckets);
 	}
 
 	size_t hashToIndex(size_t hash) const pure nothrow @safe @nogc

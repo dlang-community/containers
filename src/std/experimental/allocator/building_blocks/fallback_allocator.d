@@ -1,4 +1,4 @@
-module std.experimental.allocator.fallback_allocator;
+module std.experimental.allocator.building_blocks.fallback_allocator;
 
 import std.experimental.allocator.common;
 
@@ -29,19 +29,19 @@ struct FallbackAllocator(Primary, Fallback)
 
     /// The primary allocator.
     static if (stateSize!Primary) Primary primary;
-    else alias primary = Primary.it;
+    else alias primary = Primary.instance;
 
     /// The fallback allocator.
     static if (stateSize!Fallback) Fallback fallback;
-    else alias fallback = Fallback.it;
+    else alias fallback = Fallback.instance;
 
     /**
     If both $(D Primary) and $(D Fallback) are stateless, $(D FallbackAllocator)
-    defines a static instance $(D it).
+    defines a static instance called `instance`.
     */
     static if (!stateSize!Primary && !stateSize!Fallback)
     {
-        static FallbackAllocator it;
+        static FallbackAllocator instance;
     }
 
     /**
@@ -195,7 +195,7 @@ struct FallbackAllocator(Primary, Fallback)
 
     /**
     $(D owns) is defined if and only if both allocators define $(D owns).
-    Returns $(D primary.owns(b) || fallback.owns(b)).
+    Returns $(D primary.owns(b) | fallback.owns(b)).
     */
     static if (hasMember!(Primary, "owns") && hasMember!(Fallback, "owns"))
     Ternary owns(void[] b)
@@ -247,17 +247,19 @@ struct FallbackAllocator(Primary, Fallback)
 
     /**
     $(D empty) is defined if both allocators also define it.
+
+    Returns: $(D primary.empty & fallback.empty)
     */
     static if (hasMember!(Primary, "empty") && hasMember!(Fallback, "empty"))
     Ternary empty()
     {
-        return primary.empty && fallback.empty;
+        return primary.empty & fallback.empty;
     }
 }
 
 unittest
 {
-    import std.experimental.allocator.region : InSituRegion;
+    import std.experimental.allocator.building_blocks.region : InSituRegion;
     import std.experimental.allocator.gc_allocator : GCAllocator;
     import std.conv : text;
     FallbackAllocator!(InSituRegion!16_384, GCAllocator) a;
@@ -343,9 +345,9 @@ fallbackAllocator(Primary, Fallback)(auto ref Primary p, auto ref Fallback f)
 ///
 unittest
 {
-    import std.experimental.allocator.region : Region;
+    import std.experimental.allocator.building_blocks.region : Region;
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    auto a = fallbackAllocator(Region!GCAllocator(1024), GCAllocator.it);
+    auto a = fallbackAllocator(Region!GCAllocator(1024), GCAllocator.instance);
     auto b1 = a.allocate(1020);
     assert(b1.length == 1020);
     assert(a.primary.owns(b1) == Ternary.yes);

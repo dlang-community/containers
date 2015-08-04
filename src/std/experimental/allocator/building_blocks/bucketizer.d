@@ -1,4 +1,4 @@
-module std.experimental.allocator.bucketizer;
+module std.experimental.allocator.building_blocks.bucketizer;
 
 /**
 
@@ -168,8 +168,7 @@ struct Bucketizer(Allocator, size_t min, size_t max, size_t step)
     }
 
     /**
-    Returns `true` if the bucket to which `b` belongs owns it. Defined only if
-    `Allocator` defines `owns`.
+    Defined only if `Allocator` defines `owns`. Finds the owner of `b` and forwards the call to it.
     */
     static if (hasMember!(Allocator, "owns"))
     Ternary owns(void[] b)
@@ -231,7 +230,7 @@ struct Bucketizer(Allocator, size_t min, size_t max, size_t step)
 ///
 unittest
 {
-    import std.experimental.allocator.free_list : FreeList;
+    import std.experimental.allocator.building_blocks.free_list : FreeList;
     import std.experimental.allocator.mallocator : Mallocator;
     import std.experimental.allocator.common : unbounded;
     Bucketizer!(FreeList!(Mallocator, 0, unbounded),

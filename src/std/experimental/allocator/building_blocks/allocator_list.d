@@ -1,7 +1,7 @@
-module std.experimental.allocator.allocator_list;
+module std.experimental.allocator.building_blocks.allocator_list;
 
 import std.experimental.allocator.common;
-import std.experimental.allocator.null_allocator;
+import std.experimental.allocator.building_blocks.null_allocator;
 import std.experimental.allocator.gc_allocator;
 version(unittest) import std.stdio;
 
@@ -65,7 +65,8 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
     import std.traits : hasMember;
     import std.conv : emplace;
     import std.algorithm : min, move;
-    import std.experimental.allocator.stats_collector : StatsCollector, Options;
+    import std.experimental.allocator.building_blocks.stats_collector
+        : StatsCollector, Options;
 
     private enum ouroboros = is(BookkeepingAllocator == NullAllocator);
 
@@ -87,7 +88,7 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
 
         // Is this node unused?
         void setUnused() { next = &this; }
-        bool unused() const { return next is &this; }
+        bool unused() const { return next == &this; }
 
         // Just forward everything to the allocator
         alias a this;
@@ -105,7 +106,7 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
     static if (!ouroboros)
     {
         static if (stateSize!BookkeepingAllocator) BookkeepingAllocator bkalloc;
-        else alias bkalloc = BookkeepingAllocator.it;
+        else alias bkalloc = BookkeepingAllocator.instance;
     }
     static if (stateSize!Factory)
     {
@@ -117,11 +118,11 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
 
     static if (stateSize!Factory)
     {
-        private auto makeAllocator(size_t n) { return factory(n); }
+        private auto make(size_t n) { return factory(n); }
     }
     else
     {
-        private auto makeAllocator(size_t n) { Factory f; return f(n); }
+        private auto make(size_t n) { Factory f; return f(n); }
     }
 
     /**
@@ -144,7 +145,7 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
         && hasMember!(Allocator, "owns"))
     ~this()
     {
-        deallocateAll();
+        deallocateAll;
     }
 
     /**
@@ -162,28 +163,18 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
     */
     void[] allocate(size_t s)
     {
-        Node* previous = null;
-        Node* current = root;
-        while (current !is null)
+        for (auto p = &root, n = *p; n; p = &n.next, n = *p)
         {
-            auto result = current.allocate(s);
-            if (result.length == s)
+            auto result = n.allocate(s);
+            if (result.length != s) continue;
+            assert(owns(result) == Ternary.yes);
+            // Bring to front if not already
+            if (root != n)
             {
-                assert(owns(result) == Ternary.yes);
-                // Bring to front if not already
-                if (root !is current)
-                {
-                    if (previous !is null)
-                        previous.next = current.next;
-                    current.next = root;
-                    root = current;
-                }
+                *p = n.next;
+                n.next = root;
+                root = n;
                 return result;
-            }
-            else
-            {
-                previous = current;
-                current = current.next;
             }
         }
         // Can't allocate from the current pool. Check if we just added a new
@@ -197,7 +188,7 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
         if (auto a = addAllocator(s))
         {
             auto result = a.allocate(s);
-            assert(result.ptr is null || owns(result) == Ternary.yes);
+            assert(owns(result) == Ternary.yes || !result.ptr);
             return result;
         }
         return null;
@@ -276,20 +267,22 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
             assert(t.ptr.alignedAt(Node.alignof));
             allocators = cast(Node[]) t;
             allocators[$ - 1].setUnused;
-            auto newAlloc = SAllocator(makeAllocator(atLeastBytes));
+            auto newAlloc = SAllocator(make(atLeastBytes));
             memcpy(&allocators[$ - 1].a, &newAlloc, newAlloc.sizeof);
+            emplace(&newAlloc);
         }
         else
         {
             immutable toAlloc = (allocators.length + 1) * Node.sizeof
-                + atLeastBytes + 128; // TODO: Why 128?
-            auto newAlloc = SAllocator(makeAllocator(toAlloc));
+                + atLeastBytes + 128;
+            auto newAlloc = SAllocator(make(toAlloc));
             auto newPlace = newAlloc.allocate(
                 (allocators.length + 1) * Node.sizeof);
             if (!newPlace) return null;
             moveAllocators(newPlace);
             import core.stdc.string : memcpy;
             memcpy(&allocators[$ - 1].a, &newAlloc, newAlloc.sizeof);
+            emplace(&newAlloc);
             assert(allocators[$ - 1].owns(allocators) == Ternary.yes);
         }
         // Insert as new root
@@ -327,7 +320,7 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
             moveAllocators(t);
         }
         assert(allocators[$ - 1].unused);
-        auto newAlloc = SAllocator(makeAllocator(atLeastBytes));
+        auto newAlloc = SAllocator(make(atLeastBytes));
         import core.stdc.string : memcpy;
         memcpy(&allocators[$ - 1].a, &newAlloc, newAlloc.sizeof);
         emplace(&newAlloc);
@@ -338,21 +331,34 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
     }
 
     /**
-    Defined only if $(D Allocator) defines $(D owns). Tries each allocator in
+    Defined only if `Allocator` defines `owns`. Tries each allocator in
     turn, in most-recently-used order. If the owner is found, it is moved to
-    the front of the list.
+    the front of the list as a side effect under the assumption it will be used
+    soon.
+
+    Returns: `Ternary.yes` if one allocator was found to return `Ternary.yes`,
+    `Ternary.no` if all component allocators returned `Ternary.no`, and
+    `Ternary.unknown` if no allocator returned `Ternary.yes` and at least one
+    returned  `Ternary.unknown`.
     */
     static if (hasMember!(Allocator, "owns"))
     Ternary owns(void[] b)
     {
         auto result = Ternary.no;
-        for (Node* current = root; current !is null; current = current.next)
+        for (auto p = &root, n = *p; n; p = &n.next, n = *p)
         {
-            immutable t = current.owns(b);
+            immutable t = n.owns(b);
             if (t != Ternary.yes)
             {
                 if (t == Ternary.unknown) result = t;
                 continue;
+            }
+            // Move the owner to front, speculating it'll be used
+            if (n != root)
+            {
+                *p = n.next;
+                n.next = root;
+                root = n;
             }
             return Ternary.yes;
         }
@@ -373,9 +379,9 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
             b = allocate(delta);
             return b.length == delta;
         }
-        for (Node* current = root; current !is null; current = current.next)
+        for (auto p = &root, n = *p; n; p = &n.next, n = *p)
         {
-            if (current.owns(b) == Ternary.yes) return current.expand(b, delta);
+            if (n.owns(b) == Ternary.yes) return n.expand(b, delta);
         }
         return false;
     }
@@ -394,9 +400,9 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
             b = allocate(s);
             return b.length == s;
         }
-        for (Node* current = root; current !is null; current = current.next)
+        for (auto p = &root, n = *p; n; p = &n.next, n = *p)
         {
-            if (current.owns(b) == Ternary.yes) return current.reallocate(b, s);
+            if (n.owns(b) == Ternary.yes) return n.reallocate(b, s);
         }
         // Failed, but we may find new memory in a new node.
         return .reallocate(this, b, s);
@@ -413,48 +419,33 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
         assert(allocators.length);
         assert(owns(b) == Ternary.yes);
         bool result;
-        Node* current = root;
-        Node* previous = null;
-        while (current !is null)
+        for (auto p = &root, n = *p; ; p = &n.next, n = *p)
         {
-            if (current.owns(b) == Ternary.yes)
+            assert(n);
+            if (n.owns(b) != Ternary.yes) continue;
+            result = n.deallocate(b);
+            // Bring to front
+            if (n != root)
             {
-                result = current.deallocate(b);
-                // Bring to front
-                if (root !is current)
-                {
-                    if (previous !is null)
-                        previous.next = current.next;
-                    current.next = root;
-                    root = current;
-                }
-				return result;
+                *p = n.next;
+                n.next = root;
+                root = n;
             }
-            previous = current;
-            current = current.next;
+            if (n.empty != Ternary.yes) return result;
+            break;
         }
         // Hmmm... should we return this allocator back to the wild? Let's
         // decide if there are TWO empty allocators we can release ONE. This
         // is to avoid thrashing.
         // Note that loop starts from the second element.
-        current = root.next;
-        previous = null;
-        if (current !is null && current.empty == Ternary.yes && current.next !is null)
+        for (auto p = &root.next, n = *p; n; p = &n.next, n = *p)
         {
-            while (current !is null)
-            {
-                if (!(current.unused || current.empty != Ternary.yes))
-                {
-                    // Used and empty baby, nuke it!
-                    current.a.destroy();
-                    if (previous !is null)
-                        previous.next = current.next;
-                    current.setUnused;
-                    break;
-                }
-                previous = current;
-                current = current.next;
-            }
+            if (n.unused || n.empty != Ternary.yes) continue;
+            // Used and empty baby, nuke it!
+            n.a.destroy;
+            *p = n.next;
+            n.setUnused;
+            break;
         }
         return result;
     }
@@ -476,13 +467,13 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
                 special = &n;
                 continue;
             }
-            n.a.deallocateAll();
-            n.a.destroy();
+            n.a.deallocateAll;
+            n.a.destroy;
         }
         assert(special || !allocators.ptr);
-        if (special !is null)
+        if (special)
         {
-            special.a.deallocateAll();
+            special.deallocate(allocators);
         }
         allocators = null;
         root = null;
@@ -499,14 +490,16 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
             n.a.deallocateAll;
             n.a.destroy;
         }
-        static if (!is(BookkeepingAllocator == GCAllocator))
-            bkalloc.deallocate(allocators);
+        bkalloc.deallocate(allocators);
         allocators = null;
         root = null;
         return true;
     }
 
-    /// Returns $(D true) iff no allocators are currently active.
+    /**
+     Returns `Ternary.yes` if no allocators are currently active,
+    `Ternary.no` otherwise. This methods never returns `Ternary.unknown`.
+    */
     Ternary empty() const
     {
         return Ternary(!allocators.length);
@@ -540,10 +533,11 @@ template AllocatorList(alias factoryFunction,
 version(Posix) unittest
 {
     import std.algorithm : max;
-    import std.experimental.allocator.region : Region;
+    import std.experimental.allocator.building_blocks.region : Region;
     import std.experimental.allocator.mmap_allocator : MmapAllocator;
-    import std.experimental.allocator.segregator : Segregator;
-    import std.experimental.allocator.free_list : ContiguousFreeList;
+    import std.experimental.allocator.building_blocks.segregator : Segregator;
+    import std.experimental.allocator.building_blocks.free_list
+        : ContiguousFreeList;
 
     // Ouroboros allocator list based upon 4MB regions, fetched directly from
     // mmap. All memory is released upon destruction.
@@ -565,7 +559,7 @@ version(Posix) unittest
         Segregator!(
             64, AllocatorList!(
                 (n) => ContiguousFreeList!(NullAllocator, 0, 64)(
-                    GCAllocator.it.allocate(4096))),
+                    GCAllocator.instance.allocate(4096))),
             GCAllocator);
 
     A4 a;
@@ -582,7 +576,7 @@ unittest
 {
     // Create an allocator based upon 4MB regions, fetched from the GC heap.
     import std.algorithm : max;
-    import std.experimental.allocator.region : Region;
+    import std.experimental.allocator.building_blocks.region : Region;
     AllocatorList!((n) => Region!GCAllocator(new void[max(n, 1024 * 4096)]),
         NullAllocator) a;
     const b1 = a.allocate(1024 * 8192);
@@ -596,7 +590,7 @@ unittest
 {
     // Create an allocator based upon 4MB regions, fetched from the GC heap.
     import std.algorithm : max;
-    import std.experimental.allocator.region : Region;
+    import std.experimental.allocator.building_blocks.region : Region;
     AllocatorList!((n) => Region!()(new void[max(n, 1024 * 4096)])) a;
     auto b1 = a.allocate(1024 * 8192);
     assert(b1 !is null); // still works due to overdimensioning
@@ -608,7 +602,7 @@ unittest
 unittest
 {
     import std.algorithm : max;
-    import std.experimental.allocator.region : Region;
+    import std.experimental.allocator.building_blocks.region : Region;
     AllocatorList!((n) => Region!()(new void[max(n, 1024 * 4096)])) a;
     auto b1 = a.allocate(1024 * 8192);
     assert(b1 !is null);

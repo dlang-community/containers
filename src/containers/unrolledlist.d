@@ -406,7 +406,7 @@ private:
 
 	Node* allocateNode(T item)
 	{
-		Node* n = Mallocator.it.make!Node();
+		Node* n = Mallocator.instance.make!Node();
 		debug (EMSI_CONTAINERS) ++allocCount;
 		static if (supportGC && shouldAddGCRange!T)
 		{
@@ -430,7 +430,7 @@ private:
 			_back = n.prev;
 
 		debug (EMSI_CONTAINERS) ++deallocCount;
-		Mallocator.it.dispose(n);
+		Mallocator.instance.dispose(n);
 		static if (supportGC && shouldAddGCRange!T)
 		{
 			import core.memory: GC;

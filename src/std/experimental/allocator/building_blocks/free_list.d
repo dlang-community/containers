@@ -1,4 +1,4 @@
-module std.experimental.allocator.free_list;
+module std.experimental.allocator.building_blocks.free_list;
 
 import std.experimental.allocator.common;
 import std.typecons : Flag, Yes, No;
@@ -206,10 +206,11 @@ struct FreeList(ParentAllocator,
     // state {
     /**
     The parent allocator. Depending on whether $(D ParentAllocator) holds state
-    or not, this is a member variable or an alias for $(D ParentAllocator.it).
+    or not, this is a member variable or an alias for
+    `ParentAllocator.instance`.
     */
     static if (stateSize!ParentAllocator) ParentAllocator parent;
-    else alias parent = ParentAllocator.it;
+    else alias parent = ParentAllocator.instance;
     private Node* root;
     static if (minSize == chooseAtRuntime) private size_t _min = chooseAtRuntime;
     static if (maxSize == chooseAtRuntime) private size_t _max = chooseAtRuntime;
@@ -423,8 +424,10 @@ available for $(D ContiguousFreeList).
 struct ContiguousFreeList(ParentAllocator,
      size_t minSize, size_t maxSize = minSize)
 {
-    import std.experimental.allocator.null_allocator : NullAllocator;
-    import std.experimental.allocator.stats_collector : StatsCollector, Options;
+    import std.experimental.allocator.building_blocks.null_allocator
+        : NullAllocator;
+    import std.experimental.allocator.building_blocks.stats_collector
+        : StatsCollector, Options;
     import std.traits : hasMember;
 
     alias Impl = FreeList!(NullAllocator, minSize, maxSize);
@@ -436,7 +439,8 @@ struct ContiguousFreeList(ParentAllocator,
     // state {
     /**
     The parent allocator. Depending on whether $(D ParentAllocator) holds state
-    or not, this is a member variable or an alias for $(D ParentAllocator.it).
+    or not, this is a member variable or an alias for
+    `ParentAllocator.instance`.
     */
     SParent parent;
     FreeList!(NullAllocator, minSize, maxSize) fl;
@@ -479,7 +483,7 @@ struct ContiguousFreeList(ParentAllocator,
     $(D NullAllocator), the buffer is assumed to be allocated by $(D parent)
     and will be freed in the destructor.
     parent = Parent allocator. For construction from stateless allocators, use
-    their $(D it) static member.
+    their `instance` static member.
     bytes = Bytes (not items) to be allocated for the free list. Memory will be
     allocated during construction and deallocated in the destructor.
     max = Maximum size eligible for freelisting. Construction with this
@@ -508,7 +512,7 @@ struct ContiguousFreeList(ParentAllocator,
     static if (!stateSize!ParentAllocator)
     this(size_t bytes)
     {
-        initialize(ParentAllocator.it.allocate(bytes));
+        initialize(ParentAllocator.instance.allocate(bytes));
     }
 
     /// ditto
@@ -602,7 +606,7 @@ struct ContiguousFreeList(ParentAllocator,
     }
 
     /**
-    Defined if $(D ParentAllocator) defines it. Checks whether the block
+    Defined if `ParentAllocator` defines it. Checks whether the block
     belongs to this allocator.
     */
     static if (hasMember!(SParent, "owns") || unchecked)
@@ -654,7 +658,9 @@ struct ContiguousFreeList(ParentAllocator,
     }
 
     /**
-    Returns $(D true) if no memory is currently allocated with this allocator.
+    Returns `Ternary.yes` if no memory is currently allocated with this
+    allocator, `Ternary.no` otherwise. This method never returns
+    `Ternary.unknown`.
     */
     Ternary empty()
     {
@@ -666,7 +672,8 @@ struct ContiguousFreeList(ParentAllocator,
 unittest
 {
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    import std.experimental.allocator.allocator_list : AllocatorList;
+    import std.experimental.allocator.building_blocks.allocator_list
+        : AllocatorList;
 
     alias ScalableFreeList = AllocatorList!((n) =>
         ContiguousFreeList!(GCAllocator, 0, unbounded)(4096)
@@ -675,14 +682,15 @@ unittest
 
 unittest
 {
-    import std.experimental.allocator.null_allocator : NullAllocator;
+    import std.experimental.allocator.building_blocks.null_allocator
+        : NullAllocator;
     alias A = ContiguousFreeList!(NullAllocator, 0, 64);
     auto a = A(new void[1024]);
 
     assert(a.empty == Ternary.yes);
 
     assert(a.goodAllocSize(15) == 64);
-    assert(a.goodAllocSize(65) == NullAllocator.it.goodAllocSize(65));
+    assert(a.goodAllocSize(65) == NullAllocator.instance.goodAllocSize(65));
 
     auto b = a.allocate(100);
     assert(a.empty == Ternary.yes);
@@ -698,7 +706,7 @@ unittest
 
 unittest
 {
-    import std.experimental.allocator.region : Region;
+    import std.experimental.allocator.building_blocks.region : Region;
     import std.experimental.allocator.gc_allocator : GCAllocator;
     alias A = ContiguousFreeList!(Region!GCAllocator, 0, 64);
     auto a = A(Region!GCAllocator(1024 * 4), 1024);
@@ -876,10 +884,11 @@ struct SharedFreeList(ParentAllocator,
 
     /**
     The parent allocator. Depending on whether $(D ParentAllocator) holds state
-    or not, this is a member variable or an alias for $(D ParentAllocator.it).
+    or not, this is a member variable or an alias for
+    `ParentAllocator.instance`.
     */
     static if (stateSize!ParentAllocator) shared ParentAllocator parent;
-    else alias parent = ParentAllocator.it;
+    else alias parent = ParentAllocator.instance;
 
     mixin(forwardToMember("parent", "expand"));
 

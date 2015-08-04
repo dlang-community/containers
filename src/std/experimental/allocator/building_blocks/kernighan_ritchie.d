@@ -1,5 +1,5 @@
-module std.experimental.allocator.kernighan_ritchie;
-import std.experimental.allocator.null_allocator;
+module std.experimental.allocator.building_blocks.kernighan_ritchie;
+import std.experimental.allocator.building_blocks.null_allocator;
 
 //debug = KRRegion;
 debug(KRRegion) import std.stdio;
@@ -153,10 +153,10 @@ struct KRRegion(ParentAllocator = NullAllocator)
     /**
     If $(D ParentAllocator) holds state, $(D parent) is a public member of type
     $(D KRRegion). Otherwise, $(D parent) is an $(D alias) for
-    $(D ParentAllocator.it).
+    `ParentAllocator.instance`.
     */
     static if (stateSize!ParentAllocator) ParentAllocator parent;
-    else alias parent = ParentAllocator.it;
+    else alias parent = ParentAllocator.instance;
     private void[] payload;
     private Node* root;
     private bool regionMode = true;
@@ -580,7 +580,8 @@ struct KRRegion(ParentAllocator = NullAllocator)
     }
 
     /**
-    Returns: `true` if the allocator is empty.
+    Returns: `Ternary.yes` if the allocator is empty, `Ternary.no` otherwise.
+    Never returns `Ternary.unknown`.
     */
     Ternary empty()
     {
@@ -597,11 +598,12 @@ fronting the GC allocator.
 unittest
 {
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    import std.experimental.allocator.fallback_allocator : fallbackAllocator;
+    import std.experimental.allocator.building_blocks.fallback_allocator
+        : fallbackAllocator;
     import std.experimental.allocator.common : Ternary;
     // KRRegion fronting a general-purpose allocator
     ubyte[1024 * 128] buf;
-    auto alloc = fallbackAllocator(KRRegion!()(buf), GCAllocator.it);
+    auto alloc = fallbackAllocator(KRRegion!()(buf), GCAllocator.instance);
     auto b = alloc.allocate(100);
     assert(b.length == 100);
     assert(alloc.primary.owns(b) == Ternary.yes);
@@ -622,7 +624,8 @@ unittest
     import std.algorithm : max;
     import std.experimental.allocator.gc_allocator : GCAllocator;
     import std.experimental.allocator.mmap_allocator : MmapAllocator;
-    import std.experimental.allocator.allocator_list : AllocatorList;
+    import std.experimental.allocator.building_blocks.allocator_list
+        : AllocatorList;
     AllocatorList!(n => KRRegion!MmapAllocator(max(n * 16, 1024 * 1024))) alloc;
 }
 
@@ -632,7 +635,8 @@ unittest
     import std.experimental.allocator.gc_allocator : GCAllocator;
     import   std.experimental.allocator.common : Ternary;
     import std.experimental.allocator.mallocator : Mallocator;
-    import std.experimental.allocator.allocator_list : AllocatorList;
+    import std.experimental.allocator.building_blocks.allocator_list
+        : AllocatorList;
     /*
     Create a scalable allocator consisting of 1 MB (or larger) blocks fetched
     from the garbage-collected heap. Each block is organized as a KR-style
@@ -664,7 +668,8 @@ unittest
     import std.experimental.allocator.gc_allocator : GCAllocator;
     import std.experimental.allocator.common : Ternary;
     import std.experimental.allocator.mmap_allocator : MmapAllocator;
-    import std.experimental.allocator.allocator_list : AllocatorList;
+    import std.experimental.allocator.building_blocks.allocator_list
+        : AllocatorList;
     /*
     Create a scalable allocator consisting of 1 MB (or larger) blocks fetched
     from the garbage-collected heap. Each block is organized as a KR-style
@@ -698,7 +703,8 @@ unittest
 unittest
 {
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    import std.experimental.allocator.allocator_list : AllocatorList;
+    import std.experimental.allocator.building_blocks.allocator_list
+        : AllocatorList;
     import std.algorithm : max;
     import std.experimental.allocator.common : testAllocator;
     testAllocator!(() => AllocatorList!(
@@ -727,7 +733,7 @@ unittest
 {
     import std.experimental.allocator.gc_allocator : GCAllocator;
     import std.experimental.allocator.common : Ternary;
-    auto alloc = KRRegion!()(GCAllocator.it.allocate(1024 * 1024));
+    auto alloc = KRRegion!()(GCAllocator.instance.allocate(1024 * 1024));
     const store = alloc.allocate(KRRegion!().sizeof);
     auto p = cast(KRRegion!()* ) store.ptr;
     import std.conv : emplace;
@@ -759,7 +765,7 @@ unittest
 unittest
 {
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    auto alloc = KRRegion!()(GCAllocator.it.allocate(1024 * 1024));
+    auto alloc = KRRegion!()(GCAllocator.instance.allocate(1024 * 1024));
     auto p = alloc.allocateAll();
     assert(p.length == 1024 * 1024);
     alloc.deallocateAll();

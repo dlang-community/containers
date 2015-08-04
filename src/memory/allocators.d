@@ -13,10 +13,10 @@ module memory.allocators;
  */
 template NodeAllocator(size_t nodeSize, size_t blockSize = 1024)
 {
-	import std.experimental.allocator.allocator_list : AllocatorList;
-	import std.experimental.allocator.free_list : FreeList;
+	import std.experimental.allocator.building_blocks.allocator_list : AllocatorList;
+	import std.experimental.allocator.building_blocks.free_list : FreeList;
 	import std.experimental.allocator.mallocator : Mallocator;
-	import std.experimental.allocator.region : Region;
+	import std.experimental.allocator.building_blocks.region : Region;
 
 	private size_t roundUpToMultipleOf(size_t s, uint base) pure nothrow @safe
 	{

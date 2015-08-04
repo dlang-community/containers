@@ -13,7 +13,7 @@ module containers.slist;
 auto slist(T)()
 {
 	import std.experimental.allocator.mallocator : Mallocator;
-	return SList!(T, shared Mallocator)(Mallocator.it);
+	return SList!(T, shared Mallocator)(Mallocator.instance);
 }
 
 /**

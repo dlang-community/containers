@@ -1,7 +1,7 @@
-module std.experimental.allocator.region;
+module std.experimental.allocator.building_blocks.region;
 
 import std.experimental.allocator.common;
-import std.experimental.allocator.null_allocator;
+import std.experimental.allocator.building_blocks.null_allocator;
 import std.typecons : Flag, Yes, No;
 
 /**
@@ -37,7 +37,8 @@ struct Region(ParentAllocator = NullAllocator,
     // state {
     /**
     The _parent allocator. Depending on whether $(D ParentAllocator) holds state
-    or not, this is a member variable or an alias for $(D ParentAllocator.it).
+    or not, this is a member variable or an alias for
+    `ParentAllocator.instance`.
     */
     static if (stateSize!ParentAllocator)
     {
@@ -45,7 +46,7 @@ struct Region(ParentAllocator = NullAllocator,
     }
     else
     {
-        alias parent = ParentAllocator.it;
+        alias parent = ParentAllocator.instance;
     }
     private void* _current, _begin, _end;
     // }
@@ -305,7 +306,10 @@ struct Region(ParentAllocator = NullAllocator,
         return Ternary(b.ptr >= _begin && b.ptr + b.length <= _end);
     }
 
-    /// Returns $(D true) if no memory has been allocated in this region.
+    /**
+    Returns `Ternary.yes` if no memory has been allocated in this region,
+    `Ternary.no` otherwise. (Never returns `Ternary.unknown`.)
+    */
     Ternary empty() const
     {
         return Ternary(_current == _begin);
@@ -329,7 +333,8 @@ struct Region(ParentAllocator = NullAllocator,
 unittest
 {
     import std.experimental.allocator.mallocator : Mallocator;
-    import std.experimental.allocator.allocator_list : AllocatorList;
+    import std.experimental.allocator.building_blocks.allocator_list
+        : AllocatorList;
     import std.algorithm : max;
     // Create a scalable list of regions. Each gets at least 1MB at a time by
     // using malloc.
@@ -469,18 +474,17 @@ struct InSituRegion(size_t size, size_t minAlign = platformAlignment)
     */
     bool deallocate(void[] b)
     {
-        if (!_impl._current) lazyInit;
+        if (!_impl._current) return b is null;
         return _impl.deallocate(b);
     }
 
     /**
-    Returns $(D true) if and only if $(D b) is the result of a successful
-    allocation. For efficiency reasons, if $(D b is null) the function returns
-    $(D false).
+    Returns `Ternary.yes` if `b` is the result of a previous allocation,
+    `Ternary.no` otherwise.
     */
     Ternary owns(void[] b)
     {
-        if (!_impl._current) lazyInit;
+        if (!_impl._current) return Ternary.no;
         return _impl.owns(b);
     }
 
@@ -532,10 +536,13 @@ unittest
     assert(a1.length == 101);
 
     // 128KB region, with fallback to the garbage collector.
-    import std.experimental.allocator.fallback_allocator : FallbackAllocator;
-    import std.experimental.allocator.free_list : FreeList;
+    import std.experimental.allocator.building_blocks.fallback_allocator
+        : FallbackAllocator;
+    import std.experimental.allocator.building_blocks.free_list
+        : FreeList;
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    import std.experimental.allocator.bitmapped_block : BitmappedBlock;
+    import std.experimental.allocator.building_blocks.bitmapped_block
+        : BitmappedBlock;
     FallbackAllocator!(InSituRegion!(128 * 1024), GCAllocator) r2;
     const a2 = r2.allocate(102);
     assert(a2.length == 102);
@@ -610,7 +617,7 @@ version(Posix) struct SbrkRegion(uint minAlign = platformAlignment)
     /**
     Instance shared by all callers.
     */
-    static shared SbrkRegion it;
+    static shared SbrkRegion instance;
 
     /**
     Standard allocator primitives.
@@ -773,7 +780,7 @@ version(Posix) unittest
 
 version(Posix) unittest
 {
-    alias alloc = SbrkRegion!(8).it;
+    alias alloc = SbrkRegion!(8).instance;
     auto a = alloc.alignedAllocate(2001, 4096);
     assert(a.length == 2001);
     auto b = alloc.allocate(2001);

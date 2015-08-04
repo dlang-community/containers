@@ -42,18 +42,18 @@ struct ImmutableHashSet(T, alias hashFunction)
 		size_t bucketCount = 1;
 		while (bucketCount <= cast(size_t) a)
 			bucketCount <<= 1;
-		Node[][] mutableBuckets = cast(Node[][]) Mallocator.it.allocate((Node[]).sizeof * bucketCount);
-		Node[] mutableNodes = cast(Node[]) Mallocator.it.allocate(Node.sizeof * values.length);
+		Node[][] mutableBuckets = cast(Node[][]) Mallocator.instance.allocate((Node[]).sizeof * bucketCount);
+		Node[] mutableNodes = cast(Node[]) Mallocator.instance.allocate(Node.sizeof * values.length);
 
-		size_t[] lengths = cast(size_t[]) Mallocator.it.allocate(size_t.sizeof * bucketCount);
+		size_t[] lengths = cast(size_t[]) Mallocator.instance.allocate(size_t.sizeof * bucketCount);
 		lengths[] = 0;
-		scope(exit) Mallocator.it.deallocate(lengths);
+		scope(exit) Mallocator.instance.deallocate(lengths);
 
-		size_t[] indexes = cast(size_t[]) Mallocator.it.allocate(size_t.sizeof * values.length);
-		scope(exit) Mallocator.it.deallocate(indexes);
+		size_t[] indexes = cast(size_t[]) Mallocator.instance.allocate(size_t.sizeof * values.length);
+		scope(exit) Mallocator.instance.deallocate(indexes);
 
-		size_t[] hashes = cast(size_t[]) Mallocator.it.allocate(size_t.sizeof * values.length);
-		scope(exit) Mallocator.it.deallocate(hashes);
+		size_t[] hashes = cast(size_t[]) Mallocator.instance.allocate(size_t.sizeof * values.length);
+		scope(exit) Mallocator.instance.deallocate(hashes);
 
 		foreach (i, ref value; values)
 		{
@@ -98,8 +98,8 @@ struct ImmutableHashSet(T, alias hashFunction)
 				GC.removeRange(b.ptr);
 			GC.removeRange(nodes.ptr);
 		}
-		Mallocator.it.deallocate(cast(void[]) buckets);
-		Mallocator.it.deallocate(cast(void[]) nodes);
+		Mallocator.instance.deallocate(cast(void[]) buckets);
+		Mallocator.instance.deallocate(cast(void[]) nodes);
 	}
 
 	/**

@@ -209,7 +209,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 			case Type.upper:
 			case Type.all: break;
 			case Type.equal:
-				if (_less(front(), val) || _less(val, front()))
+				if (_less(val, front()))
 					current = null;
 				break;
 			case Type.lower:
@@ -231,48 +231,27 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 				current = current.left;
 		}
 
-		void currentToLeastContaining(inout T val)
-		{
-			while (current !is null)
-			{
-				if (_less(val, current.values[0]))
-					current = current.left;
-				else if (current.isFull)
-				{
-					if (_less(current.values[$ - 1], cast(Value) val))
-						current = current.right;
-					else
-						break;
-				}
-				else
-					break;
-			}
-		}
-
 		this(inout(Node)* n, Type type, inout T val)
 		{
 			current = n;
 			this.type = type;
 			this.val = val;
+			currentToLeftmost();
 			final switch(type)
 			{
 			case Type.all:
-				currentToLeftmost();
 				break;
 			case Type.lower:
-				currentToLeftmost();
 				if (_less(val, front()))
 					current = null;
 				break;
 			case Type.equal:
-				currentToLeastContaining(val);
 				while (current !is null && _less(front(), val))
 					_popFront();
 				if (current is null || _less(front(), val) || _less(val, front()))
 					current = null;
 				break;
 			case Type.upper:
-				currentToLeastContaining(val);
 				while (current !is null && !_less(val, front()))
 					_popFront();
 				break;
@@ -318,7 +297,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 		size_t index;
 		const(Node)* current;
-		Type type;
+		const Type type;
 		const T val;
 	}
 
@@ -348,7 +327,7 @@ private:
 		import std.experimental.allocator : make;
 		import std.experimental.allocator.mallocator : Mallocator;
 
-		Node* n = make!Node(Mallocator.it);
+		Node* n = make!Node(Mallocator.instance);
 		n.parent = parent;
 		n.markUsed(0);
 		n.values[0] = cast(Value) value;
@@ -370,7 +349,7 @@ private:
 
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(n);
-		dispose(Mallocator.it, n);
+		dispose(Mallocator.instance, n);
 		n = null;
 	}
 
@@ -448,12 +427,12 @@ private:
 		int imbalanced() const nothrow pure
 		{
 			if (right !is null
-				&& ((left is null && right.height() > 1)
-				|| (left !is null && right.height() > left.height() + 1)))
+					&& ((left is null && right.height() > 1)
+					|| (left !is null && right.height() > left.height() + 1)))
 				return 1;
 			if (left !is null
-				&& ((right is null && left.height() > 1)
-				|| (right !is null && left.height() > right.height() + 1)))
+					&& ((right is null && left.height() > 1)
+					|| (right !is null && left.height() > right.height() + 1)))
 				return -1;
 			return 0;
 		}
@@ -498,7 +477,7 @@ private:
 				calcHeight();
 				return b;
 			}
-			if (_less(values[$ - 1], cast(Value) value))
+			if (_less(values[$ - 1], value))
 			{
 				if (right is null)
 				{
@@ -775,7 +754,7 @@ private:
 						deallocateNode(right);
 				}
 				else
-					break;
+					return;
 			}
 		}
 
@@ -962,14 +941,7 @@ unittest
 		TTree!(TestStruct*, false) tsTree;
 		static assert (isInputRange!(typeof(tsTree).Range));
 		foreach (i; 0 .. 100)
-		{
 			assert(tsTree.insert(new TestStruct(i, i * 2)));
-			version(graphviz_debugging)
-			{
-				File f = File("graph%04d.dot".format(i), "w");
-				tsTree.print(f);
-			}
-		}
 		assert (tsTree.length == 100);
 		auto r = tsTree[];
 		TestStruct* prev = r.front();
@@ -1018,5 +990,35 @@ unittest
 		auto t = getInts();
 		static assert (is (typeof(t[].front) == const(int)));
 		assert (equal(t[].filter!(a => a & 1), [1, 3]));
+	}
+
+
+	{
+		static struct ABC
+		{
+			ulong a;
+			ulong b;
+
+			int opCmp(ref const ABC other) const
+			{
+				if (this.a < other.a)
+					return -1;
+				if (this.a > other.a)
+					return 1;
+				return 0;
+			}
+		}
+
+		TTree!(ABC, true) tree;
+		foreach (i; 0 .. 10)
+			tree.insert(ABC(i));
+		tree.insert(ABC(15));
+		tree.insert(ABC(15));
+		tree.insert(ABC(15));
+		tree.insert(ABC(15));
+		foreach (i; 20 .. 30)
+			tree.insert(ABC(i));
+		assert(tree.equalRange(ABC(15)).walkLength() == 4,
+			format("Actual length = %d", tree.equalRange(ABC(15)).walkLength()));
 	}
 }

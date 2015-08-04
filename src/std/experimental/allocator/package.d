@@ -2,9 +2,11 @@
 /**
 
 High-level interface for allocators. Implements bundled allocation/creation
-and destruction/deallocation of data including $(D struct)s and $(D class)es,
-and also array primitives related to allocation.
+and destruction/deallocation of data including `struct`s and `class`es,
+and also array primitives related to allocation. This module is the entry point
+for both making use of allocators and for their documentation.
 
+Synopsis:
 ---
 // Allocate an int, initialize it with 42
 int* p = theAllocator.make!int(42);
@@ -28,6 +30,160 @@ theAllocator.shrinkArray(arr, 2);
 theAllocator.dispose(arr);
 ---
 
+$(H2 Layered Structure)
+
+D's allocators have a layered structure in both implementation and documentation:
+
+$(OL
+$(LI A high-level, dynamically-typed layer (described further down in this
+module). It consists of an interface called $(LREF IAllocator), which concrete
+allocators need to implement. The interface primitives themselves are oblivious
+to the type of the objects being allocated; they only deal in `void[]`, by
+necessity of the interface being dynamic (as opposed to type-parameterized).
+Each thread has a current allocator it uses by default, which is a thread-local
+variable $(LREF theAllocator) of type $(LREF IAllocator). The process has a
+global _allocator called $(LREF processAllocator), also of type $(LREF
+IAllocator). When a new thread is created, $(LREF processAllocator) is copied
+into $(LREF theAllocator). An application can change the objects to which these
+references point. By default, at application startup, $(LREF processAllocator)
+refers to an object that uses D's garbage collected heap. This layer also
+include high-level functions such as $(LREF make) and $(LREF dispose) that
+comfortably allocate/create and respectively destroy/deallocate objects. This
+layer is all needed for most casual uses of allocation primitives.)
+
+$(LI A mid-level, statically-typed layer for assembling several allocators into
+one. It uses properties of the type of the objects being created to route
+allocation requests to possibly specialized allocators. This layer is relatively
+thin and implemented and documented in the $(XREF2
+std,experimental,_allocator,typed) module. It allows an interested user to e.g.
+use different allocators for arrays versus fixed-sized objects, to the end of
+better overall performance.)
+
+$(LI A low-level collection of highly generic $(I heap building blocks)$(MDASH)
+Lego-like pieces that can be used to assemble application-specific allocators.
+The real allocation smarts are occurring at this level. This layer is of
+interest to advanced applications that want to configure their own allocators.
+A good illustration of typical uses of these building blocks is module $(XREF2
+std,experimental,_allocator,showcase) which defines a collection of frequently-
+used preassembled allocator objects. The implementation and documentation entry
+point is $(XREF2 std,experimental,_allocator,building_blocks). By design, the
+primitives of the static interface have the same signatures as the $(LREF
+IAllocator) primitives but are for the most part optional and driven by static
+introspection. The parameterized class $(LREF CAllocatorImpl) offers an
+immediate and useful means to package a static low-level _allocator into an
+implementation of $(LREF IAllocator).)
+
+$(LI Core _allocator objects that interface with D's garbage collected heap
+($(XREF2 std,experimental,_allocator,gc_allocator)), the C `malloc` family
+($(XREF2 std,experimental,_allocator,mallocator)), and the OS ($(XREF2
+std,experimental,_allocator,mmap_allocator)). Most custom allocators would
+ultimately obtain memory from one of these core allocators.)
+)
+
+$(H2 Idiomatic Use of $(D std.experimental._allocator))
+
+As of this time, $(D std.experimental._allocator) is not integrated with D's
+built-in operators that allocate memory, such as `new`, array literals, or
+array concatenation operators. That means $(D std.experimental._allocator) is
+opt-in$(MDASH)applications need to make explicit use of it.
+
+For casual creation and disposal of dynamically-allocated objects, use $(LREF
+make), $(LREF dispose), and the array-specific functions $(LREF makeArray),
+$(LREF expandArray), and $(LREF shrinkArray). These use by default D's garbage
+collected heap, but open the application to better configuration options. These
+primitives work either with `theAllocator` but also with any allocator obtained
+by combining heap building blocks. For example:
+
+----
+void fun(size_t n)
+{
+    // Use the current allocator
+    int[] a1 = theAllocator.makeArray!int(n);
+    scope(exit) theAllocator.dispose(a1);
+    ...
+}
+----
+
+To experiment with alternative allocators, set $(LREF theAllocator) for the
+current thread. For example, consider an application that allocates many 8-byte
+objects. These are not well supported by the default _allocator, so a $(A
+$(JOIN_LINE std,experimental,_allocator,building_blocks,free_list).html, free
+list _allocator) would be recommended. To install one in `main`, the
+application would use:
+
+----
+void main()
+{
+    import std.experimental.allocator.building_blocks.free_list
+        : FreeList;
+    theAllocator = allocatorObject(FreeList!8());
+    ...
+}
+----
+
+$(H3 Saving the `IAllocator` Reference For Later Use)
+
+As with any global resource, setting `theAllocator` and `processAllocator`
+should not be done often and casually. In particular, allocating memory with
+one allocator and deallocating with another causes undefined behavior.
+Typically, these variables are set during application initialization phase and
+last through the application.
+
+To avoid this, long-lived objects that need to perform allocations,
+reallocations, and deallocations relatively often may want to store a reference
+to the _allocator object they use throughout their lifetime. Then, instead of
+using `theAllocator` for internal allocation-related tasks, they'd use the
+internally held reference. For example, consider a user-defined hash table:
+
+----
+struct HashTable
+{
+    private IAllocator _allocator;
+    this(size_t buckets, IAllocator allocator = theAllocator) {
+        this._allocator = allocator;
+        ...
+    }
+    // Getter and setter
+    IAllocator allocator() { return _allocator; }
+    void allocator(IAllocator a) { assert(empty); _allocator = a; }
+}
+----
+
+Following initialization, the `HashTable` object would consistently use its
+$(D _allocator) object for acquiring memory. Furthermore, setting
+$(D HashTable._allocator) to point to a different _allocator should be legal but
+only if the object is empty; otherwise, the object wouldn't be able to
+deallocate its existing state.
+
+$(H3 Using Allocators without `IAllocator`)
+
+Allocators assembled from the heap building blocks don't need to go through
+`IAllocator` to be usable. They have the same primitives as `IAllocator` and
+they work with $(LREF make), $(LREF makeArray), $(LREF dispose) etc. So it
+suffice to create allocator objects wherever fit and use them appropriately:
+
+----
+void fun(size_t n)
+{
+    // Use a stack-installed allocator for up to 64KB
+    StackFront!65536 myAllocator;
+    int[] a2 = myAllocator.makeArray!int(n);
+    scope(exit) theAllocator.dispose(a2);
+    ...
+}
+----
+
+In this case, `myAllocator` does not obey the `IAllocator` interface, but
+implements its primitives so it can work with `makeArray` by means of duck
+typing.
+
+One important thing to note about this setup is that statically-typed assembled
+allocators are almost always faster than allocators that go through
+`IAllocator`. An important rule of thumb is: "assemble allocator first, adapt
+to `IAllocator` after". A good allocator implements intricate logic by means of
+template assembly, and gets wrapped with `IAllocator` (usually by means of
+$(LREF allocatorObject)) only once, at client level.
+
 Macros:
 MYREF = $(LINK2 std_experimental_allocator_$2.html, $1)&nbsp;
 MYREF2 = $(LINK2 std_experimental_allocator_$2.html#$1, $1)&nbsp;
@@ -36,6 +192,11 @@ TDC2 = <td nowrap>$(D $(MYREF $1,$+))</td>
 TDC3 = <td nowrap>$(D $(MYREF2 $1,$+))</td>
 RES = $(I result)
 POST = $(BR)$(SMALL $(I Post:) $(BLUE $(D $0)))
+JOIN_LINE = $1$(JOIN_LINE_TAIL $+)
+JOIN_LINE_TAIL = _$1$(JOIN_LINE_TAIL $+)
+JOIN_DOT = $1$(JOIN_DOT_TAIL $+)
+JOIN_DOT_TAIL = .$1$(JOIN_DOT_TAIL $+)
+XREF2 = $(A $(JOIN_LINE $1,$+).html,$(D $(JOIN_DOT $1,$+)))
 
 Copyright: Andrei Alexandrescu 2013-.
 
@@ -49,26 +210,21 @@ Source: $(PHOBOSSRC std/experimental/_allocator)
 
 module std.experimental.allocator;
 
-public import
-    std.experimental.allocator.affix_allocator,
-    std.experimental.allocator.allocator_list,
-    std.experimental.allocator.bucketizer,
-    std.experimental.allocator.common,
-    std.experimental.allocator.fallback_allocator,
-    std.experimental.allocator.free_list,
-    std.experimental.allocator.gc_allocator,
-    std.experimental.allocator.bitmapped_block,
-    std.experimental.allocator.mallocator,
-    std.experimental.allocator.mmap_allocator,
-    std.experimental.allocator.null_allocator,
-    std.experimental.allocator.region,
-    std.experimental.allocator.segregator,
-    std.experimental.allocator.stats_collector,
+public import std.experimental.allocator.common,
     std.experimental.allocator.typed;
 
 // Example in the synopsis above
 unittest
 {
+    import std.experimental.allocator.building_blocks.free_list : FreeList;
+    import std.experimental.allocator.gc_allocator : GCAllocator;
+    import std.experimental.allocator.building_blocks.segregator : Segregator;
+    import std.experimental.allocator.building_blocks.bucketizer : Bucketizer;
+    import std.experimental.allocator.building_blocks.allocator_list
+        : AllocatorList;
+    import std.experimental.allocator.building_blocks.bitmapped_block
+        : BitmappedBlock;
+
     alias FList = FreeList!(GCAllocator, 0, unbounded);
     alias A = Segregator!(
         8, FreeList!(GCAllocator, 0, 8),
@@ -79,7 +235,7 @@ unittest
         2048, Bucketizer!(FList, 1025, 2048, 256),
         3584, Bucketizer!(FList, 2049, 3584, 512),
         4072 * 1024, AllocatorList!(
-            (n) => BitmappedBlock!(4096)(GCAllocator.it.allocate(
+            (n) => BitmappedBlock!(4096)(GCAllocator.instance.allocate(
                 max(n, 4072 * 1024)))),
         GCAllocator
     );
@@ -199,7 +355,7 @@ shared static this()
 {
     assert(!_processAllocator);
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    _processAllocator = allocatorObject(GCAllocator.it);
+    _processAllocator = allocatorObject(GCAllocator.instance);
 }
 
 static this()
@@ -231,7 +387,7 @@ in turn uses the garbage collected heap.
 unittest
 {
     // Install a new allocator that is faster for 128-byte allocations.
-    import std.experimental.allocator.free_list : FreeList;
+    import std.experimental.allocator.building_blocks.free_list : FreeList;
     import std.experimental.allocator.gc_allocator : GCAllocator;
     auto oldAllocator = theAllocator;
     scope(exit) theAllocator = oldAllocator;
@@ -387,7 +543,7 @@ unittest
     }
 
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    test(GCAllocator.it);
+    test(GCAllocator.instance);
     test(theAllocator);
 }
 
@@ -467,7 +623,7 @@ unittest
         assert(a == [ 0, 0, 0, 0, 0]);
     }
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    test(GCAllocator.it);
+    test(GCAllocator.instance);
     test(theAllocator);
 }
 
@@ -529,7 +685,7 @@ unittest
         assert(a == [ 42, 42, 42, 42, 42 ]);
     }
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    test(GCAllocator.it);
+    test(GCAllocator.instance);
     test(theAllocator);
 }
 
@@ -620,7 +776,7 @@ unittest
         assert(a == [ 5, 42]);
     }
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    test(GCAllocator.it);
+    test(GCAllocator.instance);
     test(theAllocator);
 }
 
@@ -653,7 +809,7 @@ unittest
         assert(a == iota(10).array);
     }
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    test(GCAllocator.it);
+    test(GCAllocator.instance);
     test(theAllocator);
 }
 
@@ -702,7 +858,7 @@ unittest
         assert(arr == [1, 2, 3, 0, 0, 0]);
     }
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    test(GCAllocator.it);
+    test(GCAllocator.instance);
     test(theAllocator);
 }
 
@@ -882,7 +1038,7 @@ unittest
         assert(a == [ 42, 42]);
     }
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    test(GCAllocator.it);
+    test(GCAllocator.instance);
     test(theAllocator);
 }
 
@@ -1043,13 +1199,13 @@ CAllocatorImpl!(A, Yes.indirect) allocatorObject(A)(A* pa)
 unittest
 {
     import std.experimental.allocator.mallocator : Mallocator;
-    IAllocator a = allocatorObject(Mallocator.it);
+    IAllocator a = allocatorObject(Mallocator.instance);
     auto b = a.allocate(100);
     assert(b.length == 100);
     assert(a.deallocate(b));
 
     // The in-situ region must be used by pointer
-    import std.experimental.allocator.region : InSituRegion;
+    import std.experimental.allocator.building_blocks.region : InSituRegion;
     auto r = InSituRegion!1024();
     a = allocatorObject(&r);
     b = a.allocate(200);
@@ -1090,7 +1246,7 @@ class CAllocatorImpl(Allocator, Flag!"indirect" indirect = No.indirect)
     else
     {
         static if (stateSize!Allocator) Allocator impl;
-        else alias impl = Allocator.it;
+        else alias impl = Allocator.instance;
     }
 
     /// Returns $(D impl.alignment).
@@ -1116,27 +1272,20 @@ class CAllocatorImpl(Allocator, Flag!"indirect" indirect = No.indirect)
     }
 
     /**
-    If $(D impl.alignedAllocate) exists, calls it, puts the result in $(D r),
-    and returns $(D Ternary.yes) or $(D Ternary.no) indicating whether
-    allocation succeded.
-
-    If $(D impl.alignedAllocate) is not defined, returns $(D Ternary.unknown).
+    If $(D impl.alignedAllocate) exists, calls it and returns the result.
+    Otherwise, always returns `null`.
     */
     override void[] alignedAllocate(size_t s, uint a)
     {
-        static if (!hasMember!(Allocator, "alignedAllocate"))
-        {
-            return null;
-        }
-        else
-        {
+        static if (hasMember!(Allocator, "alignedAllocate"))
             return impl.alignedAllocate(s, a);
-        }
+        else
+            return null;
     }
 
     /**
-    Overridden only if $(D Allocator) implements $(D owns). In that case,
-    returns $(D impl.owns(b)).
+    If `Allocator` implements `owns`, forwards to it. Otherwise, returns
+    `Ternary.unknown`.
     */
     override Ternary owns(void[] b)
     {
@@ -1172,6 +1321,7 @@ class CAllocatorImpl(Allocator, Flag!"indirect" indirect = No.indirect)
         }
     }
 
+    // Undocumented for now
     Ternary resolveInternalPointer(void* p, ref void[] result)
     {
         static if (hasMember!(Allocator, "resolveInternalPointer"))
@@ -1300,17 +1450,17 @@ struct ThreadLocal(A)
     /**
     The allocator instance.
     */
-    static A it;
+    static A instance;
 
     /**
     `ThreadLocal!A` is a subtype of `A` so it appears to implement `A`'s
     allocator primitives.
     */
-    alias it this;
+    alias instance this;
 
     /**
     `ThreadLocal` disables all constructors. The intended usage is
-    `ThreadLocal!A.it`.
+    `ThreadLocal!A.instance`.
     */
     @disable this();
     /// Ditto
@@ -1323,7 +1473,7 @@ unittest
     static assert(!is(ThreadLocal!Mallocator));
     static assert(!is(ThreadLocal!GCAllocator));
     alias ThreadLocal!(FreeList!(GCAllocator, 0, 8)) Allocator;
-    auto b = Allocator.it.allocate(5);
+    auto b = Allocator.instance.allocate(5);
     static assert(hasMember!(Allocator, "allocate"));
 }
 
@@ -1515,7 +1665,7 @@ private struct EmbeddedTree(T, alias less)
 
 unittest
 {
-    alias a = GCAllocator.it;
+    alias a = GCAllocator.instance;
     alias Tree = EmbeddedTree!(int, (a, b) => a.payload < b.payload);
     Tree t;
     assert(t.empty);
@@ -1563,7 +1713,7 @@ private struct InternalPointersTree(Allocator)
     The implementation is available as a public member.
     */
     static if (stateSize!Parent) Parent parent;
-    else alias parent = Parent.it;
+    else alias parent = Parent.instance;
 
     /// Allocator API.
     void[] allocate(size_t bytes)
@@ -1688,7 +1838,7 @@ unittest
     static void testSpeed(A)()
     {
         static if (stateSize!A) A a;
-        else alias a = A.it;
+        else alias a = A.instance;
 
         void[][128] bufs;
 
@@ -1722,7 +1872,7 @@ unittest
         2048, Bucketizer!(FList, 1025, 2048, 256),
         3584, Bucketizer!(FList, 2049, 3584, 512),
         4072 * 1024, AllocatorList!(
-            (size_t n) => BitmappedBlock!(4096)(GCAllocator.it.allocate(
+            (size_t n) => BitmappedBlock!(4096)(GCAllocator.instance.allocate(
                 max(n, 4072 * 1024)))),
         GCAllocator
     );
@@ -1739,7 +1889,7 @@ unittest
 
 unittest
 {
-    auto a = allocatorObject(Mallocator.it);
+    auto a = allocatorObject(Mallocator.instance);
     auto b = a.allocate(100);
     assert(b.length == 100);
 
@@ -1759,7 +1909,7 @@ unittest
 unittest
 {
     /// Define an allocator bound to the built-in GC.
-    IAllocator alloc = allocatorObject(GCAllocator.it);
+    IAllocator alloc = allocatorObject(GCAllocator.instance);
     auto b = alloc.allocate(42);
     assert(b.length == 42);
     assert(alloc.deallocate(b) == Ternary.yes);
@@ -1777,13 +1927,13 @@ unittest
             2048, Bucketizer!(FList, 1025, 2048, 256),
             3584, Bucketizer!(FList, 2049, 3584, 512),
             4072 * 1024, AllocatorList!(
-                (n) => BitmappedBlock!(4096)(GCAllocator.it.allocate(
+                (n) => BitmappedBlock!(4096)(GCAllocator.instance.allocate(
                     max(n, 4072 * 1024)))),
             GCAllocator
         )
     );
 
-    auto alloc2 = allocatorObject(A.it);
+    auto alloc2 = allocatorObject(A.instance);
     b = alloc.allocate(101);
     assert(alloc.deallocate(b) == Ternary.yes);
 }

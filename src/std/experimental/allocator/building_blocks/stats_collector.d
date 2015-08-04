@@ -1,4 +1,17 @@
-module std.experimental.allocator.stats_collector;
+// Written in the D programming language.
+/**
+Allocator that collects useful statistics about allocations, both global and per
+calling point. The statistics collected can be configured statically by choosing
+combinations of `Options` appropriately.
+
+Example:
+----
+import std.experimental.allocator.gc_allocator : GCAllocator;
+import std.experimental.allocator.building_blocks.free_list : FreeList;
+alias Allocator = StatsCollector!(GCAllocator, Options.bytesUsed);
+----
+*/
+module std.experimental.allocator.building_blocks.stats_collector;
 
 import std.experimental.allocator.common;
 
@@ -231,11 +244,11 @@ private:
 public:
     /**
     The parent allocator is publicly accessible either as a direct member if it
-    holds state, or as an alias to $(D Allocator.it) otherwise. One may use it
-    for making calls that won't count toward statistics collection.
+    holds state, or as an alias to `Allocator.instance` otherwise. One may use
+    it for making calls that won't count toward statistics collection.
     */
     static if (stateSize!Allocator) Allocator parent;
-    else alias parent = Allocator.it;
+    else alias parent = Allocator.instance;
 
 private:
     // Per-allocator state
@@ -643,7 +656,7 @@ public:
 unittest
 {
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    import std.experimental.allocator.free_list : FreeList;
+    import std.experimental.allocator.building_blocks.free_list : FreeList;
     alias Allocator = StatsCollector!(GCAllocator, Options.all, Options.all);
 
     Allocator alloc;
@@ -693,7 +706,7 @@ unittest
      }
 
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    import std.experimental.allocator.free_list : FreeList;
+    import std.experimental.allocator.building_blocks.free_list : FreeList;
     test!(StatsCollector!(GCAllocator, Options.all, Options.all));
     test!(StatsCollector!(FreeList!(GCAllocator, 128), Options.all,
         Options.all));
@@ -717,6 +730,6 @@ unittest
         a.deallocate(b3);
     }
     import std.experimental.allocator.gc_allocator : GCAllocator;
-    import std.experimental.allocator.free_list : FreeList;
+    import std.experimental.allocator.building_blocks.free_list : FreeList;
     test!(StatsCollector!(GCAllocator, 0, 0));
 }
