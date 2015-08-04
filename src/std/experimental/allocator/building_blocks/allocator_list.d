@@ -167,7 +167,7 @@ struct AllocatorList(Factory, BookkeepingAllocator = GCAllocator)
         {
             auto result = n.allocate(s);
             if (result.length != s) continue;
-            assert(owns(result) == Ternary.yes);
+//            assert(owns(result) == Ternary.yes);
             // Bring to front if not already
             if (root != n)
             {
