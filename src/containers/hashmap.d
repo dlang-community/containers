@@ -85,7 +85,7 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 	/**
 	 * Supports $(B key in aa) syntax.
 	 */
-	V* opBinaryRight(string op)(K key) const nothrow if (op == "in")
+	bool opBinaryRight(string op)(K key) const nothrow if (op == "in")
 	{
 		size_t hash = generateHash(key);
 		size_t index = hashToIndex(hash);
@@ -94,15 +94,15 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 			static if (storeHash)
 			{
 				if (node.hash == hash && node == key)
-					return &node.value;
+					return true;
 			}
 			else
 			{
 				if (node == key)
-					return &node.value;
+					return true;
 			}
 		}
-		return null;
+		return false;
 	}
 
 	/**
