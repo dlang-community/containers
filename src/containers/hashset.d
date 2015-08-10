@@ -184,7 +184,6 @@ private:
 
 	import containers.internal.node : shouldAddGCRange;
 	import containers.unrolledlist : UnrolledList;
-	import std.allocator : Mallocator, allocate;
 	import std.traits : isBasicType;
 
 	enum bool storeHash = !isBasicType!T;
