@@ -62,12 +62,10 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	{
 		hash_t hash = generateHash(value);
 		size_t index = hashToIndex(hash);
-		if (buckets[index].empty)
-			return false;
 		static if (storeHash)
-			bool removed = buckets[index].remove(Node(hash, value));
+			immutable removed = buckets[index].remove(Node(hash, value));
 		else
-			bool removed = buckets[index].remove(Node(value));
+			immutable removed = buckets[index].remove(Node(value));
 		if (removed)
 			--_length;
 		return removed;
@@ -78,34 +76,19 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	 */
 	bool contains(T value) inout nothrow
 	{
-		if (buckets.length == 0)
-			return false;
-		hash_t hash = generateHash(value);
-		size_t index = hashToIndex(hash);
-		if (buckets[index].empty)
-			return false;
-		foreach (ref item; buckets[index].range)
-		{
-			static if (storeHash)
-			{
-				if (item.hash == hash && item.value == value)
-					return true;
-			}
-			else
-			{
-				if (item.value == value)
-					return true;
-			}
-		}
-		return false;
+		return (value in this) !is null;
 	}
 
 	/**
 	 * Supports $(B a in b) syntax
 	 */
-	bool opBinaryRight(string op)(T value) inout nothrow if (op == "in")
+	inout(T)* opBinaryRight(string op)(T value) inout nothrow if (op == "in")
 	{
-		return contains(value);
+		if (buckets.length == 0 || _length == 0)
+			return null;
+		hash_t hash = generateHash(value);
+		size_t index = hashToIndex(hash);
+		return buckets[index].get(value, hash);
 	}
 
 	/**
@@ -120,32 +103,11 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 			initialize(4);
 		hash_t hash = generateHash(value);
 		size_t index = hashToIndex(hash);
-		if (buckets[index].empty)
-		{
-	insert:
-			static if (storeHash)
-				buckets[index].insert(Node(hash, value));
-			else
-				buckets[index].insert(Node(value));
-			++_length;
-			if (shouldRehash())
-				rehash();
-			return true;
-		}
-		foreach (ref item; buckets[index].range)
-		{
-			static if (storeHash)
-			{
-				if (item.hash == hash && item.value == value)
-					return false;
-			}
-			else
-			{
-				if (item.value == value)
-					return false;
-			}
-		}
-		goto insert;
+		static if (storeHash)
+			auto r = buckets[index].insert(Node(hash, value));
+		else
+			auto r = buckets[index].insert(Node(value));
+		return r;
 	}
 
 	/// ditto
@@ -170,9 +132,10 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	/**
 	 * Forward range interface
 	 */
-	Range range() inout nothrow @nogc @safe @property
+	auto range() inout nothrow @nogc @trusted @property
 	{
-		return Range(buckets);
+		import std.typecons : Unqual;
+		return Range!(Unqual!(typeof(this)))(cast(Unqual!(typeof(this))*) &this);
 	}
 
 	/// ditto
@@ -199,52 +162,58 @@ private:
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 	}
 
-	static struct Range
+	static struct Range(ThisT)
 	{
-		this(const(Bucket)[] buckets)
+		this(ThisT* t)
 		{
-			this.buckets = buckets;
-			if (buckets.length)
+			foreach (ref bucket; t.buckets)
 			{
-				r = buckets[i].range;
-				while (i < buckets.length && r.empty)
+
+				if (bucket.root !is null)
 				{
-					i++;
-					r = buckets[i].range;
+					currentNode = bucket.root;
+					break;
 				}
 			}
-			else
-				r = typeof(buckets[i].range()).init;
+			this.t = t;
 		}
 
 		bool empty() const nothrow @safe @nogc @property
 		{
-			return i >= buckets.length;
+			return bucketIndex >= t.buckets.length;
 		}
 
-		T front() const nothrow @safe @nogc @property
+		T front() nothrow @safe @nogc @property
 		{
-			return r.front.value;
+			return currentNode.items[nodeIndex].value;
 		}
 
-		void popFront()
+		void popFront() nothrow @safe @nogc
 		{
-			r.popFront();
-			while (r.empty)
+			if (nodeIndex + 1 < currentNode.l)
 			{
-				i++;
-				if (i >= buckets.length)
-					return;
-				r = buckets[i].range;
+				++nodeIndex;
+				return;
+			}
+			else
+			{
+				if (currentNode.next is null)
+				{
+					++bucketIndex;
+					while (bucketIndex < t.buckets.length && t.buckets[bucketIndex].root is null)
+						++bucketIndex;
+					nodeIndex = 0;
+				}
+				else
+					currentNode = currentNode.next;
 			}
 		}
 
-		const(Bucket)[] buckets;
-		typeof(Bucket.range()) r;
-		size_t i;
+		ThisT* t;
+		Bucket.BucketNode* currentNode;
+		size_t bucketIndex;
+		size_t nodeIndex;
 	}
-
-	alias Bucket = UnrolledList!(Node, supportGC);
 
 	bool shouldRehash() const pure nothrow @safe
 	{
@@ -267,18 +236,21 @@ private:
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		foreach (ref const bucket; oldBuckets)
 		{
-			foreach (node; bucket.range)
+			for (Bucket.BucketNode* node = cast(Bucket.BucketNode*) bucket.root; node !is null; node = node.next)
 			{
-				static if (storeHash)
+				for (size_t i = 0; i < node.l; ++i)
 				{
-					size_t index = hashToIndex(node.hash);
-					buckets[index].put(Node(node.hash, node.value));
-				}
-				else
-				{
-					size_t hash = generateHash(node.value);
-					size_t index = hashToIndex(hash);
-					buckets[index].put(Node(node.value));
+					static if (storeHash)
+					{
+						immutable size_t index = hashToIndex(node.items[i].hash);
+						buckets[index].insert(Node(node.items[i].hash, node.items[i].value));
+					}
+					else
+					{
+						immutable size_t hash = generateHash(node.items[i].value);
+						immutable size_t index = hashToIndex(hash);
+						buckets[index].insert(Node(node.items[i].value));
+					}
 				}
 			}
 		}
@@ -302,6 +274,108 @@ private:
 	body
 	{
 		return hash & (buckets.length - 1);
+	}
+
+	static struct Bucket
+	{
+		static struct BucketNode
+		{
+			inout(T)* get(Node n) inout
+			{
+				for (size_t i = 0; i < l; ++i)
+				{
+					static if (storeHash)
+					{
+						if (items[i].hash == n.hash && items[i].value == n.value)
+							return &items[i].value;
+					}
+					else
+					{
+						if (items[i].value == n.value)
+							return &items[i].value;
+					}
+				}
+				return null;
+			}
+
+			bool insert(Node n)
+			{
+				if (l >= items.length)
+					return false;
+				static if (storeHash)
+					items[l] = n;
+				else
+					items[l] = n;
+				++l;
+				return true;
+			}
+
+			bool remove(Node n)
+			{
+				import std.algorithm : SwapStrategy, remove;
+				foreach (size_t i, ref node; items)
+				{
+					static if (storeHash)
+						immutable bool matches = node.hash == n.hash && node.value == n.value;
+					else
+						immutable bool matches = node.value == n.value;
+					if (matches)
+					{
+						items[].remove!(SwapStrategy.unstable)(i);
+						l--;
+						return true;
+					}
+				}
+				return false;
+			}
+
+			import containers.internal.node : fatNodeCapacity;
+
+			BucketNode* next;
+			size_t l;
+			Node[fatNodeCapacity!(Node.sizeof, 1, size_t)] items;
+		}
+
+		bool insert(Node n)
+		{
+			for (BucketNode* current = root; current !is null; current = current.next)
+			{
+				if (current.get(n) !is null)
+					return false;
+				if (current.insert(n))
+					return true;
+			}
+			BucketNode* newNode = cast(BucketNode*) Mallocator.it.allocate(BucketNode.sizeof);
+			*newNode = BucketNode.init;
+			return newNode.insert(n);
+		}
+
+		bool remove(Node n)
+		{
+			for (BucketNode* current = root; current !is null; current = current.next)
+			{
+				immutable removed = current.remove(n);
+				if (removed)
+					return true;
+			}
+			return false;
+		}
+
+		inout(T)* get(T value, size_t hash) inout
+		{
+			for (BucketNode* current = cast(BucketNode*) root; current !is null; current = current.next)
+			{
+				static if (storeHash)
+					auto v = current.get(Node(hash, value));
+				else
+					auto v = current.get(Node(value));
+				if (v !is null)
+					return cast(typeof(return)) v;
+			}
+			return null;
+		}
+
+		BucketNode* root;
 	}
 
 	struct Node
@@ -334,41 +408,42 @@ unittest
 	import std.array : array;
 	import std.algorithm : canFind;
 	import std.uuid : randomUUID;
+
 	auto s = HashSet!string(16);
-	assert (!s.contains("nonsense"));
-	s.put("test");
-	s.put("test");
-	assert (s.contains("test"));
-	assert (s.length == 1);
-	assert (!s.contains("nothere"));
+	assert(!s.contains("nonsense"));
+	assert(s.put("test"));
+	assert(!s.put("test"));
+	assert(s.contains("test"));
+	assert(s.length == 1);
+	assert(!s.contains("nothere"));
 	s.put("a");
 	s.put("b");
 	s.put("c");
 	s.put("d");
 	string[] strings = s.range.array;
-	assert (strings.canFind("a"));
-	assert (strings.canFind("b"));
-	assert (strings.canFind("c"));
-	assert (strings.canFind("d"));
-	assert (strings.canFind("test"));
-	assert (strings.length == 5);
-	assert (s.remove("test"));
-	assert (s.length == 4);
+	assert(strings.canFind("a"));
+	assert(strings.canFind("b"));
+	assert(strings.canFind("c"));
+	assert(strings.canFind("d"));
+	assert(strings.canFind("test"));
+	assert(strings.length == 5);
+	assert(s.remove("test"));
+	assert(s.length == 4);
 	s.clear();
-	assert (s.length == 0);
-	assert (s.empty);
+	assert(s.length == 0);
+	assert(s.empty);
 	s.put("abcde");
-	assert (s.length == 1);
+	assert(s.length == 1);
 	foreach (i; 0 .. 10_000)
 	{
 		s.put(randomUUID().toString);
 	}
-	assert (s.length == 10_001);
+	assert(s.length == 10_001);
 
 	// Make sure that there's no range violation slicing an empty set
 	HashSet!int e;
 	foreach (i; e[])
-		assert (i > 0);
+		assert(i > 0);
 }
 
 private:
