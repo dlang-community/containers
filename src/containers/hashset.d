@@ -107,6 +107,8 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 			auto r = buckets[index].insert(Node(hash, value));
 		else
 			auto r = buckets[index].insert(Node(value));
+		if (r)
+			++_length;
 		return r;
 	}
 
@@ -203,6 +205,10 @@ private:
 					while (bucketIndex < t.buckets.length && t.buckets[bucketIndex].root is null)
 						++bucketIndex;
 					nodeIndex = 0;
+					if (bucketIndex < t.buckets.length)
+						currentNode = t.buckets[bucketIndex].root;
+					else
+						currentNode = null;
 				}
 				else
 					currentNode = currentNode.next;
@@ -298,16 +304,13 @@ private:
 				return null;
 			}
 
-			bool insert(Node n)
+			void insert(Node n)
 			{
-				if (l >= items.length)
-					return false;
 				static if (storeHash)
 					items[l] = n;
 				else
 					items[l] = n;
 				++l;
-				return true;
 			}
 
 			bool remove(Node n)
@@ -338,16 +341,25 @@ private:
 
 		bool insert(Node n)
 		{
-			for (BucketNode* current = root; current !is null; current = current.next)
+			BucketNode* prev;
+			BucketNode* current;
+			for (current = root; current !is null; prev = current, current = current.next)
 			{
-				if (current.get(n) !is null)
+				if (current.l >= current.items.length)
+					continue;
+				if (current.get(n))
 					return false;
-				if (current.insert(n))
-					return true;
+				current.insert(n);
+				return true;
 			}
 			BucketNode* newNode = cast(BucketNode*) Mallocator.it.allocate(BucketNode.sizeof);
 			*newNode = BucketNode.init;
-			return newNode.insert(n);
+			newNode.insert(n);
+			if (prev is null)
+				root = newNode;
+			else
+				prev.next = newNode;
+			return true;
 		}
 
 		bool remove(Node n)
@@ -406,12 +418,15 @@ private:
 unittest
 {
 	import std.array : array;
-	import std.algorithm : canFind;
+	import std.algorithm : canFind, each, filter;
 	import std.uuid : randomUUID;
+	import std.stdio:writeln;
 
 	auto s = HashSet!string(16);
 	assert(!s.contains("nonsense"));
 	assert(s.put("test"));
+	s.buckets.filter!(a => a.root !is null).each!(a => writeln(*a.root));
+	assert(s.contains("test"));
 	assert(!s.put("test"));
 	assert(s.contains("test"));
 	assert(s.length == 1);
@@ -421,6 +436,7 @@ unittest
 	s.put("c");
 	s.put("d");
 	string[] strings = s.range.array;
+	writeln(strings);
 	assert(strings.canFind("a"));
 	assert(strings.canFind("b"));
 	assert(strings.canFind("c"));
