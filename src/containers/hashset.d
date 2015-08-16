@@ -168,9 +168,9 @@ private:
 	{
 		this(ThisT* t)
 		{
-			foreach (ref bucket; t.buckets)
+			foreach (i, ref bucket; t.buckets)
 			{
-
+				bucketIndex = i;
 				if (bucket.root !is null)
 				{
 					currentNode = bucket.root;
@@ -182,7 +182,7 @@ private:
 
 		bool empty() const nothrow @safe @nogc @property
 		{
-			return bucketIndex >= t.buckets.length;
+			return currentNode is null;
 		}
 
 		T front() nothrow @safe @nogc @property
@@ -336,7 +336,7 @@ private:
 
 			BucketNode* next;
 			size_t l;
-			Node[fatNodeCapacity!(Node.sizeof, 1, size_t)] items;
+			Node[fatNodeCapacity!(Node.sizeof, 1, size_t, 128)] items;
 		}
 
 		bool insert(Node n)
@@ -418,14 +418,12 @@ private:
 unittest
 {
 	import std.array : array;
-	import std.algorithm : canFind, each, filter;
+	import std.algorithm : canFind;
 	import std.uuid : randomUUID;
-	import std.stdio:writeln;
 
 	auto s = HashSet!string(16);
 	assert(!s.contains("nonsense"));
 	assert(s.put("test"));
-	s.buckets.filter!(a => a.root !is null).each!(a => writeln(*a.root));
 	assert(s.contains("test"));
 	assert(!s.put("test"));
 	assert(s.contains("test"));
@@ -436,12 +434,16 @@ unittest
 	s.put("c");
 	s.put("d");
 	string[] strings = s.range.array;
-	writeln(strings);
 	assert(strings.canFind("a"));
 	assert(strings.canFind("b"));
 	assert(strings.canFind("c"));
 	assert(strings.canFind("d"));
 	assert(strings.canFind("test"));
+	assert(*("a" in s) == "a");
+	assert(*("b" in s) == "b");
+	assert(*("c" in s) == "c");
+	assert(*("d" in s) == "d");
+	assert(*("test" in s) == "test");
 	assert(strings.length == 5);
 	assert(s.remove("test"));
 	assert(s.length == 4);
@@ -460,14 +462,4 @@ unittest
 	HashSet!int e;
 	foreach (i; e[])
 		assert(i > 0);
-}
-
-private:
-
-template HashSetAllocatorType(T)
-{
-	import memory.allocators;
-	enum size_t hashSetNodeSize = (void*).sizeof + T.sizeof + hash_t.sizeof;
-	enum size_t hashSetBlockSize = 512;
-	alias HashSetAllocatorType = NodeAllocator!(hashSetNodeSize, hashSetBlockSize);
 }
