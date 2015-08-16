@@ -284,6 +284,26 @@ private:
 
 	static struct Bucket
 	{
+		~this()
+		{
+			import std.allocator : deallocate;
+
+			BucketNode* current = root;
+			BucketNode* previous;
+			while (true)
+			{
+				if (previous !is null)
+				{
+					typeid(BucketNode).destroy(&previous);
+					deallocate(Mallocator.it, previous);
+				}
+				previous = current;
+				if (current is null)
+					break;
+				current = current.next;
+			}
+		}
+
 		static struct BucketNode
 		{
 			inout(T)* get(Node n) inout
@@ -343,10 +363,13 @@ private:
 		{
 			BucketNode* prev;
 			BucketNode* current;
-			for (current = root; current !is null; prev = current, current = current.next)
+			for (current = root; current !is null; prev = current)
 			{
 				if (current.l >= current.items.length)
+				{
+					current = current.next;
 					continue;
+				}
 				if (current.get(n))
 					return false;
 				current.insert(n);
@@ -364,11 +387,28 @@ private:
 
 		bool remove(Node n)
 		{
-			for (BucketNode* current = root; current !is null; current = current.next)
+			import std.allocator : deallocate;
+
+			BucketNode* current = root;
+			BucketNode* previous;
+			while (current !is null)
 			{
 				immutable removed = current.remove(n);
 				if (removed)
+				{
+					if (current.l == 0)
+					{
+						if (previous !is null)
+							previous.next = current.next;
+						else
+							root = null;
+						typeid(BucketNode).destroy(&current);
+						deallocate(Mallocator.it, current);
+					}
 					return true;
+				}
+				previous = current;
+				current = current.next;
 			}
 			return false;
 		}
@@ -462,4 +502,16 @@ unittest
 	HashSet!int e;
 	foreach (i; e[])
 		assert(i > 0);
+
+	HashSet!int f;
+	foreach (i; 0 .. 100)
+		assert(f.insert(i));
+	foreach (i; 0 .. 100)
+		assert(f.remove(i));
+	foreach (i; 0 .. 100)
+		assert(!f.remove(i));
+
+	HashSet!int g;
+	foreach (i; 0 .. 100)
+		assert(g.insert(i));
 }
