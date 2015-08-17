@@ -326,10 +326,7 @@ private:
 
 			void insert(Node n)
 			{
-				static if (storeHash)
-					items[l] = n;
-				else
-					items[l] = n;
+				items[l] = n;
 				++l;
 			}
 
