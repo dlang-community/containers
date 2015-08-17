@@ -41,14 +41,15 @@ struct SList(T)
 	/**
 	 * Returns: the most recently inserted item
 	 */
-	T front() inout pure nothrow @property @safe @nogc
+	auto front(this This)() @property
 	in
 	{
 		assert (!empty);
 	}
 	body
 	{
-		return _front.value;
+		alias ET = ContainerElementType!(This, T);
+		return cast(ET) _front.value;
 	}
 
 	/**
@@ -167,9 +168,9 @@ struct SList(T)
 	/**
 	 * Forward range interface
 	 */
-	auto range() inout pure nothrow @property
+	auto range(this This)()
 	{
-		return Range(_front);
+		return Range!(This)(_front);
 	}
 
 	/// ditto
@@ -202,11 +203,12 @@ private:
 	import std.allocator : allocate, deallocate;
 	import memory.allocators : NodeAllocator;
 	import containers.internal.node : shouldAddGCRange;
+	import containers.internal.element_type : ContainerElementType;
 
-	static struct Range
+	static struct Range(ThisT)
 	{
 	public:
-		inout(T) front() inout pure nothrow @property @trusted @nogc
+		ET front() pure nothrow @property @trusted @nogc
 		{
 			return cast(typeof(return)) current.value;
 		}
@@ -222,6 +224,7 @@ private:
 		}
 
 	private:
+		alias ET = ContainerElementType!(ThisT, T);
 		const(Node)* current;
 	}
 

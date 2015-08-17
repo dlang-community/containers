@@ -234,7 +234,7 @@ private void testContainerDoubleRef(alias Container)()
 private void checkFunctionality(Type, Container)(ref Container container)
 {
 	auto r = container[];
-	pragma(msg, "type of " ~ Container.stringof ~ ".front is " ~ typeof(r.front).stringof);
+//	pragma(msg, "type of " ~ Container.stringof ~ ".front is " ~ typeof(r.front).stringof);
 	static assert(is(typeof(r.front()) == Type));
 	static assert(is(typeof(container.length) == size_t));
 	assert(container.length == 0);
@@ -245,9 +245,9 @@ unittest
 	//	testContainerDouble!(HashMap)();
 	//	testContainerDouble!(TreeMap)();
 	testContainerSingle!(HashSet)();
-//	testContainerSingle!(UnrolledList)();
-//	testContainerSingle!(OpenHashSet)();
-	//	testContainerSingle!(SimdSet)();
-//	testContainerSingle!(SList)();
-//	testContainerSingle!(TTree)();
+	testContainerSingle!(UnrolledList)();
+	testContainerSingle!(OpenHashSet)();
+//	testContainerSingle!(SimdSet)();
+	testContainerSingle!(SList)();
+	testContainerSingle!(TTree)();
 }

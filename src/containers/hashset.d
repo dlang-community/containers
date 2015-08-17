@@ -134,17 +134,9 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	/**
 	 * Forward range interface
 	 */
-	auto range() nothrow @nogc @trusted @property
+	auto range(this This)() nothrow @nogc @trusted @property
 	{
-		import std.typecons : Unqual;
-		return Range!(typeof(this))(&this);
-	}
-
-	/// ditto
-	auto range() const nothrow @nogc @trusted @property
-	{
-		import std.typecons : Unqual;
-		return Range!(typeof(this))(&this);
+		return Range!(This)(&this);
 	}
 
 	/// ditto

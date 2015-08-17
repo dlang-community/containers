@@ -157,9 +157,9 @@ struct OpenHashSet(T, alias hashFunction = generateHash!T, bool supportGC = shou
 	 * Returns:
 	 *     A range over the set.
 	 */
-	Range range() inout nothrow pure @nogc @safe
+	auto range(this This)() nothrow pure @nogc @safe
 	{
-		return Range(nodes);
+		return Range!(This)(nodes);
 	}
 
 	/// ditto
@@ -168,16 +168,17 @@ struct OpenHashSet(T, alias hashFunction = generateHash!T, bool supportGC = shou
 private:
 
 	import containers.internal.storage_type : ContainerStorageType;
+	import containers.internal.element_type : ContainerElementType;
 	import std.allocator:Mallocator;
 	import core.memory : GC;
 
 	enum DEFAULT_INITIAL_CAPACITY = 8;
 
-	static struct Range
+	static struct Range(ThisT)
 	{
-		T front()
+		ET front()
 		{
-			return nodes[index].data;
+			return cast(typeof(return)) nodes[index].data;
 		}
 
 		bool empty() const pure nothrow @safe @nogc @property
@@ -193,6 +194,8 @@ private:
 		}
 
 	private:
+
+		alias ET = ContainerElementType!(ThisT, T);
 
 		this(const Node[] nodes)
 		{
