@@ -66,11 +66,11 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	{
 		if (root is null)
 		{
-			root = allocateNode(value, null);
+			root = allocateNode(cast(Value) value, null);
 			++_length;
 			return true;
 		}
-		immutable bool r = root.insert(value, root);
+		immutable bool r = root.insert(cast(Value) value, root);
 		if (r)
 			++_length;
 		return r;
@@ -337,7 +337,7 @@ private:
 	else
 		alias _less = binaryFun!less;
 
-	static Node* allocateNode(ref T value, Node* parent)
+	static Node* allocateNode(Value value, Node* parent)
 	out (result)
 	{
 		assert (result.left is null);
@@ -484,7 +484,7 @@ private:
 			{
 				if (left is null)
 				{
-					left = allocateNode(value, &this);
+					left = allocateNode(cast(Value) value, &this);
 					calcHeight();
 					return true;
 				}

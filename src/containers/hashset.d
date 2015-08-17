@@ -318,7 +318,7 @@ private:
 					else
 					{
 						if (items[i].value == n.value)
-							return &items[i].value;
+							return cast(typeof(return)) &items[i].value;
 					}
 				}
 				return null;
@@ -445,9 +445,11 @@ private:
 			return other.value == value;
 		}
 
+		private import containers.internal.storage_type : ContainerStorageType;
+
 		static if (storeHash)
 			hash_t hash;
-		T value;
+		ContainerStorageType!T value;
 	}
 
 	Bucket[] buckets;
