@@ -6,15 +6,7 @@
  */
 
 module containers.slist;
-
-/**
- * Returns: A singly-linked list of type T backed by malloc().
- */
-auto slist(T)()
-{
-	import std.allocator : Mallocator;
-	return SList!(T, shared Mallocator)(Mallocator.it);
-}
+import std.allocator;
 
 /**
  * Single-linked allocator-backed list.
@@ -22,22 +14,10 @@ auto slist(T)()
  *     T = the element type
  *     A = the allocator type
  */
-struct SList(T, A)
+struct SList(T)
 {
-	/**
-	 * Disable default-construction and postblit
-	 */
-	this() @disable;
-	/// ditto
+	/// Disable copying.
 	this(this) @disable;
-
-	/**
-	 * Params: allocator = the allocator instance used to allocate nodes
-	 */
-	this(A allocator) pure nothrow @safe @nogc
-	{
-		this.allocator = allocator;
-	}
 
 	~this()
 	{
@@ -53,7 +33,7 @@ struct SList(T, A)
 				import core.memory : GC;
 				GC.removeRange(prev);
 			}
-			deallocate(allocator, prev);
+			deallocate(Mallocator.it, prev);
 		}
 		_front = null;
 	}
@@ -89,7 +69,7 @@ struct SList(T, A)
 			import core.memory : GC;
 			GC.removeRange(f);
 		}
-		deallocate(allocator, f);
+		deallocate(Mallocator.it, f);
 		--_length;
 		return r;
 	}
@@ -106,7 +86,7 @@ struct SList(T, A)
 			import core.memory : GC;
 			GC.removeRange(f);
 		}
-		deallocate(allocator, f);
+		deallocate(Mallocator.it, f);
 		--_length;
 	}
 
@@ -132,7 +112,7 @@ struct SList(T, A)
 	 */
 	void insert(T t) nothrow @trusted
 	{
-		_front = allocate!Node(allocator, _front, t);
+		_front = allocate!Node(Mallocator.it, _front, t);
 		static if (shouldAddGCRange!T)
 		{
 			import core.memory : GC;
@@ -174,7 +154,7 @@ struct SList(T, A)
 					import core.memory : GC;
 					GC.removeRange(cur);
 				}
-				deallocate(allocator, cur);
+				deallocate(Mallocator.it, cur);
 				_length--;
 				return true;
 			}
@@ -211,7 +191,7 @@ struct SList(T, A)
 				import core.memory : GC;
 				GC.removeRange(prev);
 			}
-			deallocate(allocator, prev);
+			deallocate(Mallocator.it, prev);
 		}
 		_front = null;
 		_length = 0;
@@ -253,18 +233,15 @@ private:
 
 	Node* _front;
 
-	A allocator;
-
 	size_t _length;
 }
 
 unittest
 {
-	import std.allocator : CAllocatorImpl, Mallocator;
+	import std.allocator;
 	import std.string : format;
 	import std.algorithm : canFind;
-	auto allocator = new CAllocatorImpl!(Mallocator);
-	SList!(int, CAllocatorImpl!Mallocator) intList = SList!(int, CAllocatorImpl!(Mallocator))(allocator);
+	SList!(int) intList;
 	foreach (i; 0 .. 100)
 		intList.put(i);
 	assert (intList.length == 100, "%d".format(intList.length));
@@ -273,7 +250,7 @@ unittest
 	assert (intList.length == 99);
 	assert (intList.range.canFind(9));
 	assert (!intList.range.canFind(10));
-	auto l = slist!string();
+	SList!string l;
 	l ~= "abcde";
 	l ~= "fghij";
 	assert (l.length == 2);
