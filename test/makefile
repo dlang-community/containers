@@ -3,9 +3,12 @@
 SRC=$(shell find ../src/ -name "*.d")
 FLAGS=-unittest -main -g -cov -I../src/ -debug -wi
 
-test:
+test: compile_test
 	dmd $(FLAGS) $(SRC) -oftests
 	./tests
+
+compile_test:
+	dmd $(FLAGS) compile_test.d $(SRC) -ofcompile_test
 
 looptest: looptest.d
 	dmd looptest.d -O -inline -release -boundscheck=safeonly \
