@@ -118,7 +118,7 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	/**
 	 * Returns: true if the set has no items
 	 */
-	bool empty() inout nothrow pure @nogc @safe @property
+	bool empty() const nothrow pure @nogc @safe @property
 	{
 		return _length == 0;
 	}
@@ -126,7 +126,7 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	/**
 	 * Returns: the number of items in the set
 	 */
-	size_t length() inout nothrow pure @nogc @safe @property
+	size_t length() const nothrow pure @nogc @safe @property
 	{
 		return _length;
 	}
@@ -134,10 +134,9 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	/**
 	 * Forward range interface
 	 */
-	auto range() inout nothrow @nogc @trusted @property
+	auto range(this This)() nothrow @nogc @trusted @property
 	{
-		import std.typecons : Unqual;
-		return Range!(Unqual!(typeof(this)))(cast(Unqual!(typeof(this))*) &this);
+		return Range!(This)(&this);
 	}
 
 	/// ditto
@@ -146,16 +145,18 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 private:
 
 	import containers.internal.node : shouldAddGCRange;
+	import containers.internal.storage_type : ContainerStorageType;
+	import containers.internal.element_type : ContainerElementType;
 	import containers.unrolledlist : UnrolledList;
-	import std.allocator : Mallocator, allocate;
-	import std.traits : isBasicType;
 	import core.memory : GC;
+	import std.allocator : allocate, deallocate, Mallocator;
+	import std.conv : emplace;
+	import std.traits : isBasicType;
 
 	enum bool storeHash = !isBasicType!T;
 
 	void initialize(size_t bucketCount)
 	{
-		import std.conv : emplace;
 		buckets = cast(Bucket[]) Mallocator.it.allocate(bucketCount * Bucket.sizeof);
 		assert (buckets.length == bucketCount);
 		foreach (ref bucket; buckets)
@@ -173,7 +174,7 @@ private:
 				bucketIndex = i;
 				if (bucket.root !is null)
 				{
-					currentNode = bucket.root;
+					currentNode = cast(Bucket.BucketNode*) bucket.root;
 					break;
 				}
 			}
@@ -185,12 +186,12 @@ private:
 			return currentNode is null;
 		}
 
-		T front() nothrow @safe @nogc @property
+		ET front() nothrow @safe @nogc @property
 		{
-			return currentNode.items[nodeIndex].value;
+			return cast(ET) currentNode.items[nodeIndex].value;
 		}
 
-		void popFront() nothrow @safe @nogc
+		void popFront() nothrow @trusted @nogc
 		{
 			if (nodeIndex + 1 < currentNode.l)
 			{
@@ -206,7 +207,7 @@ private:
 						++bucketIndex;
 					nodeIndex = 0;
 					if (bucketIndex < t.buckets.length)
-						currentNode = t.buckets[bucketIndex].root;
+						currentNode = cast(Bucket.BucketNode*) t.buckets[bucketIndex].root;
 					else
 						currentNode = null;
 				}
@@ -215,6 +216,8 @@ private:
 			}
 		}
 
+	private:
+		alias ET = ContainerElementType!(ThisT, T);
 		ThisT* t;
 		Bucket.BucketNode* currentNode;
 		size_t bucketIndex;
@@ -228,8 +231,6 @@ private:
 
 	void rehash() @trusted
 	{
-		import std.allocator : allocate, deallocate;
-		import std.conv : emplace;
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
@@ -286,8 +287,6 @@ private:
 	{
 		~this()
 		{
-			import std.allocator : deallocate;
-
 			BucketNode* current = root;
 			BucketNode* previous;
 			while (true)
@@ -306,7 +305,7 @@ private:
 
 		static struct BucketNode
 		{
-			inout(T)* get(Node n) inout
+			ContainerStorageType!(T)* get(Node n)
 			{
 				for (size_t i = 0; i < l; ++i)
 				{
@@ -333,6 +332,7 @@ private:
 			bool remove(Node n)
 			{
 				import std.algorithm : SwapStrategy, remove;
+
 				foreach (size_t i, ref node; items)
 				{
 					static if (storeHash)
@@ -444,7 +444,7 @@ private:
 
 		static if (storeHash)
 			hash_t hash;
-		T value;
+		ContainerStorageType!T value;
 	}
 
 	Bucket[] buckets;
