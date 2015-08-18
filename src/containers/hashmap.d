@@ -49,11 +49,14 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 	/**
 	 * Supports $(B aa[key]) syntax.
 	 */
-	V opIndex(K key) const
+	auto opIndex(this This)(K key)
 	{
 		import std.algorithm : find;
 		import std.exception : enforce;
 		import std.conv : text;
+
+		alias CET = ContainerElementType!(This, V);
+
 		if (buckets.length == 0)
 			throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
 		size_t hash = generateHash(key);
@@ -63,12 +66,12 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 			static if (storeHash)
 			{
 				if (r.hash == hash && r == key)
-					return r.value;
+					return cast(CET) r.value;
 			}
 			else
 			{
 				if (r == key)
-					return r.value;
+					return cast(CET) r.value;
 			}
 		}
 		throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
@@ -155,7 +158,7 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 	/**
 	 * Returns: a GC-allocated array containing the values contained in this map.
 	 */
-	V[] values() const @property
+	auto values(this This)() const @property
 	out(result)
 	{
 		assert (result.length == _length);
@@ -163,7 +166,7 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 	body
 	{
 		import std.array : appender;
-		auto app = appender!(V[])();
+		auto app = appender!(ContainerElementType!(This, V)[])();
 		foreach (ref const bucket; buckets)
 		{
 			foreach (item; bucket.range)
@@ -175,7 +178,7 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 	/**
 	 * Support for $(D foreach(key, value; aa) { ... }) syntax;
 	 */
-	int opApply(int delegate(ref K, ref V) del)
+	int opApply(this This)(int delegate(ref K, ref V) del)
 	{
 		int result = 0;
 		foreach (ref bucket; buckets)
@@ -195,6 +198,8 @@ private:
 	import std.allocator : Mallocator, allocate;
 	import std.traits : isBasicType;
 	import containers.unrolledlist : UnrolledList;
+	import containers.internal.storage_type : ContainerStorageType;
+	import containers.internal.element_type : ContainerElementType;
 	import core.memory : GC;
 
 	enum bool storeHash = !isBasicType!K;
@@ -336,8 +341,8 @@ private:
 
 		static if (storeHash)
 			size_t hash;
-		K key;
-		V value;
+		ContainerStorageType!K key;
+		ContainerStorageType!V value;
 	}
 
 	alias Bucket = UnrolledList!(Node, supportGC);
@@ -368,7 +373,7 @@ unittest
 	assert (hm.length == 1001);
 	assert (hm.keys().length == hm.length);
 	assert (hm.values().length == hm.length);
-	foreach (ref k, ref v; hm) {}
+	foreach (ref string k, ref int v; hm) {}
 
 	auto hm2 = HashMap!(char, char)(4);
 	hm2['a'] = 'a';

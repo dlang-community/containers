@@ -27,17 +27,17 @@ private void testContainerSingleVal(alias Container)()
 	immutable Container!(const int) ic;
 	immutable Container!(immutable int) ii;
 
-	checkFunctionality!(int)(mm);
-	checkFunctionality!(const int)(mc);
-	checkFunctionality!(immutable int)(mi);
+	checkSliceFunctionality!(int)(mm);
+	checkSliceFunctionality!(const int)(mc);
+	checkSliceFunctionality!(immutable int)(mi);
 
-	checkFunctionality!(int)(cm);
-	checkFunctionality!(const int)(cc);
-	checkFunctionality!(immutable int)(ci);
+	checkSliceFunctionality!(int)(cm);
+	checkSliceFunctionality!(const int)(cc);
+	checkSliceFunctionality!(immutable int)(ci);
 
-	checkFunctionality!(int)(im);
-	checkFunctionality!(const int)(ic);
-	checkFunctionality!(immutable int)(ii);
+	checkSliceFunctionality!(int)(im);
+	checkSliceFunctionality!(const int)(ic);
+	checkSliceFunctionality!(immutable int)(ii);
 }
 
 private void testContainerSingleRef(alias Container)()
@@ -52,15 +52,15 @@ private void testContainerSingleRef(alias Container)()
 
 	immutable Container!(immutable int*) ii;
 
-	checkFunctionality!(int*)(mm);
-	checkFunctionality!(const int*)(mc);
-	checkFunctionality!(immutable int*)(mi);
+	checkSliceFunctionality!(int*)(mm);
+	checkSliceFunctionality!(const int*)(mc);
+	checkSliceFunctionality!(immutable int*)(mi);
 
-	checkFunctionality!(const(int)*)(cm);
-	checkFunctionality!(const int*)(cc);
-	checkFunctionality!(immutable int*)(ci);
+	checkSliceFunctionality!(const(int)*)(cm);
+	checkSliceFunctionality!(const int*)(cc);
+	checkSliceFunctionality!(immutable int*)(ci);
 
-	checkFunctionality!(immutable int*)(ii);
+	checkSliceFunctionality!(immutable int*)(ii);
 }
 
 private void testContainerDouble(alias Container)()
@@ -84,17 +84,17 @@ private void testContainerDoubleVal(alias Container)()
 		Container!(immutable int, const int) mic;
 		Container!(immutable int, immutable int) mii;
 
-		checkFunctionality!(int)(mmm);
-		checkFunctionality!(const int)(mmc);
-		checkFunctionality!(immutable int)(mmi);
+		checkIndexFunctionality!(int, int)(mmm);
+		checkIndexFunctionality!(const int, int)(mmc);
+		checkIndexFunctionality!(immutable int, int)(mmi);
 
-		checkFunctionality!(int)(mcm);
-		checkFunctionality!(const int)(mcc);
-		checkFunctionality!(immutable int)(mci);
+		checkIndexFunctionality!(int, const int)(mcm);
+		checkIndexFunctionality!(const int, const int)(mcc);
+		checkIndexFunctionality!(immutable int, const int)(mci);
 
-		checkFunctionality!(int)(mim);
-		checkFunctionality!(const int)(mic);
-		checkFunctionality!(immutable int)(mii);
+		checkIndexFunctionality!(int, immutable int)(mim);
+		checkIndexFunctionality!(const int, immutable int)(mic);
+		checkIndexFunctionality!(immutable int, immutable int)(mii);
 	}
 
 	{
@@ -110,17 +110,17 @@ private void testContainerDoubleVal(alias Container)()
 		const Container!(immutable int, const int) cic;
 		const Container!(immutable int, immutable int) cii;
 
-		checkFunctionality!(int)(cmm);
-		checkFunctionality!(const int)(cmc);
-		checkFunctionality!(immutable int)(cmi);
+		checkIndexFunctionality!(int, int)(cmm);
+		checkIndexFunctionality!(const int, int)(cmc);
+		checkIndexFunctionality!(immutable int, int)(cmi);
 
-		checkFunctionality!(int)(ccm);
-		checkFunctionality!(const int)(ccc);
-		checkFunctionality!(immutable int)(cci);
+		checkIndexFunctionality!(int, const int)(ccm);
+		checkIndexFunctionality!(const int, const int)(ccc);
+		checkIndexFunctionality!(immutable int, const int)(cci);
 
-		checkFunctionality!(int)(cim);
-		checkFunctionality!(const int)(cic);
-		checkFunctionality!(immutable int)(cii);
+		checkIndexFunctionality!(int, immutable int)(cim);
+		checkIndexFunctionality!(const int, immutable int)(cic);
+		checkIndexFunctionality!(immutable int, immutable int)(cii);
 	}
 
 	{
@@ -136,17 +136,17 @@ private void testContainerDoubleVal(alias Container)()
 		immutable Container!(immutable int, const int) iic;
 		immutable Container!(immutable int, immutable int) iii;
 
-		checkFunctionality!(int)(imm);
-		checkFunctionality!(const int)(imc);
-		checkFunctionality!(immutable int)(imi);
+		checkIndexFunctionality!(int, int)(imm);
+		checkIndexFunctionality!(const int, int)(imc);
+		checkIndexFunctionality!(immutable int, int)(imi);
 
-		checkFunctionality!(int)(icm);
-		checkFunctionality!(const int)(icc);
-		checkFunctionality!(immutable int)(ici);
+		checkIndexFunctionality!(int, const int)(icm);
+		checkIndexFunctionality!(const int, const int)(icc);
+		checkIndexFunctionality!(immutable int, const int)(ici);
 
-		checkFunctionality!(int)(iim);
-		checkFunctionality!(const int)(iic);
-		checkFunctionality!(immutable int)(iii);
+		checkIndexFunctionality!(int, immutable int)(iim);
+		checkIndexFunctionality!(const int, immutable int)(iic);
+		checkIndexFunctionality!(immutable int, immutable int)(iii);
 	}
 }
 
@@ -165,17 +165,17 @@ private void testContainerDoubleRef(alias Container)()
 		Container!(immutable int, const int*) mic;
 		Container!(immutable int, immutable int*) mii;
 
-		checkFunctionality!(int*)(mmm);
-		checkFunctionality!(const int*)(mmc);
-		checkFunctionality!(immutable int*)(mmi);
+		checkIndexFunctionality!(int*, int)(mmm);
+		checkIndexFunctionality!(const int*, int)(mmc);
+		checkIndexFunctionality!(immutable int*, int)(mmi);
 
-		checkFunctionality!(int*)(mcm);
-		checkFunctionality!(const int*)(mcc);
-		checkFunctionality!(immutable int*)(mci);
+		checkIndexFunctionality!(int*, const int)(mcm);
+		checkIndexFunctionality!(const int*, const int)(mcc);
+		checkIndexFunctionality!(immutable int*, const int)(mci);
 
-		checkFunctionality!(int*)(mim);
-		checkFunctionality!(const int*)(mic);
-		checkFunctionality!(immutable int*)(mii);
+		checkIndexFunctionality!(int*, immutable int)(mim);
+		checkIndexFunctionality!(const int*, immutable int)(mic);
+		checkIndexFunctionality!(immutable int*, immutable int)(mii);
 	}
 
 	{
@@ -191,59 +191,55 @@ private void testContainerDoubleRef(alias Container)()
 		const Container!(immutable int, const int*) cic;
 		const Container!(immutable int, immutable int*) cii;
 
-		checkFunctionality!(const int*)(cmm);
-		checkFunctionality!(const int*)(cmc);
-		checkFunctionality!(immutable int*)(cmi);
+		checkIndexFunctionality!(const(int)*, int)(cmm);
+		checkIndexFunctionality!(const int*, int)(cmc);
+		checkIndexFunctionality!(immutable int*, int)(cmi);
 
-		checkFunctionality!(const int*)(ccm);
-		checkFunctionality!(const int*)(ccc);
-		checkFunctionality!(immutable int*)(cci);
+		checkIndexFunctionality!(const(int)*, const int)(ccm);
+		checkIndexFunctionality!(const int*, const int)(ccc);
+		checkIndexFunctionality!(immutable int*, const int)(cci);
 
-		checkFunctionality!(const int*)(cim);
-		checkFunctionality!(const int*)(cic);
-		checkFunctionality!(immutable int*)(cii);
+		checkIndexFunctionality!(const(int)*, immutable int)(cim);
+		checkIndexFunctionality!(const int*, immutable int)(cic);
+		checkIndexFunctionality!(immutable int*, immutable int)(cii);
 	}
 
 	{
-		immutable Container!(int, int*) imm;
-		immutable Container!(int, const int*) imc;
 		immutable Container!(int, immutable int*) imi;
 
-		immutable Container!(const int, int*) icm;
-		immutable Container!(const int, const int*) icc;
 		immutable Container!(const int, immutable int*) ici;
 
-		immutable Container!(immutable int, int*) iim;
-		immutable Container!(immutable int, const int*) iic;
 		immutable Container!(immutable int, immutable int*) iii;
 
-		checkFunctionality!(immutable int*)(imm);
-		checkFunctionality!(immutable int*)(imc);
-		checkFunctionality!(immutable int*)(imi);
+		checkIndexFunctionality!(immutable int*, int)(imi);
 
-		checkFunctionality!(immutable int*)(icm);
-		checkFunctionality!(immutable int*)(icc);
-		checkFunctionality!(immutable int*)(ici);
+		checkIndexFunctionality!(immutable int*, const int)(ici);
 
-		checkFunctionality!(immutable int*)(iim);
-		checkFunctionality!(immutable int*)(iic);
-		checkFunctionality!(immutable int*)(iii);
+		checkIndexFunctionality!(immutable int*, immutable int)(iii);
 	}
 }
 
-private void checkFunctionality(Type, Container)(ref Container container)
+private void checkSliceFunctionality(Type, Container)(ref Container container)
 {
 	auto r = container[];
-//	pragma(msg, "type of " ~ Container.stringof ~ ".front is " ~ typeof(r.front).stringof);
 	static assert(is(typeof(r.front()) == Type));
 	static assert(is(typeof(container.length) == size_t));
 	assert(container.length == 0);
 }
 
+private void checkIndexFunctionality(Type, KeyType, Container)(ref Container container)
+{
+	auto v = container[KeyType.init];
+	static assert(is(typeof(container[KeyType.init]) == Type));
+	static assert(is(typeof(container.length) == size_t));
+	assert(container.length == 0);
+}
+
+
 unittest
 {
-	//	testContainerDouble!(HashMap)();
-	//	testContainerDouble!(TreeMap)();
+	testContainerDouble!(HashMap)();
+	testContainerDouble!(TreeMap)();
 	testContainerSingle!(HashSet)();
 	testContainerSingle!(UnrolledList)();
 	testContainerSingle!(OpenHashSet)();
