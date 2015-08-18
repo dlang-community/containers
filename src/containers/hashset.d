@@ -151,7 +151,7 @@ private:
 	import core.memory : GC;
 	import std.allocator : allocate, deallocate, Mallocator;
 	import std.conv : emplace;
-	import std.traits : isBasicType;
+	import std.traits : isBasicType, isPointer;
 
 	enum bool storeHash = !isBasicType!T;
 
