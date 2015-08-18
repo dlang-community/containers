@@ -6,3 +6,4 @@ test/tests
 perf.data
 doc/
 .dub/
+test/compile_test
