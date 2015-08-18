@@ -7,3 +7,4 @@ test/looptest
 perf.data
 doc/
 .dub/
+test/compile_test

@@ -321,15 +321,15 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, ushort, cacheLineSize);
 
 	/// Returns: a range over the list
-	Range range() const nothrow pure
+	auto range(this This)() const nothrow pure @nogc @trusted @property
 	{
-		return Range(_front);
+		return Range!(This)(_front);
 	}
 
 	/// ditto
 	alias opSlice = range;
 
-	static struct Range
+	static struct Range(ThisT)
 	{
 		@disable this();
 
@@ -344,7 +344,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 			}
 		}
 
-		T front() const @property @trusted @nogc
+		ET front() const @property @trusted @nogc
 		{
 			return cast(T) current.items[index];
 		}
@@ -383,6 +383,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 
 	private:
 
+		alias ET = ContainerElementType!(ThisT, T);
 		const(Node)* current;
 		size_t index;
 	}
@@ -394,6 +395,7 @@ private:
 	import containers.internal.node : fatNodeCapacity, shouldAddGCRange,
 		fullBits, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
+	import containers.internal.element_type : ContainerElementType;
 
 	Node* _back;
 	Node* _front;

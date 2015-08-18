@@ -22,7 +22,7 @@ version (D_InlineAsm_X86_64) struct SimdSet(T) if (T.sizeof == 1
 
 	~this()
 	{
-		free(storage.ptr);
+		free(cast(void*) storage.ptr);
 	}
 
 	/**

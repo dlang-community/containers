@@ -66,11 +66,11 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	{
 		if (root is null)
 		{
-			root = allocateNode(value, null);
+			root = allocateNode(cast(Value) value, null);
 			++_length;
 			return true;
 		}
-		immutable bool r = root.insert(value, root);
+		immutable bool r = root.insert(cast(Value) value, root);
 		if (r)
 			++_length;
 		return r;
@@ -79,7 +79,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	/// ditto
 	bool insert(R)(R r) if (isInputRange!R && is(ElementType!R == T))
 	{
-		bool retVal = false;
+		immutable bool retVal = false;
 		while (!r.empty)
 		{
 			retVal = insert(r.front()) || retVal;
@@ -142,47 +142,49 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	 * Returns: a range over the tree. Do not insert into the tree while
 	 * iterating because you may iterate over the same value multiple times.
 	 */
-	Range opSlice() const
+	auto range(this This)()
 	{
-		return Range(root, Range.type.all, T.init);
+		return Range!(This)(cast(const(Node)*) root, RangeType.all, T.init);
 	}
+
+	alias opSlice = range;
 
 	/**
 	 * Returns: a range of elements which are less than value.
 	 */
-	Range lowerBound(inout T value) const
+	auto lowerBound(this This)(inout T value)
 	{
-		return Range(root, Range.Type.lower, value);
+		return Range!(This)(cast(const(Node)*) root, RangeType.lower, value);
 	}
 
 	/**
 	 * Returns: a range of elements which are equivalent (though not necessarily
 	 * equal) to value.
 	 */
-	Range equalRange(inout T value) const
+	auto equalRange(this This)(inout T value)
 	{
-		return Range(root, Range.Type.equal, value);
+		return Range!(This)(cast(const(Node)*) root, RangeType.equal, value);
 	}
 
 	/**
 	 * Returns: a range of elements which are greater than value.
 	 */
-	Range upperBound(inout T value) const
+	auto upperBound(this This)(inout T value)
 	{
-		return Range(root, Range.Type.upper, value);
+		return Range!(This)(cast(const(Node)*) root, RangeType.upper, value);
 	}
 
 	/**
 	 * Tree range
 	 */
-	static struct Range
+	static struct Range(ThisT)
 	{
 		@disable this();
 
 		/**
 		 * Standard range operations
 		 */
-		T front() const @property
+		ET front() const @property
 		in
 		{
 			assert (!empty);
@@ -204,15 +206,15 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 			_popFront();
 			if (current is null)
 				return;
-			final switch (type)
+			with (RangeType) final switch (type)
 			{
-			case Type.upper:
-			case Type.all: break;
-			case Type.equal:
+			case upper:
+			case all: break;
+			case equal:
 				if (_less(val, front()))
 					current = null;
 				break;
-			case Type.lower:
+			case lower:
 				if (!_less(front(), val))
 					current = null;
 				break;
@@ -221,7 +223,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 	private:
 
-		enum Type : ubyte {all, lower, equal, upper}
+		alias ET = ContainerElementType!(ThisT, T);
 
 		void currentToLeftmost()
 		{
@@ -231,27 +233,27 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 				current = current.left;
 		}
 
-		this(inout(Node)* n, Type type, inout T val)
+		this(inout(Node)* n, RangeType type, inout T val)
 		{
 			current = n;
 			this.type = type;
 			this.val = val;
 			currentToLeftmost();
-			final switch(type)
+			with (RangeType) final switch(type)
 			{
-			case Type.all:
+			case all:
 				break;
-			case Type.lower:
+			case lower:
 				if (_less(val, front()))
 					current = null;
 				break;
-			case Type.equal:
+			case equal:
 				while (current !is null && _less(front(), val))
 					_popFront();
 				if (current is null || _less(front(), val) || _less(val, front()))
 					current = null;
 				break;
-			case Type.upper:
+			case upper:
 				while (current !is null && !_less(val, front()))
 					_popFront();
 				break;
@@ -297,16 +299,19 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 		size_t index;
 		const(Node)* current;
-		const Type type;
+		const RangeType type;
 		const T val;
 	}
 
 private:
 
 	import containers.internal.node : fatNodeCapacity, fullBits, shouldAddGCRange, shouldNullSlot;
-    import std.algorithm : sort;
+	import containers.internal.element_type : ContainerElementType;
+	import std.algorithm : sort;
 	import std.functional: binaryFun;
 	import std.traits: isPointer, PointerTarget;
+
+	enum RangeType : ubyte {all, lower, equal, upper}
 
 	// If we're storing a struct that defines opCmp, don't compare pointers as
 	// that is almost certainly not what the user intended.
@@ -315,7 +320,7 @@ private:
 	else
 		alias _less = binaryFun!less;
 
-	static Node* allocateNode(ref T value, Node* parent)
+	static Node* allocateNode(Value value, Node* parent)
 	out (result)
 	{
 		assert (result.left is null);
@@ -467,7 +472,7 @@ private:
 			{
 				if (left is null)
 				{
-					left = allocateNode(value, &this);
+					left = allocateNode(cast(Value) value, &this);
 					calcHeight();
 					return true;
 				}
@@ -477,7 +482,7 @@ private:
 				calcHeight();
 				return b;
 			}
-			if (_less(values[$ - 1], value))
+			if (_less(values[$ - 1], cast(Value) value))
 			{
 				if (right is null)
 				{
@@ -939,7 +944,7 @@ unittest
 			int y;
 		}
 		TTree!(TestStruct*, false) tsTree;
-		static assert (isInputRange!(typeof(tsTree).Range));
+		static assert (isInputRange!(typeof(tsTree[])));
 		foreach (i; 0 .. 100)
 			assert(tsTree.insert(new TestStruct(i, i * 2)));
 		assert (tsTree.length == 100);
