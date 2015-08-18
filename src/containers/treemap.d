@@ -68,17 +68,17 @@ struct TreeMap(K, V, alias less = "a < b", bool supportGC = true,
 	}
 
 	/// Supports $(B foreach(k, v; treeMap)) syntax.
-//	int opApply(this This)(int delegate(ref K, ref ContainerElementType!(This, V)) loopBody)
-//	{
-//		int result;
-//		foreach (ref tme; tree[])
-//		{
-//			result = loopBody(tme.key, tme.value);
-//			if (result)
-//				break;
-//		}
-//		return result;
-//	}
+	int opApply(this This)(int delegate(ref K, ref V) loopBody)
+	{
+		int result;
+		foreach (ref tme; tree[])
+		{
+			result = loopBody(tme.key, tme.value);
+			if (result)
+				break;
+		}
+		return result;
+	}
 
 private:
 

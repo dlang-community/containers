@@ -54,7 +54,6 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 		import std.algorithm : find;
 		import std.exception : enforce;
 		import std.conv : text;
-		import containers.internal.element_type:ContainerElementType;
 
 		alias CET = ContainerElementType!(This, V);
 
@@ -167,7 +166,6 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 	body
 	{
 		import std.array : appender;
-		import containers.internal.element_type : ContainerElementType;
 		auto app = appender!(ContainerElementType!(This, V)[])();
 		foreach (ref const bucket; buckets)
 		{
@@ -180,20 +178,20 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 	/**
 	 * Support for $(D foreach(key, value; aa) { ... }) syntax;
 	 */
-//	int opApply(this This)(int delegate(ref K, ref ContainerElementType!(This, V)) del)
-//	{
-//		int result = 0;
-//		foreach (ref bucket; buckets)
-//		{
-//			foreach (ref node; bucket.range)
-//			{
-//				result = del(node.key, node.value);
-//				if (result != 0)
-//					return result;
-//			}
-//		}
-//		return result;
-//	}
+	int opApply(this This)(int delegate(ref K, ref V) del)
+	{
+		int result = 0;
+		foreach (ref bucket; buckets)
+		{
+			foreach (ref node; bucket.range)
+			{
+				result = del(node.key, node.value);
+				if (result != 0)
+					return result;
+			}
+		}
+		return result;
+	}
 
 private:
 
@@ -201,6 +199,7 @@ private:
 	import std.traits : isBasicType;
 	import containers.unrolledlist : UnrolledList;
 	import containers.internal.storage_type : ContainerStorageType;
+	import containers.internal.element_type : ContainerElementType;
 	import core.memory : GC;
 
 	enum bool storeHash = !isBasicType!K;
@@ -374,7 +373,7 @@ unittest
 	assert (hm.length == 1001);
 	assert (hm.keys().length == hm.length);
 	assert (hm.values().length == hm.length);
-//	foreach (ref string k, ref int v; hm) {}
+	foreach (ref string k, ref int v; hm) {}
 
 	auto hm2 = HashMap!(char, char)(4);
 	hm2['a'] = 'a';
