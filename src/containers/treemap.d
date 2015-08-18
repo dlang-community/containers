@@ -30,10 +30,11 @@ struct TreeMap(K, V, alias less = "a < b", bool supportGC = true,
 	}
 
 	/// Supports $(B treeMap[key]) syntax.
-	V opIndex(K key) const
+	auto opIndex(this This)(K key) const
 	{
+		alias CET = ContainerElementType!(This, V);
 		auto tme = TreeMapElement(key);
-		return tree.equalRange(tme).front.value;
+		return cast(CET) tree.equalRange(tme).front.value;
 	}
 
 	/**
@@ -67,26 +68,28 @@ struct TreeMap(K, V, alias less = "a < b", bool supportGC = true,
 	}
 
 	/// Supports $(B foreach(k, v; treeMap)) syntax.
-	int opApply(int delegate(ref K, ref V) loopBody)
-	{
-		int result;
-		foreach (ref tme; tree[])
-		{
-			result = loopBody(tme.key, tme.value);
-			if (result)
-				break;
-		}
-		return result;
-	}
+//	int opApply(this This)(int delegate(ref K, ref ContainerElementType!(This, V)) loopBody)
+//	{
+//		int result;
+//		foreach (ref tme; tree[])
+//		{
+//			result = loopBody(tme.key, tme.value);
+//			if (result)
+//				break;
+//		}
+//		return result;
+//	}
 
 private:
 
 	import containers.ttree : TTree;
+	import containers.internal.storage_type : ContainerStorageType;
+	import containers.internal.element_type : ContainerElementType;
 
 	static struct TreeMapElement
 	{
-		K key;
-		V value;
+		ContainerStorageType!K key;
+		ContainerStorageType!V value;
 		int opCmp(ref const TreeMapElement other) const
 		{
 			import std.functional : binaryFun;
