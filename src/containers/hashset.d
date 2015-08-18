@@ -60,7 +60,7 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	 */
 	bool remove(T value)
 	{
-		hash_t hash = generateHash(value);
+		hash_t hash = hashFunction(value);
 		size_t index = hashToIndex(hash);
 		static if (storeHash)
 			immutable removed = buckets[index].remove(Node(hash, value));
@@ -86,7 +86,7 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	{
 		if (buckets.length == 0 || _length == 0)
 			return null;
-		hash_t hash = generateHash(value);
+		hash_t hash = hashFunction(value);
 		size_t index = hashToIndex(hash);
 		return buckets[index].get(value, hash);
 	}
@@ -101,7 +101,7 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	{
 		if (buckets.length == 0)
 			initialize(4);
-		hash_t hash = generateHash(value);
+		hash_t hash = hashFunction(value);
 		size_t index = hashToIndex(hash);
 		static if (storeHash)
 			auto r = buckets[index].insert(Node(hash, value));
@@ -254,7 +254,7 @@ private:
 					}
 					else
 					{
-						immutable size_t hash = generateHash(node.items[i].value);
+						immutable size_t hash = hashFunction(node.items[i].value);
 						immutable size_t index = hashToIndex(hash);
 						buckets[index].insert(Node(node.items[i].value));
 					}
@@ -311,13 +311,29 @@ private:
 				{
 					static if (storeHash)
 					{
-						if (items[i].hash == n.hash && items[i].value == n.value)
-							return &items[i].value;
+						static if (isPointer!T)
+						{
+							if (items[i].hash == n.hash && *items[i].value == *n.value)
+								return &items[i].value;
+						}
+						else
+						{
+							if (items[i].hash == n.hash && items[i].value == n.value)
+								return &items[i].value;
+						}
 					}
 					else
 					{
-						if (items[i].value == n.value)
-							return &items[i].value;
+						static if (isPointer!T)
+						{
+							if (*items[i].value == *n.value)
+								return &items[i].value;
+						}
+						else
+						{
+							if (items[i].value == n.value)
+								return &items[i].value;
+						}
 					}
 				}
 				return null;
@@ -336,9 +352,19 @@ private:
 				foreach (size_t i, ref node; items)
 				{
 					static if (storeHash)
-						immutable bool matches = node.hash == n.hash && node.value == n.value;
+					{
+						static if (isPointer!T)
+							immutable bool matches = node.hash == n.hash && *node.value == *n.value;
+						else
+							immutable bool matches = node.hash == n.hash && node.value == n.value;
+					}
 					else
-						immutable bool matches = node.value == n.value;
+					{
+						static if (isPointer!T)
+							immutable bool matches = *node.value == *n.value;
+						else
+							immutable bool matches = node.value == n.value;
+					}
 					if (matches)
 					{
 						items[].remove!(SwapStrategy.unstable)(i);
@@ -427,11 +453,14 @@ private:
 		BucketNode* root;
 	}
 
-	struct Node
+	static struct Node
 	{
 		bool opEquals(ref const T v) const
 		{
-			return v == value;
+			static if (isPointer!T)
+				return *v == *value;
+			else
+				return v == value;
 		}
 
 		bool opEquals(ref const Node other) const
@@ -439,7 +468,10 @@ private:
 			static if (storeHash)
 				if (other.hash != hash)
 					return false;
-			return other.value == value;
+			static if (isPointer!T)
+				return *other.value == *value;
+			else
+				return other.value == value;
 		}
 
 		static if (storeHash)
@@ -504,6 +536,8 @@ unittest
 	foreach (i; 0 .. 100)
 		assert(f.insert(i));
 	foreach (i; 0 .. 100)
+		assert(i in f);
+	foreach (i; 0 .. 100)
 		assert(f.remove(i));
 	foreach (i; 0 .. 100)
 		assert(!f.remove(i));
@@ -511,4 +545,15 @@ unittest
 	HashSet!int g;
 	foreach (i; 0 .. 100)
 		assert(g.insert(i));
+
+	static struct AStruct
+	{
+		int a;
+		int b;
+	}
+
+	HashSet!(AStruct*, a => a.a) fred;
+	fred.insert(new AStruct(10, 10));
+	auto h = new AStruct(10, 10);
+	assert(h in fred);
 }
