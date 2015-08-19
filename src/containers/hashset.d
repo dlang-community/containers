@@ -109,6 +109,8 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 			auto r = buckets[index].insert(Node(value));
 		if (r)
 			++_length;
+		if (shouldRehash)
+			rehash();
 		return r;
 	}
 
@@ -200,19 +202,22 @@ private:
 			}
 			else
 			{
+				nodeIndex = 0;
 				if (currentNode.next is null)
 				{
 					++bucketIndex;
 					while (bucketIndex < t.buckets.length && t.buckets[bucketIndex].root is null)
 						++bucketIndex;
-					nodeIndex = 0;
 					if (bucketIndex < t.buckets.length)
 						currentNode = cast(Bucket.BucketNode*) t.buckets[bucketIndex].root;
 					else
 						currentNode = null;
 				}
 				else
+				{
 					currentNode = currentNode.next;
+					assert(currentNode.l > 0);
+				}
 			}
 		}
 
@@ -532,18 +537,22 @@ unittest
 	foreach (i; e[])
 		assert(i > 0);
 
+	enum MAGICAL_NUMBER = 600;
+
 	HashSet!int f;
-	foreach (i; 0 .. 100)
+	foreach (i; 0 .. MAGICAL_NUMBER)
 		assert(f.insert(i));
-	foreach (i; 0 .. 100)
+	import std.range:walkLength;
+	assert(f.length == f[].walkLength);
+	foreach (i; 0 .. MAGICAL_NUMBER)
 		assert(i in f);
-	foreach (i; 0 .. 100)
+	foreach (i; 0 .. MAGICAL_NUMBER)
 		assert(f.remove(i));
-	foreach (i; 0 .. 100)
+	foreach (i; 0 .. MAGICAL_NUMBER)
 		assert(!f.remove(i));
 
 	HashSet!int g;
-	foreach (i; 0 .. 100)
+	foreach (i; 0 .. MAGICAL_NUMBER)
 		assert(g.insert(i));
 
 	static struct AStruct
