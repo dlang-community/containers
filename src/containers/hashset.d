@@ -146,7 +146,7 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 
 private:
 
-	import containers.internal.node : shouldAddGCRange;
+	import containers.internal.node : shouldAddGCRange, fatNodeCapacity;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.unrolledlist : UnrolledList;
@@ -154,6 +154,8 @@ private:
 	import std.allocator : allocate, deallocate, Mallocator;
 	import std.conv : emplace;
 	import std.traits : isBasicType, isPointer;
+
+	enum ITEMS_PER_NODE = fatNodeCapacity!(Node.sizeof, 1, size_t, 128);
 
 	enum bool storeHash = !isBasicType!T;
 
@@ -229,9 +231,10 @@ private:
 		size_t nodeIndex;
 	}
 
-	bool shouldRehash() const pure nothrow @safe
+	bool shouldRehash() const pure nothrow @safe @nogc
 	{
-		return (cast(float) _length / cast(float) buckets.length) > 0.75;
+		immutable float numberOfNodes = cast(float) _length / cast(float) ITEMS_PER_NODE;
+		return (numberOfNodes / cast(float) buckets.length) > 0.75f;
 	}
 
 	void rehash() @trusted
@@ -254,8 +257,9 @@ private:
 				{
 					static if (storeHash)
 					{
-						immutable size_t index = hashToIndex(node.items[i].hash);
-						buckets[index].insert(Node(node.items[i].hash, node.items[i].value));
+						immutable size_t hash = node.items[i].hash;
+						immutable size_t index = hashToIndex(hash);
+						buckets[index].insert(Node(hash, node.items[i].value));
 					}
 					else
 					{
@@ -290,6 +294,8 @@ private:
 
 	static struct Bucket
 	{
+		this(this) @disable;
+
 		~this()
 		{
 			BucketNode* current = root;
@@ -312,32 +318,32 @@ private:
 		{
 			ContainerStorageType!(T)* get(Node n)
 			{
-				for (size_t i = 0; i < l; ++i)
+				foreach (ref item; items[0 .. l])
 				{
 					static if (storeHash)
 					{
 						static if (isPointer!T)
 						{
-							if (items[i].hash == n.hash && *items[i].value == *n.value)
-								return &items[i].value;
+							if (item.hash == n.hash && *item.value == *n.value)
+								return &item.value;
 						}
 						else
 						{
-							if (items[i].hash == n.hash && items[i].value == n.value)
-								return &items[i].value;
+							if (item.hash == n.hash && item.value == n.value)
+								return &item.value;
 						}
 					}
 					else
 					{
 						static if (isPointer!T)
 						{
-							if (*items[i].value == *n.value)
-								return &items[i].value;
+							if (*item.value == *n.value)
+								return &item.value;
 						}
 						else
 						{
-							if (items[i].value == n.value)
-								return &items[i].value;
+							if (item.value == n.value)
+								return &item.value;
 						}
 					}
 				}
@@ -380,24 +386,17 @@ private:
 				return false;
 			}
 
-			import containers.internal.node : fatNodeCapacity;
-
 			BucketNode* next;
 			size_t l;
-			Node[fatNodeCapacity!(Node.sizeof, 1, size_t, 128)] items;
+			Node[ITEMS_PER_NODE] items;
 		}
 
 		bool insert(Node n)
 		{
-			BucketNode* prev;
-			BucketNode* current;
-			for (current = root; current !is null; prev = current)
+			for (BucketNode* current = root; current !is null; current = current.next)
 			{
 				if (current.l >= current.items.length)
-				{
-					current = current.next;
 					continue;
-				}
 				if (current.get(n))
 					return false;
 				current.insert(n);
@@ -406,10 +405,8 @@ private:
 			BucketNode* newNode = cast(BucketNode*) Mallocator.it.allocate(BucketNode.sizeof);
 			*newNode = BucketNode.init;
 			newNode.insert(n);
-			if (prev is null)
-				root = newNode;
-			else
-				prev.next = newNode;
+			newNode.next = root;
+			root = newNode;
 			return true;
 		}
 
@@ -537,7 +534,7 @@ unittest
 	foreach (i; e[])
 		assert(i > 0);
 
-	enum MAGICAL_NUMBER = 600;
+	enum MAGICAL_NUMBER = 600_000;
 
 	HashSet!int f;
 	foreach (i; 0 .. MAGICAL_NUMBER)
