@@ -142,7 +142,6 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	 * Returns: a range over the tree. Do not insert into the tree while
 	 * iterating because you may iterate over the same value multiple times.
 	 */
-
 	auto range(this This)()
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.all, T.init);
@@ -212,7 +211,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 			case upper:
 			case all: break;
 			case equal:
-				if (_less(front(), val) || _less(val, front()))
+				if (_less(val, front()))
 					current = null;
 				break;
 			case lower:
@@ -234,48 +233,27 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 				current = current.left;
 		}
 
-		void currentToLeastContaining(inout T val)
-		{
-			while (current !is null)
-			{
-				if (_less(val, current.values[0]))
-					current = current.left;
-				else if (current.isFull)
-				{
-					if (_less(current.values[$ - 1], cast(Value) val))
-						current = current.right;
-					else
-						break;
-				}
-				else
-					break;
-			}
-		}
-
-		this(const(Node)* n, RangeType type, inout T val)
+		this(inout(Node)* n, RangeType type, inout T val)
 		{
 			current = n;
 			this.type = type;
 			this.val = val;
+			currentToLeftmost();
 			with (RangeType) final switch(type)
 			{
 			case all:
-				currentToLeftmost();
 				break;
 			case lower:
-				currentToLeftmost();
 				if (_less(val, front()))
 					current = null;
 				break;
 			case equal:
-				currentToLeastContaining(val);
 				while (current !is null && _less(front(), val))
 					_popFront();
 				if (current is null || _less(front(), val) || _less(val, front()))
 					current = null;
 				break;
 			case upper:
-				currentToLeastContaining(val);
 				while (current !is null && !_less(val, front()))
 					_popFront();
 				break;
@@ -321,7 +299,7 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 		size_t index;
 		const(Node)* current;
-		RangeType type;
+		const RangeType type;
 		const T val;
 	}
 
@@ -329,8 +307,7 @@ private:
 
 	import containers.internal.node : fatNodeCapacity, fullBits, shouldAddGCRange, shouldNullSlot;
 	import containers.internal.element_type : ContainerElementType;
-    import std.algorithm : sort;
-	import std.allocator: Mallocator, allocate, deallocate;
+	import std.algorithm : sort;
 	import std.functional: binaryFun;
 	import std.traits: isPointer, PointerTarget;
 
@@ -352,7 +329,10 @@ private:
 	body
 	{
 		import core.memory : GC;
-		Node* n = allocate!Node(Mallocator.it);
+		import std.experimental.allocator : make;
+		import std.experimental.allocator.mallocator : Mallocator;
+
+		Node* n = make!Node(Mallocator.instance);
 		n.parent = parent;
 		n.markUsed(0);
 		n.values[0] = cast(Value) value;
@@ -368,11 +348,13 @@ private:
 	}
 	body
 	{
+		import std.experimental.allocator : dispose;
+		import std.experimental.allocator.mallocator : Mallocator;
 		import core.memory : GC;
+
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(n);
-		typeid(Node).destroy(n);
-		deallocate!Node(Mallocator.it, n);
+		dispose(Mallocator.instance, n);
 		n = null;
 	}
 
@@ -390,7 +372,7 @@ private:
 
 		private size_t nextAvailableIndex() const nothrow pure
 		{
-			import core.bitop;
+			import core.bitop : bsf;
 			return bsf(~(registry & fullBits!nodeCapacity));
 		}
 
@@ -450,12 +432,12 @@ private:
 		int imbalanced() const nothrow pure
 		{
 			if (right !is null
-				&& ((left is null && right.height() > 1)
-				|| (left !is null && right.height() > left.height() + 1)))
+					&& ((left is null && right.height() > 1)
+					|| (left !is null && right.height() > left.height() + 1)))
 				return 1;
 			if (left !is null
-				&& ((right is null && left.height() > 1)
-				|| (right !is null && left.height() > right.height() + 1)))
+					&& ((right is null && left.height() > 1)
+					|| (right !is null && left.height() > right.height() + 1)))
 				return -1;
 			return 0;
 		}
@@ -777,7 +759,7 @@ private:
 						deallocateNode(right);
 				}
 				else
-					break;
+					return;
 			}
 		}
 
@@ -962,16 +944,9 @@ unittest
 			int y;
 		}
 		TTree!(TestStruct*, false) tsTree;
-		static assert (isInputRange!(typeof(tsTree.range())));
+		static assert (isInputRange!(typeof(tsTree[])));
 		foreach (i; 0 .. 100)
-		{
 			assert(tsTree.insert(new TestStruct(i, i * 2)));
-			version(graphviz_debugging)
-			{
-				File f = File("graph%04d.dot".format(i), "w");
-				tsTree.print(f);
-			}
-		}
 		assert (tsTree.length == 100);
 		auto r = tsTree[];
 		TestStruct* prev = r.front();
@@ -1020,5 +995,35 @@ unittest
 		auto t = getInts();
 		static assert (is (typeof(t[].front) == const(int)));
 		assert (equal(t[].filter!(a => a & 1), [1, 3]));
+	}
+
+
+	{
+		static struct ABC
+		{
+			ulong a;
+			ulong b;
+
+			int opCmp(ref const ABC other) const
+			{
+				if (this.a < other.a)
+					return -1;
+				if (this.a > other.a)
+					return 1;
+				return 0;
+			}
+		}
+
+		TTree!(ABC, true) tree;
+		foreach (i; 0 .. 10)
+			tree.insert(ABC(i));
+		tree.insert(ABC(15));
+		tree.insert(ABC(15));
+		tree.insert(ABC(15));
+		tree.insert(ABC(15));
+		foreach (i; 20 .. 30)
+			tree.insert(ABC(i));
+		assert(tree.equalRange(ABC(15)).walkLength() == 4,
+			format("Actual length = %d", tree.equalRange(ABC(15)).walkLength()));
 	}
 }

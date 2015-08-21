@@ -36,12 +36,12 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 
 	~this()
 	{
-		import std.allocator : Mallocator, deallocate;
-		foreach (ref bucket; buckets)
-			typeid(typeof(bucket)).destroy(&bucket);
+		import std.experimental.allocator.mallocator : Mallocator;
+		import std.experimental.allocator : dispose;
+		import core.memory : GC;
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(buckets.ptr);
-		Mallocator.it.deallocate(buckets);
+		Mallocator.instance.dispose(buckets);
 	}
 
 	/**
@@ -50,7 +50,10 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	void clear()
 	{
 		foreach (ref bucket; buckets)
+		{
 			destroy(bucket);
+			bucket = Bucket.init;
+		}
 		_length = 0;
 	}
 
@@ -63,9 +66,9 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 		hash_t hash = hashFunction(value);
 		size_t index = hashToIndex(hash);
 		static if (storeHash)
-			immutable removed = buckets[index].remove(Node(hash, value));
+			immutable bool removed = buckets[index].remove(Node(hash, value));
 		else
-			immutable removed = buckets[index].remove(Node(value));
+			immutable bool removed = buckets[index].remove(Node(value));
 		if (removed)
 			--_length;
 		return removed;
@@ -150,9 +153,6 @@ private:
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.unrolledlist : UnrolledList;
-	import core.memory : GC;
-	import std.allocator : allocate, deallocate, Mallocator;
-	import std.conv : emplace;
 	import std.traits : isBasicType, isPointer;
 
 	enum ITEMS_PER_NODE = fatNodeCapacity!(Node.sizeof, 1, size_t, 128);
@@ -161,10 +161,11 @@ private:
 
 	void initialize(size_t bucketCount)
 	{
-		buckets = cast(Bucket[]) Mallocator.it.allocate(bucketCount * Bucket.sizeof);
-		assert (buckets.length == bucketCount);
-		foreach (ref bucket; buckets)
-			emplace(&bucket);
+		import std.experimental.allocator : makeArray;
+		import std.experimental.allocator.mallocator : Mallocator;
+		import core.memory : GC;
+
+		buckets = Mallocator.instance.makeArray!Bucket(bucketCount);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 	}
@@ -239,14 +240,15 @@ private:
 
 	void rehash() @trusted
 	{
+		import std.experimental.allocator : makeArray, dispose;
+		import std.experimental.allocator.mallocator : Mallocator;
+		import core.memory : GC;
+
 		immutable size_t newLength = buckets.length << 1;
-		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
-		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize);
+		buckets = Mallocator.instance.makeArray!Bucket(newLength);
 		assert (buckets);
 		assert (buckets.length == newLength);
-		foreach (ref bucket; buckets)
-			emplace(&bucket);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		foreach (ref const bucket; oldBuckets)
@@ -270,11 +272,9 @@ private:
 				}
 			}
 		}
-		foreach (ref bucket; oldBuckets)
-			typeid(Bucket).destroy(&bucket);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(oldBuckets.ptr);
-		Mallocator.it.deallocate(oldBuckets);
+		Mallocator.instance.dispose(oldBuckets);
 	}
 
 	size_t hashToIndex(hash_t hash) const pure nothrow @safe
@@ -298,15 +298,15 @@ private:
 
 		~this()
 		{
+			import std.experimental.allocator : dispose;
+			import std.experimental.allocator.mallocator : Mallocator;
+
 			BucketNode* current = root;
 			BucketNode* previous;
 			while (true)
 			{
 				if (previous !is null)
-				{
-					typeid(BucketNode).destroy(&previous);
-					deallocate(Mallocator.it, previous);
-				}
+					Mallocator.instance.dispose(previous);
 				previous = current;
 				if (current is null)
 					break;
@@ -393,6 +393,9 @@ private:
 
 		bool insert(Node n)
 		{
+			import std.experimental.allocator : make;
+			import std.experimental.allocator.mallocator : Mallocator;
+
 			for (BucketNode* current = root; current !is null; current = current.next)
 			{
 				if (current.l >= current.items.length)
@@ -402,8 +405,7 @@ private:
 				current.insert(n);
 				return true;
 			}
-			BucketNode* newNode = cast(BucketNode*) Mallocator.it.allocate(BucketNode.sizeof);
-			*newNode = BucketNode.init;
+			BucketNode* newNode = Mallocator.instance.make!BucketNode();
 			newNode.insert(n);
 			newNode.next = root;
 			root = newNode;
@@ -412,7 +414,8 @@ private:
 
 		bool remove(Node n)
 		{
-			import std.allocator : deallocate;
+			import std.experimental.allocator : dispose;
+			import std.experimental.allocator.mallocator : Mallocator;
 
 			BucketNode* current = root;
 			BucketNode* previous;
@@ -427,8 +430,7 @@ private:
 							previous.next = current.next;
 						else
 							root = null;
-						typeid(BucketNode).destroy(&current);
-						deallocate(Mallocator.it, current);
+						Mallocator.instance.dispose(current);
 					}
 					return true;
 				}

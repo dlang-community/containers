@@ -26,9 +26,17 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 
 	~this()
 	{
+		clear();
+	}
+
+	/**
+	 * Removes all items from the list
+	 */
+	void clear()
+	{
 		Node* prev = null;
 		Node* cur = _front;
-		debug
+		debug (EMSI_CONTAINERS)
 		{
 			ulong nodeCount = 0;
 			for (Node* c = _front; c !is null; c = c.next)
@@ -43,7 +51,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 					typeid(T).destroy(&item);
 			deallocateNode(prev);
 		}
-		debug
+		debug (EMSI_CONTAINERS)
 		{
 			import std.string:format;
 			assert (allocCount == deallocCount, "
@@ -53,6 +61,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 	nodeCapacity: %d
 	length: %d".format(nodeCount, allocCount, deallocCount, nodeCapacity, length));
 		}
+		_length = 0;
 	}
 
 	/**
@@ -217,7 +226,7 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 		return r;
 	}
 
-	debug invariant
+	debug (EMSI_CONTAINERS) invariant
 	{
 		import std.string: format;
 		assert (_front is null || _front.registry != 0, format("%x, %b", _front, _front.registry));
@@ -381,7 +390,8 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 
 private:
 
-	import std.allocator: allocate, deallocate, Mallocator;
+	import std.experimental.allocator: make, dispose;
+	import std.experimental.allocator.mallocator : Mallocator;
 	import containers.internal.node : fatNodeCapacity, shouldAddGCRange,
 		fullBits, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
@@ -390,7 +400,7 @@ private:
 	Node* _back;
 	Node* _front;
 	size_t _length;
-	debug
+	debug (EMSI_CONTAINERS)
 	{
 		ulong allocCount;
 		ulong deallocCount;
@@ -398,8 +408,8 @@ private:
 
 	Node* allocateNode(T item)
 	{
-		Node* n = allocate!Node(Mallocator.it);
-		debug ++allocCount;
+		Node* n = Mallocator.instance.make!Node();
+		debug (EMSI_CONTAINERS) ++allocCount;
 		static if (supportGC && shouldAddGCRange!T)
 		{
 			import core.memory: GC;
@@ -421,8 +431,8 @@ private:
 		if (_back is n)
 			_back = n.prev;
 
-		debug ++deallocCount;
-		deallocate(Mallocator.it, n);
+		debug (EMSI_CONTAINERS) ++deallocCount;
+		Mallocator.instance.dispose(n);
 		static if (supportGC && shouldAddGCRange!T)
 		{
 			import core.memory: GC;

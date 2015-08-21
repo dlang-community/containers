@@ -1,6 +1,7 @@
 module loops;
 
 import containers.ttree;
+import std.stdio;
 
 void main()
 {
@@ -13,5 +14,6 @@ void main()
 
 		foreach (i; 0 .. 1_000_000)
 			ints.remove(i);
+		writeln("iteration finished");
 	}
 }

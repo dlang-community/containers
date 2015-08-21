@@ -38,12 +38,13 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 
 	~this()
 	{
-		import std.allocator : Mallocator, deallocate;
+		import std.experimental.allocator.mallocator : Mallocator;
+		import std.experimental.allocator : dispose;
 		foreach (ref bucket; buckets)
 			typeid(typeof(bucket)).destroy(&bucket);
 		static if (supportGC)
 			GC.removeRange(buckets.ptr);
-		Mallocator.it.deallocate(buckets);
+		Mallocator.instance.dispose(buckets);
 	}
 
 	/**
@@ -195,7 +196,8 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 
 private:
 
-	import std.allocator : Mallocator, allocate;
+	import std.experimental.allocator.mallocator : Mallocator;
+	import std.experimental.allocator : make;
 	import std.traits : isBasicType;
 	import containers.unrolledlist : UnrolledList;
 	import containers.internal.storage_type : ContainerStorageType;
@@ -207,8 +209,8 @@ private:
 	void initialize(size_t bucketCount = 4)
 	{
 		import std.conv : emplace;
-		import std.allocator : allocate;
-		buckets = (cast(Bucket*) Mallocator.it.allocate( // Valgrind
+		import std.experimental.allocator.mallocator : Mallocator;
+		buckets = (cast(Bucket*) Mallocator.instance.allocate(
 			bucketCount * Bucket.sizeof))[0 .. bucketCount];
 		assert (buckets.length == bucketCount);
 		static if (supportGC)
@@ -264,13 +266,14 @@ private:
 	 */
 	void rehash() @trusted
 	{
-		import std.allocator : allocate, deallocate;
+//		import std.experimental.allocator : make, dispose;
+		import std.experimental.allocator.mallocator : Mallocator;
 		import std.conv : emplace;
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
 		assert (oldBuckets.ptr == buckets.ptr);
-		buckets = cast(Bucket[]) Mallocator.it.allocate(newSize);
+		buckets = cast(Bucket[]) Mallocator.instance.allocate(newSize);
 		static if (supportGC)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		assert (buckets);
@@ -297,7 +300,7 @@ private:
 		}
 		static if (supportGC)
 			GC.removeRange(oldBuckets.ptr);
-		Mallocator.it.deallocate(cast(void[]) oldBuckets);
+		Mallocator.instance.deallocate(cast(void[]) oldBuckets);
 	}
 
 	size_t hashToIndex(size_t hash) const pure nothrow @safe @nogc

@@ -1,6 +1,6 @@
 .PHONY: test graphs clean
 
-SRC=$(shell find ../src/ -name "*.d")
+SRC=$(shell find ../src/ -name "*.d") $(shell find ../experimental_allocator -name "*.d")
 FLAGS=-unittest -main -g -cov -I../src/ -debug -wi
 
 test: compile_test
@@ -11,11 +11,17 @@ compile_test:
 	dmd $(FLAGS) compile_test.d $(SRC) -ofcompile_test
 
 looptest: looptest.d
-	dmd looptest.d -O -inline -release -boundscheck=safeonly \
-	../src/memory/allocators.d \
-	../src/std/allocator.d \
-	../src/containers/ttree.d \
-	-I../src/
+	dmd looptest.d -inline -O -release \
+		../src/memory/allocators.d \
+		../src/containers/ttree.d \
+		../src/containers/internal/node.d \
+		../experimental_allocator/src/std/experimental/allocator/package.d \
+		../experimental_allocator/src/std/experimental/allocator/common.d \
+		../experimental_allocator/src/std/experimental/allocator/gc_allocator.d \
+		../experimental_allocator/src/std/experimental/allocator/mallocator.d \
+		../experimental_allocator/src/std/experimental/allocator/typed.d \
+		-I../src/ \
+		-I../experimental_allocator/src/ \
 
 clean:
 	rm -f tests

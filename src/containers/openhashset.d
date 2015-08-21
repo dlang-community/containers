@@ -4,7 +4,6 @@
  * Authors: Brian Schott
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  */
-
 module containers.openhashset;
 
 import containers.internal.hash : generateHash;
@@ -50,7 +49,7 @@ struct OpenHashSet(T, alias hashFunction = generateHash!T, bool supportGC = shou
 			typeid(typeof(node)).destroy(&node);
 		static if (supportGC)
 			GC.removeRange(nodes.ptr);
-		Mallocator.it.deallocate(nodes);
+		Mallocator.instance.deallocate(nodes);
 	}
 
 	/**
@@ -169,7 +168,7 @@ private:
 
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
-	import std.allocator:Mallocator;
+	import std.experimental.allocator.mallocator : Mallocator;
 	import core.memory : GC;
 
 	enum DEFAULT_INITIAL_CAPACITY = 8;
@@ -215,7 +214,7 @@ private:
 	void grow()
 	{
 		immutable size_t newCapacity = nodes.length << 1;
-		Node[] newNodes = (cast (Node*) Mallocator.it.allocate(newCapacity * Node.sizeof))
+		Node[] newNodes = (cast (Node*) Mallocator.instance.allocate(newCapacity * Node.sizeof))
 			[0 .. newCapacity];
 		newNodes[] = Node.init;
 		static if (supportGC)
@@ -227,13 +226,13 @@ private:
 		}
 		static if (supportGC)
 			GC.removeRange(nodes.ptr);
-		Mallocator.it.deallocate(nodes);
+		Mallocator.instance.deallocate(nodes);
 		nodes = newNodes;
 	}
 
 	void initialize(size_t nodeCount)
 	{
-		nodes = (cast (Node*) Mallocator.it.allocate(nodeCount * Node.sizeof))
+		nodes = (cast (Node*) Mallocator.instance.allocate(nodeCount * Node.sizeof))
 			[0 .. nodeCount];
 		nodes[] = Node.init;
 		_length = 0;
