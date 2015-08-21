@@ -39,11 +39,9 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 		import std.experimental.allocator.mallocator : Mallocator;
 		import std.experimental.allocator : dispose;
 		import core.memory : GC;
-		foreach (ref bucket; buckets)
-			typeid(typeof(bucket)).destroy(&bucket);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(buckets.ptr);
-		Mallocator.instance.deallocate(buckets);
+		Mallocator.instance.dispose(buckets);
 	}
 
 	/**
@@ -52,7 +50,10 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	void clear()
 	{
 		foreach (ref bucket; buckets)
+		{
 			destroy(bucket);
+			bucket = Bucket.init;
+		}
 		_length = 0;
 	}
 
@@ -62,7 +63,7 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	 */
 	bool remove(T value)
 	{
-		hash_t hash = generateHash(value);
+		hash_t hash = hashFunction(value);
 		size_t index = hashToIndex(hash);
 		static if (storeHash)
 			immutable bool removed = buckets[index].remove(Node(hash, value));
@@ -88,7 +89,7 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	{
 		if (buckets.length == 0 || _length == 0)
 			return null;
-		hash_t hash = generateHash(value);
+		hash_t hash = hashFunction(value);
 		size_t index = hashToIndex(hash);
 		return buckets[index].get(value, hash);
 	}
@@ -103,7 +104,7 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 	{
 		if (buckets.length == 0)
 			initialize(4);
-		hash_t hash = generateHash(value);
+		hash_t hash = hashFunction(value);
 		size_t index = hashToIndex(hash);
 		static if (storeHash)
 			auto r = buckets[index].insert(Node(hash, value));
@@ -111,6 +112,8 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 			auto r = buckets[index].insert(Node(value));
 		if (r)
 			++_length;
+		if (shouldRehash)
+			rehash();
 		return r;
 	}
 
@@ -146,11 +149,13 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 
 private:
 
-	import containers.internal.node : shouldAddGCRange;
+	import containers.internal.node : shouldAddGCRange, fatNodeCapacity;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.unrolledlist : UnrolledList;
-	import std.traits : isBasicType;
+	import std.traits : isBasicType, isPointer;
+
+	enum ITEMS_PER_NODE = fatNodeCapacity!(Node.sizeof, 1, size_t, 128);
 
 	enum bool storeHash = !isBasicType!T;
 
@@ -200,19 +205,22 @@ private:
 			}
 			else
 			{
+				nodeIndex = 0;
 				if (currentNode.next is null)
 				{
 					++bucketIndex;
 					while (bucketIndex < t.buckets.length && t.buckets[bucketIndex].root is null)
 						++bucketIndex;
-					nodeIndex = 0;
 					if (bucketIndex < t.buckets.length)
 						currentNode = cast(Bucket.BucketNode*) t.buckets[bucketIndex].root;
 					else
 						currentNode = null;
 				}
 				else
+				{
 					currentNode = currentNode.next;
+					assert(currentNode.l > 0);
+				}
 			}
 		}
 
@@ -224,26 +232,23 @@ private:
 		size_t nodeIndex;
 	}
 
-	bool shouldRehash() const pure nothrow @safe
+	bool shouldRehash() const pure nothrow @safe @nogc
 	{
-		return (cast(float) _length / cast(float) buckets.length) > 0.75;
+		immutable float numberOfNodes = cast(float) _length / cast(float) ITEMS_PER_NODE;
+		return (numberOfNodes / cast(float) buckets.length) > 0.75f;
 	}
 
 	void rehash() @trusted
 	{
-		import std.experimental.allocator : make, dispose;
+		import std.experimental.allocator : makeArray, dispose;
 		import std.experimental.allocator.mallocator : Mallocator;
-		import std.conv : emplace;
 		import core.memory : GC;
 
 		immutable size_t newLength = buckets.length << 1;
-		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
-		buckets = cast(Bucket[]) Mallocator.instance.allocate(newSize);
+		buckets = Mallocator.instance.makeArray!Bucket(newLength);
 		assert (buckets);
 		assert (buckets.length == newLength);
-		foreach (ref bucket; buckets)
-			emplace(&bucket);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		foreach (ref const bucket; oldBuckets)
@@ -254,20 +259,19 @@ private:
 				{
 					static if (storeHash)
 					{
-						immutable size_t index = hashToIndex(node.items[i].hash);
-						buckets[index].insert(Node(node.items[i].hash, node.items[i].value));
+						immutable size_t hash = node.items[i].hash;
+						immutable size_t index = hashToIndex(hash);
+						buckets[index].insert(Node(hash, node.items[i].value));
 					}
 					else
 					{
-						immutable size_t hash = generateHash(node.items[i].value);
+						immutable size_t hash = hashFunction(node.items[i].value);
 						immutable size_t index = hashToIndex(hash);
 						buckets[index].insert(Node(node.items[i].value));
 					}
 				}
 			}
 		}
-		foreach (ref bucket; oldBuckets)
-			typeid(Bucket).destroy(&bucket);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(oldBuckets.ptr);
 		Mallocator.instance.dispose(oldBuckets);
@@ -290,6 +294,8 @@ private:
 
 	static struct Bucket
 	{
+		this(this) @disable;
+
 		~this()
 		{
 			import std.experimental.allocator : dispose;
@@ -300,10 +306,7 @@ private:
 			while (true)
 			{
 				if (previous !is null)
-				{
-					typeid(BucketNode).destroy(&previous);
 					Mallocator.instance.dispose(previous);
-				}
 				previous = current;
 				if (current is null)
 					break;
@@ -315,17 +318,33 @@ private:
 		{
 			ContainerStorageType!(T)* get(Node n)
 			{
-				for (size_t i = 0; i < l; ++i)
+				foreach (ref item; items[0 .. l])
 				{
 					static if (storeHash)
 					{
-						if (items[i].hash == n.hash && items[i].value == n.value)
-							return &items[i].value;
+						static if (isPointer!T)
+						{
+							if (item.hash == n.hash && *item.value == *n.value)
+								return &item.value;
+						}
+						else
+						{
+							if (item.hash == n.hash && item.value == n.value)
+								return &item.value;
+						}
 					}
 					else
 					{
-						if (items[i].value == n.value)
-							return &items[i].value;
+						static if (isPointer!T)
+						{
+							if (*item.value == *n.value)
+								return &item.value;
+						}
+						else
+						{
+							if (item.value == n.value)
+								return &item.value;
+						}
 					}
 				}
 				return null;
@@ -344,9 +363,19 @@ private:
 				foreach (size_t i, ref node; items)
 				{
 					static if (storeHash)
-						immutable bool matches = node.hash == n.hash && node.value == n.value;
+					{
+						static if (isPointer!T)
+							immutable bool matches = node.hash == n.hash && *node.value == *n.value;
+						else
+							immutable bool matches = node.hash == n.hash && node.value == n.value;
+					}
 					else
-						immutable bool matches = node.value == n.value;
+					{
+						static if (isPointer!T)
+							immutable bool matches = *node.value == *n.value;
+						else
+							immutable bool matches = node.value == n.value;
+					}
 					if (matches)
 					{
 						items[].remove!(SwapStrategy.unstable)(i);
@@ -357,11 +386,9 @@ private:
 				return false;
 			}
 
-			import containers.internal.node : fatNodeCapacity;
-
 			BucketNode* next;
 			size_t l;
-			Node[fatNodeCapacity!(Node.sizeof, 1, size_t, 128)] items;
+			Node[ITEMS_PER_NODE] items;
 		}
 
 		bool insert(Node n)
@@ -369,15 +396,10 @@ private:
 			import std.experimental.allocator : make;
 			import std.experimental.allocator.mallocator : Mallocator;
 
-			BucketNode* prev;
-			BucketNode* current;
-			for (current = root; current !is null; prev = current)
+			for (BucketNode* current = root; current !is null; current = current.next)
 			{
 				if (current.l >= current.items.length)
-				{
-					current = current.next;
 					continue;
-				}
 				if (current.get(n))
 					return false;
 				current.insert(n);
@@ -385,10 +407,8 @@ private:
 			}
 			BucketNode* newNode = Mallocator.instance.make!BucketNode();
 			newNode.insert(n);
-			if (prev is null)
-				root = newNode;
-			else
-				prev.next = newNode;
+			newNode.next = root;
+			root = newNode;
 			return true;
 		}
 
@@ -410,7 +430,6 @@ private:
 							previous.next = current.next;
 						else
 							root = null;
-						typeid(BucketNode).destroy(&current);
 						Mallocator.instance.dispose(current);
 					}
 					return true;
@@ -438,11 +457,14 @@ private:
 		BucketNode* root;
 	}
 
-	struct Node
+	static struct Node
 	{
 		bool opEquals(ref const T v) const
 		{
-			return v == value;
+			static if (isPointer!T)
+				return *v == *value;
+			else
+				return v == value;
 		}
 
 		bool opEquals(ref const Node other) const
@@ -450,7 +472,10 @@ private:
 			static if (storeHash)
 				if (other.hash != hash)
 					return false;
-			return other.value == value;
+			static if (isPointer!T)
+				return *other.value == *value;
+			else
+				return other.value == value;
 		}
 
 		static if (storeHash)
@@ -511,15 +536,32 @@ unittest
 	foreach (i; e[])
 		assert(i > 0);
 
+	enum MAGICAL_NUMBER = 600_000;
+
 	HashSet!int f;
-	foreach (i; 0 .. 100)
+	foreach (i; 0 .. MAGICAL_NUMBER)
 		assert(f.insert(i));
-	foreach (i; 0 .. 100)
+	import std.range:walkLength;
+	assert(f.length == f[].walkLength);
+	foreach (i; 0 .. MAGICAL_NUMBER)
+		assert(i in f);
+	foreach (i; 0 .. MAGICAL_NUMBER)
 		assert(f.remove(i));
-	foreach (i; 0 .. 100)
+	foreach (i; 0 .. MAGICAL_NUMBER)
 		assert(!f.remove(i));
 
 	HashSet!int g;
-	foreach (i; 0 .. 100)
+	foreach (i; 0 .. MAGICAL_NUMBER)
 		assert(g.insert(i));
+
+	static struct AStruct
+	{
+		int a;
+		int b;
+	}
+
+	HashSet!(AStruct*, a => a.a) fred;
+	fred.insert(new AStruct(10, 10));
+	auto h = new AStruct(10, 10);
+	assert(h in fred);
 }
