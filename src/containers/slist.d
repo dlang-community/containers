@@ -137,7 +137,7 @@ struct SList(T)
 	 * Removes the first instance of value found in the list.
 	 * Returns: true if a value was removed.
 	 */
-	bool remove(V)(V value) @trusted /+ if (is(T == V) || __traits(compiles, (T.init.opEquals(V.init))))+/
+	bool remove(V)(V value) @trusted
 	{
 		Node* prev = null;
 		Node* cur = _front;
