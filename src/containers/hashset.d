@@ -66,9 +66,9 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 		hash_t hash = hashFunction(value);
 		size_t index = hashToIndex(hash);
 		static if (storeHash)
-			immutable bool removed = buckets[index].remove(Node(hash, value));
+			immutable bool removed = buckets[index].remove(ItemNode(hash, value));
 		else
-			immutable bool removed = buckets[index].remove(Node(value));
+			immutable bool removed = buckets[index].remove(ItemNode(value));
 		if (removed)
 			--_length;
 		return removed;
@@ -107,9 +107,9 @@ struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAd
 		hash_t hash = hashFunction(value);
 		size_t index = hashToIndex(hash);
 		static if (storeHash)
-			auto r = buckets[index].insert(Node(hash, value));
+			auto r = buckets[index].insert(ItemNode(hash, value));
 		else
-			auto r = buckets[index].insert(Node(value));
+			auto r = buckets[index].insert(ItemNode(value));
 		if (r)
 			++_length;
 		if (shouldRehash)
@@ -155,7 +155,7 @@ private:
 	import containers.unrolledlist : UnrolledList;
 	import std.traits : isBasicType, isPointer;
 
-	enum ITEMS_PER_NODE = fatNodeCapacity!(Node.sizeof, 1, size_t, 128);
+	enum ITEMS_PER_NODE = fatNodeCapacity!(ItemNode.sizeof, 1, size_t, 128);
 
 	enum bool storeHash = !isBasicType!T;
 
@@ -261,13 +261,13 @@ private:
 					{
 						immutable size_t hash = node.items[i].hash;
 						immutable size_t index = hashToIndex(hash);
-						buckets[index].insert(Node(hash, node.items[i].value));
+						buckets[index].insert(ItemNode(hash, node.items[i].value));
 					}
 					else
 					{
 						immutable size_t hash = hashFunction(node.items[i].value);
 						immutable size_t index = hashToIndex(hash);
-						buckets[index].insert(Node(node.items[i].value));
+						buckets[index].insert(ItemNode(node.items[i].value));
 					}
 				}
 			}
@@ -316,7 +316,7 @@ private:
 
 		static struct BucketNode
 		{
-			ContainerStorageType!(T)* get(Node n)
+			ContainerStorageType!(T)* get(ItemNode n)
 			{
 				foreach (ref item; items[0 .. l])
 				{
@@ -350,17 +350,17 @@ private:
 				return null;
 			}
 
-			void insert(Node n)
+			void insert(ItemNode n)
 			{
 				items[l] = n;
 				++l;
 			}
 
-			bool remove(Node n)
+			bool remove(ItemNode n)
 			{
 				import std.algorithm : SwapStrategy, remove;
 
-				foreach (size_t i, ref node; items)
+				foreach (size_t i, ref node; items[0 .. l])
 				{
 					static if (storeHash)
 					{
@@ -378,7 +378,7 @@ private:
 					}
 					if (matches)
 					{
-						items[].remove!(SwapStrategy.unstable)(i);
+						items[0 .. l].remove!(SwapStrategy.unstable)(i);
 						l--;
 						return true;
 					}
@@ -388,22 +388,23 @@ private:
 
 			BucketNode* next;
 			size_t l;
-			Node[ITEMS_PER_NODE] items;
+			ItemNode[ITEMS_PER_NODE] items;
 		}
 
-		bool insert(Node n)
+		bool insert(ItemNode n)
 		{
 			import std.experimental.allocator : make;
 			import std.experimental.allocator.mallocator : Mallocator;
 
 			for (BucketNode* current = root; current !is null; current = current.next)
 			{
-				if (current.l >= current.items.length)
-					continue;
-				if (current.get(n))
+				if (current.get(n) !is null)
 					return false;
-				current.insert(n);
-				return true;
+				if (current.l < current.items.length)
+				{
+					current.insert(n);
+					return true;
+				}
 			}
 			BucketNode* newNode = Mallocator.instance.make!BucketNode();
 			newNode.insert(n);
@@ -412,7 +413,7 @@ private:
 			return true;
 		}
 
-		bool remove(Node n)
+		bool remove(ItemNode n)
 		{
 			import std.experimental.allocator : dispose;
 			import std.experimental.allocator.mallocator : Mallocator;
@@ -429,7 +430,7 @@ private:
 						if (previous !is null)
 							previous.next = current.next;
 						else
-							root = null;
+							root = current.next;
 						Mallocator.instance.dispose(current);
 					}
 					return true;
@@ -445,9 +446,9 @@ private:
 			for (BucketNode* current = cast(BucketNode*) root; current !is null; current = current.next)
 			{
 				static if (storeHash)
-					auto v = current.get(Node(hash, value));
+					auto v = current.get(ItemNode(hash, value));
 				else
-					auto v = current.get(Node(value));
+					auto v = current.get(ItemNode(value));
 				if (v !is null)
 					return cast(typeof(return)) v;
 			}
@@ -457,7 +458,7 @@ private:
 		BucketNode* root;
 	}
 
-	static struct Node
+	static struct ItemNode
 	{
 		bool opEquals(ref const T v) const
 		{
@@ -467,7 +468,7 @@ private:
 				return v == value;
 		}
 
-		bool opEquals(ref const Node other) const
+		bool opEquals(ref const ItemNode other) const
 		{
 			static if (storeHash)
 				if (other.hash != hash)
