@@ -201,7 +201,6 @@ private:
 
 	import std.experimental.allocator : make, dispose;
 	import std.experimental.allocator.mallocator : Mallocator;
-	import memory.allocators : NodeAllocator;
 	import containers.internal.node : shouldAddGCRange;
 	import containers.internal.element_type : ContainerElementType;
 
