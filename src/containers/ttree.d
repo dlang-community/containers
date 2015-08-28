@@ -97,6 +97,8 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 		return retVal;
 	}
 
+	alias put = insert;
+
 	/**
 	 * Removes a value from the tree.
 	 * Params:
@@ -233,27 +235,72 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 				current = current.left;
 		}
 
+		void currentToLeastContaining(inout T val)
+		{
+			if (current is null)
+				return;
+			while (current !is null)
+			{
+				assert(current.registry != 0);
+				auto first = current.values[0];
+				auto last = current.values[current.nextAvailableIndex - 1];
+				immutable bool valLessFirst = _less(val, first);
+				immutable bool valLessLast = _less(val, last);
+				immutable bool firstLessVal = _less(first, val);
+				immutable bool lastLessVal = _less(last, val);
+				if (firstLessVal && valLessLast)
+					return;
+				else if (valLessFirst)
+					current = current.left;
+				else if (lastLessVal)
+					current = current.right;
+				else
+				{
+					static if (allowDuplicates)
+					{
+						if (!valLessFirst && !firstLessVal)
+						{
+							auto c = current;
+							current = current.left;
+							currentToLeastContaining(val);
+							if (current is null)
+								current = c;
+							return;
+						}
+						else
+							return;
+					}
+					else
+						return;
+				}
+
+			}
+		}
+
 		this(inout(Node)* n, RangeType type, inout T val)
 		{
 			current = n;
 			this.type = type;
 			this.val = val;
-			currentToLeftmost();
 			with (RangeType) final switch(type)
 			{
 			case all:
+				currentToLeftmost();
 				break;
 			case lower:
+				currentToLeftmost();
 				if (_less(val, front()))
 					current = null;
 				break;
 			case equal:
+				currentToLeastContaining(val);
 				while (current !is null && _less(front(), val))
 					_popFront();
 				if (current is null || _less(front(), val) || _less(val, front()))
 					current = null;
 				break;
 			case upper:
+				currentToLeastContaining(val);
 				while (current !is null && !_less(val, front()))
 					_popFront();
 				break;
@@ -798,7 +845,7 @@ private:
 unittest
 {
 	import core.memory : GC;
-	import std.algorithm : equal, sort, map, filter;
+	import std.algorithm : equal, sort, map, filter, each;
 	import std.array : array;
 	import std.range : iota, walkLength, isInputRange;
 	import std.string : format;
@@ -905,9 +952,10 @@ unittest
 		assert (strings.insert("d"));
 		assert (strings.insert("d"));
 		assert (strings.length == 5);
-		assert (equal(strings.equalRange("d"), ["d", "d"]));
-		assert (equal(strings.lowerBound("d"), ["a", "b", "c"]));
-		assert (equal(strings.upperBound("c"), ["d", "d"]));
+		assert (equal(strings.equalRange("d"), ["d", "d"]), format("%s", strings.equalRange("d")));
+		assert (equal(strings.equalRange("a"), ["a"]), format("%s", strings.equalRange("a")));
+		assert (equal(strings.lowerBound("d"), ["a", "b", "c"]), format("%s", strings.lowerBound("d")));
+		assert (equal(strings.upperBound("c"), ["d", "d"]), format("%s", strings.upperBound("c")));
 	}
 
 	{
@@ -1025,5 +1073,25 @@ unittest
 			tree.insert(ABC(i));
 		assert(tree.equalRange(ABC(15)).walkLength() == 4,
 			format("Actual length = %d", tree.equalRange(ABC(15)).walkLength()));
+	}
+
+	{
+		TTree!int ints2;
+		iota(0, 1_000_000).each!(a => ints2.insert(a));
+		assert(equal(iota(0, 1_000_000), ints2[]));
+		assert(ints2.length == 1_000_000);
+		foreach (i; 0 .. 1_000_000)
+			assert(!ints2.equalRange(i).empty, format("Could not find %d", i));
+	}
+
+	{
+		TTree!int ints3;
+		foreach (i; iota(0, 1_000_000).filter!(a => a % 2 == 0))
+			ints3.insert(i);
+		assert(ints3.length == 500_000);
+		foreach (i; iota(0, 1_000_000).filter!(a => a % 2 == 0))
+			assert(!ints3.equalRange(i).empty);
+		foreach (i; iota(0, 1_000_000).filter!(a => a % 2 == 1))
+			assert(ints3.equalRange(i).empty);
 	}
 }
