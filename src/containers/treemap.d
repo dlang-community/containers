@@ -7,6 +7,8 @@
 
 module containers.treemap;
 
+import std.experimental.allocator.mallocator : Mallocator;
+
 /**
  * A key→value mapping where the keys are guaranteed to be sorted.
  * Params:
@@ -16,8 +18,8 @@ module containers.treemap;
  *     supportGC = true to support storing GC-allocated objects, false otherwise
  *     cacheLineSize = the size of the internal nodes in bytes
  */
-struct TreeMap(K, V, alias less = "a < b", bool supportGC = true,
-	size_t cacheLineSize = 64)
+struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
+	bool supportGC = true, size_t cacheLineSize = 64)
 {
 
 	this(this) @disable;
@@ -96,7 +98,7 @@ private:
 			return binaryFun!less(key, other.key);
 		}
 	}
-	TTree!(TreeMapElement, false, "a.opCmp(b) > 0", supportGC, cacheLineSize) tree;
+	TTree!(TreeMapElement, Allocator, false, "a.opCmp(b) > 0", supportGC, cacheLineSize) tree;
 }
 
 unittest

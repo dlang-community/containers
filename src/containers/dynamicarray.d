@@ -9,8 +9,8 @@ module containers.dynamicarray;
 
 /**
  * Array that is able to grow itself when items are appended to it. Uses
- * reference counting to manage memory and malloc/free/realloc for managing its
- * storage.
+ * malloc/free/realloc to manage its storage.
+ *
  * Params:
  *     T = the array element type
  *     supportGC = true if the container should support holding references to
