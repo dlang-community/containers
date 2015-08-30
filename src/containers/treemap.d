@@ -8,6 +8,7 @@
 module containers.treemap;
 
 import std.experimental.allocator.mallocator : Mallocator;
+import std.experimental.allocator.common : stateSize;
 
 /**
  * A key→value mapping where the keys are guaranteed to be sorted.
@@ -24,12 +25,28 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 
 	this(this) @disable;
 
-	/// Supports $(B treeMap[key] = value;) syntax.
-	void opIndexAssign(V value, K key)
+	static if (stateSize!Allocator != 0)
+	{
+		/**
+		 * Use the given `allocator` for allocations.
+		 */
+		this(Allocator allocator)
+		{
+			tree = TreeType(allocator);
+		}
+	}
+
+	/**
+	 * Inserts the given key-value pair.
+	 */
+	void insert(V value, K key)
 	{
 		auto tme = TreeMapElement(key, value);
 		tree.insert(tme);
 	}
+
+	/// Supports $(B treeMap[key] = value;) syntax.
+	alias opIndexAssign = insert;
 
 	/// Supports $(B treeMap[key]) syntax.
 	auto opIndex(this This)(K key) const
@@ -98,7 +115,12 @@ private:
 			return binaryFun!less(key, other.key);
 		}
 	}
-	TTree!(TreeMapElement, Allocator, false, "a.opCmp(b) > 0", supportGC, cacheLineSize) tree;
+
+	alias TreeType = TTree!(TreeMapElement, Allocator, false, "a.opCmp(b) > 0", supportGC, cacheLineSize);
+	static if (stateSize!Allocator == 0)
+		TreeType tree = void;
+	else
+		TreeType tree;
 }
 
 unittest
@@ -108,4 +130,24 @@ unittest
 	tm["test2"] = "world";
 	tm.remove("test1");
 	tm.remove("test2");
+}
+
+unittest
+{
+	import std.experimental.allocator.building_blocks.free_list : FreeList;
+	import std.experimental.allocator.building_blocks.allocator_list : AllocatorList;
+	import std.experimental.allocator.building_blocks.region : Region;
+	import std.experimental.allocator.building_blocks.stats_collector : StatsCollector;
+	import std.stdio : stdout;
+	import std.algorithm.iteration : walkLength;
+
+	StatsCollector!(FreeList!(AllocatorList!(a => Region!(Mallocator)(1024 * 1024)),
+		64)) allocator;
+	auto intMap = TreeMap!(int, int, typeof(&allocator))(&allocator);
+	foreach (i; 0 .. 10_000)
+		intMap[i] = 10_000 - i;
+	assert(intMap.length == 10_000);
+	destroy(intMap);
+	assert(allocator.numAllocate == allocator.numDeallocate);
+	assert(allocator.bytesUsed == 0);
 }
