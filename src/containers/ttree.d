@@ -54,7 +54,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		deallocateNode(root, allocator);
 	}
 
-	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 3, size_t, cacheLineSize);
+	private enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 3, size_t, cacheLineSize);
 	static assert (nodeCapacity <= (size_t.sizeof * 4), "cannot fit height info and registry in size_t");
 
 	debug(EMSI_CONTAINERS) invariant()
@@ -540,7 +540,7 @@ private:
 					calcHeight();
 					return true;
 				}
-				bool b = left.insert(value, root, allocator);
+				immutable bool b = left.insert(value, root, allocator);
 				if (imbalanced() == -1)
 					rotateRight(root, allocator);
 				calcHeight();
@@ -554,7 +554,7 @@ private:
 					calcHeight();
 					return true;
 				}
-				bool b = right.insert(value, root, allocator);
+				immutable bool b = right.insert(value, root, allocator);
 				if (imbalanced() == 1)
 					rotateLeft(root, allocator);
 				calcHeight();
@@ -582,14 +582,14 @@ private:
 			if (right.height < left.height)
 			{
 				values[] = temp[0 .. $ - 1];
-				bool b = right.insert(temp[$ - 1], root, allocator);
+				immutable bool b = right.insert(temp[$ - 1], root, allocator);
 				if (imbalanced() == 1)
 					rotateLeft(root, allocator);
 				calcHeight();
 				return b;
 			}
 			values[] = temp[1 .. $];
-			bool b = left.insert(temp[0], root, allocator);
+			immutable bool b = left.insert(temp[0], root, allocator);
 			if (imbalanced() == -1)
 				rotateRight(root, allocator);
 			calcHeight();
@@ -603,14 +603,14 @@ private:
 			assert (!isEmpty());
 			if (isFull() && _less(value, values[0]))
 			{
-				bool r = left !is null && left.remove(value, left, allocator, cleanup);
+				immutable bool r = left !is null && left.remove(value, left, allocator, cleanup);
 				if (left.isEmpty())
 					deallocateNode(left, allocator);
 				return r;
 			}
 			if (isFull() && _less(values[$ - 1], value))
 			{
-				bool r = right !is null && right.remove(value, right, allocator, cleanup);
+				immutable bool r = right !is null && right.remove(value, right, allocator, cleanup);
 				if (right.isEmpty())
 					deallocateNode(right, allocator);
 				return r;
