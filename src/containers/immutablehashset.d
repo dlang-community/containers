@@ -12,7 +12,8 @@ module containers.immutablehashset;
  * supports quickly determining if an element is present.
  *
  * Because the set does not support inserting, it only takes up as much memory
- * as is necessary to contain the elements provided at construction.
+ * as is necessary to contain the elements provided at construction. Memory is
+ * managed my malloc/free.
  */
 struct ImmutableHashSet(T, alias hashFunction)
 {

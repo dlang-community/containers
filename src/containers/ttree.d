@@ -7,7 +7,8 @@
 
 module containers.ttree;
 
-import std.range : ElementType, isInputRange;
+private import std.experimental.allocator.mallocator : Mallocator;
+private import std.range : ElementType, isInputRange;
 
 /**
  * Implements a binary search tree with multiple items per tree node.
@@ -26,21 +27,42 @@ import std.range : ElementType, isInputRange;
  *         GC-allocated memory.
  * See_also: $(LINK http://en.wikipedia.org/wiki/T-tree)
  */
-struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
-	bool supportGC = true, size_t cacheLineSize = 64)
+struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
+	alias less = "a < b", bool supportGC = true, size_t cacheLineSize = 64)
 {
 	this(this) @disable;
+
+	static if (stateSize!Allocator != 0)
+	{
+		/// No default construction if an allocator must be provided.
+		this() @disable;
+
+		/**
+		 * Use `allocator` to allocate and free nodes in the tree.
+		 */
+		this(Allocator allocator)
+		in
+		{
+			assert(allocator !is null, "Allocator must not be null");
+		}
+		body
+		{
+			this.allocator = allocator;
+		}
+
+		private alias AllocatorType = Allocator;
+	}
+	else
+		alias AllocatorType = void*;
 
 	~this()
 	{
 		if (root is null)
 			return;
-		deallocateNode(root);
+		deallocateNode(root, allocator);
 	}
 
-	private import containers.internal.storage_type : ContainerStorageType;
-
-	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 3, size_t, cacheLineSize);
+	private enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 3, size_t, cacheLineSize);
 	static assert (nodeCapacity <= (size_t.sizeof * 4), "cannot fit height info and registry in size_t");
 
 	debug(EMSI_CONTAINERS) invariant()
@@ -66,11 +88,11 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	{
 		if (root is null)
 		{
-			root = allocateNode(cast(Value) value, null);
+			root = allocateNode(cast(Value) value, null, allocator);
 			++_length;
 			return true;
 		}
-		immutable bool r = root.insert(cast(Value) value, root);
+		immutable bool r = root.insert(cast(Value) value, root, allocator);
 		if (r)
 			++_length;
 		return r;
@@ -108,11 +130,11 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 	 */
 	bool remove(T value, void delegate(T) cleanup = null)
 	{
-		bool removed = root !is null && root.remove(cast(Value) value, root, cleanup);
+		bool removed = root !is null && root.remove(cast(Value) value, root, allocator, cleanup);
 		if (removed)
 			--_length;
 		if (_length == 0)
-			deallocateNode(root);
+			deallocateNode(root, allocator);
 		return removed;
 	}
 
@@ -352,9 +374,11 @@ struct TTree(T, bool allowDuplicates = false, alias less = "a < b",
 
 private:
 
-	import containers.internal.node : fatNodeCapacity, fullBits, shouldAddGCRange, shouldNullSlot;
 	import containers.internal.element_type : ContainerElementType;
+	import containers.internal.node : fatNodeCapacity, fullBits, shouldAddGCRange, shouldNullSlot;
+	import containers.internal.storage_type : ContainerStorageType;
 	import std.algorithm : sort;
+	import std.experimental.allocator.common : stateSize;
 	import std.functional: binaryFun;
 	import std.traits: isPointer, PointerTarget;
 
@@ -367,7 +391,7 @@ private:
 	else
 		alias _less = binaryFun!less;
 
-	static Node* allocateNode(Value value, Node* parent)
+	static Node* allocateNode(Value value, Node* parent, AllocatorType allocator)
 	out (result)
 	{
 		assert (result.left is null);
@@ -377,9 +401,11 @@ private:
 	{
 		import core.memory : GC;
 		import std.experimental.allocator : make;
-		import std.experimental.allocator.mallocator : Mallocator;
 
-		Node* n = make!Node(Mallocator.instance);
+		static if (stateSize!Allocator == 0)
+			Node* n = make!Node(Allocator.instance);
+		else
+			Node* n = make!Node(allocator);
 		n.parent = parent;
 		n.markUsed(0);
 		n.values[0] = cast(Value) value;
@@ -388,7 +414,7 @@ private:
 		return n;
 	}
 
-	static void deallocateNode(ref Node* n)
+	static void deallocateNode(ref Node* n, AllocatorType allocator)
 	in
 	{
 		assert (n !is null);
@@ -396,12 +422,19 @@ private:
 	body
 	{
 		import std.experimental.allocator : dispose;
-		import std.experimental.allocator.mallocator : Mallocator;
 		import core.memory : GC;
+
+		if (n.left !is null)
+			deallocateNode(n.left, allocator);
+		if (n.right !is null)
+			deallocateNode(n.right, allocator);
 
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(n);
-		dispose(Mallocator.instance, n);
+		static if (stateSize!Allocator == 0)
+			dispose(Allocator.instance, n);
+		else
+			dispose(allocator, n);
 		n = null;
 	}
 
@@ -409,14 +442,6 @@ private:
 	static assert (Node.sizeof <= cacheLineSize);
 	static struct Node
 	{
-		~this()
-		{
-			if (left !is null)
-				deallocateNode(left);
-			if (right !is null)
-				deallocateNode(right);
-		}
-
 		private size_t nextAvailableIndex() const nothrow pure
 		{
 			import core.bitop : bsf;
@@ -489,7 +514,7 @@ private:
 			return 0;
 		}
 
-		bool insert(T value, ref Node* root)
+		bool insert(T value, ref Node* root, AllocatorType allocator)
 		in
 		{
 			static if (isPointer!T || is (T == class))
@@ -519,13 +544,13 @@ private:
 			{
 				if (left is null)
 				{
-					left = allocateNode(cast(Value) value, &this);
+					left = allocateNode(cast(Value) value, &this, allocator);
 					calcHeight();
 					return true;
 				}
-				bool b = left.insert(value, root);
+				immutable bool b = left.insert(value, root, allocator);
 				if (imbalanced() == -1)
-					rotateRight(root);
+					rotateRight(root, allocator);
 				calcHeight();
 				return b;
 			}
@@ -533,13 +558,13 @@ private:
 			{
 				if (right is null)
 				{
-					right = allocateNode(value, &this);
+					right = allocateNode(value, &this, allocator);
 					calcHeight();
 					return true;
 				}
-				bool b = right.insert(value, root);
+				immutable bool b = right.insert(value, root, allocator);
 				if (imbalanced() == 1)
-					rotateLeft(root);
+					rotateLeft(root, allocator);
 				calcHeight();
 				return b;
 			}
@@ -553,48 +578,49 @@ private:
 			if (right is null)
 			{
 				values[] = temp[0 .. $ - 1];
-				right = allocateNode(temp[$ - 1], &this);
+				right = allocateNode(temp[$ - 1], &this, allocator);
 				return true;
 			}
 			if (left is null)
 			{
 				values[] = temp[1 .. $];
-				left = allocateNode(temp[0], &this);
+				left = allocateNode(temp[0], &this, allocator);
 				return true;
 			}
 			if (right.height < left.height)
 			{
 				values[] = temp[0 .. $ - 1];
-				bool b = right.insert(temp[$ - 1], root);
+				immutable bool b = right.insert(temp[$ - 1], root, allocator);
 				if (imbalanced() == 1)
-					rotateLeft(root);
+					rotateLeft(root, allocator);
 				calcHeight();
 				return b;
 			}
 			values[] = temp[1 .. $];
-			bool b = left.insert(temp[0], root);
+			immutable bool b = left.insert(temp[0], root, allocator);
 			if (imbalanced() == -1)
-				rotateRight(root);
+				rotateRight(root, allocator);
 			calcHeight();
 			return b;
 		}
 
-		bool remove(Value value, ref Node* n, void delegate(T) cleanup = null)
+		bool remove(Value value, ref Node* n, AllocatorType allocator,
+			void delegate(T) cleanup = null)
 		{
 			import std.range : assumeSorted;
 			assert (!isEmpty());
 			if (isFull() && _less(value, values[0]))
 			{
-				bool r = left !is null && left.remove(value, left, cleanup);
+				immutable bool r = left !is null && left.remove(value, left, allocator, cleanup);
 				if (left.isEmpty())
-					deallocateNode(left);
+					deallocateNode(left, allocator);
 				return r;
 			}
 			if (isFull() && _less(values[$ - 1], value))
 			{
-				bool r = right !is null && right.remove(value, right, cleanup);
+				immutable bool r = right !is null && right.remove(value, right, allocator, cleanup);
 				if (right.isEmpty())
-					deallocateNode(right);
+					deallocateNode(right, allocator);
 				return r;
 			}
 			size_t i = nextAvailableIndex();
@@ -620,9 +646,9 @@ private:
 				temp[0 .. l] = values[0 .. l];
 				temp[l .. $] = values[l + 1 .. $];
 				values[0 .. $ - 1] = temp[];
-				values[$ - 1] = right.removeSmallest();
+				values[$ - 1] = right.removeSmallest(allocator);
 				if (right.isEmpty())
-					deallocateNode(right);
+					deallocateNode(right, allocator);
 			}
 			else if (left !is null)
 			{
@@ -630,14 +656,14 @@ private:
 				temp[0 .. l] = values[0 .. l];
 				temp[l .. $] = values[l + 1 .. $];
 				values[1 .. $] = temp[];
-				values[0] = left.removeLargest();
+				values[0] = left.removeLargest(allocator);
 				if (left.isEmpty())
-					deallocateNode(left);
+					deallocateNode(left, allocator);
 			}
 			return true;
 		}
 
-		Value removeSmallest()
+		Value removeSmallest(AllocatorType allocator)
 		in
 		{
 			assert (!isEmpty());
@@ -655,22 +681,22 @@ private:
 			}
 			if (left !is null)
 			{
-				auto r = left.removeSmallest();
+				auto r = left.removeSmallest(allocator);
 				if (left.isEmpty())
-					deallocateNode(left);
+					deallocateNode(left, allocator);
 				return r;
 			}
 			Value r = values[0];
 			Value[nodeCapacity - 1] temp = void;
 			temp[] = values[1 .. $];
 			values[0 .. $ - 1] = temp[];
-			values[$ - 1] = right.removeSmallest();
+			values[$ - 1] = right.removeSmallest(allocator);
 			if (right.isEmpty())
-				deallocateNode(right);
+				deallocateNode(right, allocator);
 			return r;
 		}
 
-		Value removeLargest()
+		Value removeLargest(AllocatorType allocator)
 		in
 		{
 			assert (!isEmpty());
@@ -691,22 +717,22 @@ private:
 			}
 			if (right !is null)
 			{
-				auto r = right.removeLargest();
+				auto r = right.removeLargest(allocator);
 				if (right.isEmpty())
-					deallocateNode(right);
+					deallocateNode(right, allocator);
 				return r;
 			}
 			Value r = values[$ - 1];
 			Value[nodeCapacity - 1] temp = void;
 			temp[] = values[0 .. $ - 1];
 			values[1 .. $] = temp[];
-			values[0] = left.removeLargest();
+			values[0] = left.removeLargest(allocator);
 			if (left.isEmpty())
-				deallocateNode(left);
+				deallocateNode(left, allocator);
 			return r;
 		}
 
-		void rotateLeft(ref Node* root)
+		void rotateLeft(ref Node* root, AllocatorType allocator)
 		{
 			Node* newRoot = void;
 			if (right.left !is null && right.right is null)
@@ -731,10 +757,10 @@ private:
 				newRoot.left = &this;
 				this.parent = newRoot;
 			}
-			cleanup(newRoot, root);
+			cleanup(newRoot, root, allocator);
 		}
 
-		void rotateRight(ref Node* root)
+		void rotateRight(ref Node* root, AllocatorType allocator)
 		{
 			Node* newRoot = void;
 			if (left.right !is null && left.left is null)
@@ -759,10 +785,10 @@ private:
 				newRoot.right = &this;
 				this.parent = newRoot;
 			}
-			cleanup(newRoot, root);
+			cleanup(newRoot, root, allocator);
 		}
 
-		void cleanup(Node* newRoot, ref Node* root)
+		void cleanup(Node* newRoot, ref Node* root, AllocatorType allocator)
 		{
 			if (newRoot.parent !is null)
 			{
@@ -773,14 +799,14 @@ private:
 			}
 			else
 				root = newRoot;
-			newRoot.fillFromChildren(root);
+			newRoot.fillFromChildren(root, allocator);
 			if (newRoot.left !is null)
 			{
-				newRoot.left.fillFromChildren(root);
+				newRoot.left.fillFromChildren(root, allocator);
 			}
 			if (newRoot.right !is null)
 			{
-				newRoot.right.fillFromChildren(root);
+				newRoot.right.fillFromChildren(root, allocator);
 			}
 			if (newRoot.left !is null)
 				newRoot.left.calcHeight();
@@ -789,21 +815,21 @@ private:
 			newRoot.calcHeight();
 		}
 
-		void fillFromChildren(ref Node* root)
+		void fillFromChildren(ref Node* root, AllocatorType allocator)
 		{
 			while (!isFull())
 			{
 				if (left !is null)
 				{
-					insert(left.removeLargest(), root);
+					insert(left.removeLargest(allocator), root, allocator);
 					if (left.isEmpty())
-						deallocateNode(left);
+						deallocateNode(left, allocator);
 				}
 				else if (right !is null)
 				{
-					insert(right.removeSmallest(), root);
+					insert(right.removeSmallest(allocator), root, allocator);
 					if (right.isEmpty())
-						deallocateNode(right);
+						deallocateNode(right, allocator);
 				}
 				else
 					return;
@@ -838,6 +864,7 @@ private:
 		size_t registry = (cast(size_t) 1) << (size_t.sizeof * 4);
 	}
 
+	AllocatorType allocator;
 	size_t _length = 0;
 	Node* root = null;
 }
@@ -889,7 +916,7 @@ unittest
 	}
 
 	{
-		TTree!(int, true) kt;
+		TTree!(int, Mallocator, true) kt;
 		assert (kt.insert(1));
 		assert (kt.length == 1);
 		assert (kt.insert(1));
@@ -945,7 +972,7 @@ unittest
 	}
 
 	{
-		TTree!(string, true) strings;
+		TTree!(string, Mallocator, true) strings;
 		assert (strings.insert("b"));
 		assert (strings.insert("c"));
 		assert (strings.insert("a"));
@@ -972,7 +999,7 @@ unittest
 			}
 		}
 
-		TTree!(S*, true) stringTree;
+		TTree!(S*, Mallocator, true) stringTree;
 		auto one = S("offset");
 		stringTree.insert(&one);
 		auto two = S("object");
@@ -991,7 +1018,7 @@ unittest
 			int x;
 			int y;
 		}
-		TTree!(TestStruct*, false) tsTree;
+		TTree!(TestStruct*) tsTree;
 		static assert (isInputRange!(typeof(tsTree[])));
 		foreach (i; 0 .. 100)
 			assert(tsTree.insert(new TestStruct(i, i * 2)));
@@ -1062,7 +1089,7 @@ unittest
 			}
 		}
 
-		TTree!(ABC, true) tree;
+		TTree!(ABC, Mallocator, true) tree;
 		foreach (i; 0 .. 10)
 			tree.insert(ABC(i));
 		tree.insert(ABC(15));
@@ -1093,5 +1120,24 @@ unittest
 			assert(!ints3.equalRange(i).empty);
 		foreach (i; iota(0, 1_000_000).filter!(a => a % 2 == 1))
 			assert(ints3.equalRange(i).empty);
+	}
+
+	{
+		import std.experimental.allocator.building_blocks.free_list : FreeList;
+		import std.experimental.allocator.building_blocks.allocator_list : AllocatorList;
+		import std.experimental.allocator.building_blocks.region : Region;
+		import std.experimental.allocator.building_blocks.stats_collector : StatsCollector;
+		import std.stdio : stdout;
+
+		StatsCollector!(FreeList!(AllocatorList!(a => Region!(Mallocator)(1024 * 1024)),
+			64)) allocator;
+		{
+			auto ints4 = TTree!(int, typeof(&allocator))(&allocator);
+			foreach (i; 0 .. 10_000)
+				ints4.insert(i);
+			assert(walkLength(ints4[]) == 10_000);
+		}
+		assert(allocator.numAllocate == allocator.numDeallocate);
+		assert(allocator.bytesUsed == 0);
 	}
 }

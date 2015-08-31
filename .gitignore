@@ -8,3 +8,4 @@ perf.data
 doc/
 .dub/
 test/compile_test
+test/external_allocator_test

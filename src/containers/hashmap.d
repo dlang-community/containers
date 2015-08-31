@@ -7,8 +7,9 @@
 
 module containers.hashmap;
 
-import containers.internal.hash : generateHash;
-import containers.internal.node : shouldAddGCRange;
+private import containers.internal.hash : generateHash;
+private import containers.internal.node : shouldAddGCRange;
+private import std.experimental.allocator.mallocator : Mallocator;
 
 /**
  * Associative array / hash map.
@@ -17,34 +18,74 @@ import containers.internal.node : shouldAddGCRange;
  *     V = the value type
  *     hashFunction = the hash function to use on the keys
  */
-struct HashMap(K, V, alias hashFunction = generateHash!K,
+struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K,
 	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V)
 {
 	this(this) @disable;
 
-	/**
-	 * Constructs an HashMap with an initial bucket count of bucketCount. bucketCount
-	 * must be a power of two.
-	 */
-	this(size_t bucketCount)
-	in
+	private import std.experimental.allocator.common : stateSize;
+
+	static if (stateSize!Allocator != 0)
 	{
-		assert ((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
+		this() @disable;
+
+		/**
+		 * Use the given `allocator` for allocations.
+		 */
+		this(Allocator allocator)
+		in
+		{
+			assert(allocator !is null, "Allocator must not be null");
+		}
+		body
+		{
+			this.allocator = allocator;
+		}
+
+		/**
+		 * Constructs an HashMap with an initial bucket count of bucketCount. bucketCount
+		 * must be a power of two.
+		 */
+		this(size_t bucketCount, Allocator allocator)
+		in
+		{
+			assert(allocator !is null, "Allocator must not be null");
+			assert((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
+		}
+		body
+		{
+			this.allocator = allocator;
+			initialize(bucketCount);
+		}
+
+		invariant
+		{
+			assert(allocator !is null);
+		}
 	}
-	body
+	else
 	{
-		initialize(bucketCount);
+		/**
+		 * Constructs an HashMap with an initial bucket count of bucketCount. bucketCount
+		 * must be a power of two.
+		 */
+		this(size_t bucketCount)
+		in
+		{
+			assert((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
+		}
+		body
+		{
+			initialize(bucketCount);
+		}
 	}
 
 	~this()
 	{
-		import std.experimental.allocator.mallocator : Mallocator;
 		import std.experimental.allocator : dispose;
-		foreach (ref bucket; buckets)
-			typeid(typeof(bucket)).destroy(&bucket);
 		static if (supportGC)
 			GC.removeRange(buckets.ptr);
-		Mallocator.instance.dispose(buckets);
+		allocator.dispose(buckets);
 	}
 
 	/**
@@ -196,12 +237,12 @@ struct HashMap(K, V, alias hashFunction = generateHash!K,
 
 private:
 
-	import std.experimental.allocator.mallocator : Mallocator;
 	import std.experimental.allocator : make;
 	import std.traits : isBasicType;
 	import containers.unrolledlist : UnrolledList;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
+	import containers.internal.mixins : AllocatorState;
 	import core.memory : GC;
 
 	enum bool storeHash = !isBasicType!K;
@@ -209,14 +250,17 @@ private:
 	void initialize(size_t bucketCount = 4)
 	{
 		import std.conv : emplace;
-		import std.experimental.allocator.mallocator : Mallocator;
-		buckets = (cast(Bucket*) Mallocator.instance.allocate(
-			bucketCount * Bucket.sizeof))[0 .. bucketCount];
-		assert (buckets.length == bucketCount);
+
+		buckets = (cast(Bucket*) allocator.allocate(bucketCount * Bucket.sizeof))[0 .. bucketCount];
 		static if (supportGC)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		foreach (ref bucket; buckets)
-			emplace(&bucket);
+		{
+			static if (stateSize!Allocator == 0)
+				emplace(&bucket);
+			else
+				emplace(&bucket, allocator);
+		}
 	}
 
 	void insert(K key, V value)
@@ -267,19 +311,24 @@ private:
 	void rehash() @trusted
 	{
 //		import std.experimental.allocator : make, dispose;
-		import std.experimental.allocator.mallocator : Mallocator;
 		import std.conv : emplace;
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
 		assert (oldBuckets.ptr == buckets.ptr);
-		buckets = cast(Bucket[]) Mallocator.instance.allocate(newSize);
+		buckets = cast(Bucket[]) allocator.allocate(newSize);
 		static if (supportGC)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		assert (buckets);
 		assert (buckets.length == newLength);
 		foreach (ref bucket; buckets)
-			emplace(&bucket);
+		{
+			static if (stateSize!Allocator == 0)
+				emplace(&bucket);
+			else
+				emplace(&bucket, allocator);
+		}
+
 		foreach (ref bucket; oldBuckets)
 		{
 			foreach (node; bucket.range)
@@ -300,7 +349,7 @@ private:
 		}
 		static if (supportGC)
 			GC.removeRange(oldBuckets.ptr);
-		Mallocator.instance.deallocate(cast(void[]) oldBuckets);
+		allocator.deallocate(cast(void[]) oldBuckets);
 	}
 
 	size_t hashToIndex(size_t hash) const pure nothrow @safe @nogc
@@ -348,7 +397,8 @@ private:
 		ContainerStorageType!V value;
 	}
 
-	alias Bucket = UnrolledList!(Node, supportGC);
+	mixin AllocatorState!Allocator;
+	alias Bucket = UnrolledList!(Node, Allocator, supportGC);
 	Bucket[] buckets;
 	size_t _length;
 }

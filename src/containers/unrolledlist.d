@@ -7,6 +7,8 @@
 
 module containers.unrolledlist;
 
+private import std.experimental.allocator.mallocator : Mallocator;
+
 /**
  * Unrolled Linked List.
  *
@@ -20,9 +22,30 @@ module containers.unrolledlist;
  *         will be stored in this container.
  *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
  */
-struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
+struct UnrolledList(T, Allocator = Mallocator, bool supportGC = true, size_t cacheLineSize = 64)
 {
 	this(this) @disable;
+
+	private import std.experimental.allocator.common : stateSize;
+
+	static if (stateSize!Allocator != 0)
+	{
+		/// No default construction if an allocator must be provided.
+		this() @disable;
+
+		/**
+		 * Use the given `allocator` for allocations.
+		 */
+		this(Allocator allocator)
+		in
+		{
+			assert(allocator !is null);
+		}
+		body
+		{
+			this.allocator = allocator;
+		}
+	}
 
 	~this()
 	{
@@ -50,16 +73,6 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 				foreach (ref item; cur.items)
 					typeid(T).destroy(&item);
 			deallocateNode(prev);
-		}
-		debug (EMSI_CONTAINERS)
-		{
-			import std.string:format;
-			assert (allocCount == deallocCount, "
-	Nodes: %d
-	allocations: %d
-	deallocations: %d
-	nodeCapacity: %d
-	length: %d".format(nodeCount, allocCount, deallocCount, nodeCapacity, length));
 		}
 		_length = 0;
 	}
@@ -391,25 +404,20 @@ struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)
 private:
 
 	import std.experimental.allocator: make, dispose;
-	import std.experimental.allocator.mallocator : Mallocator;
 	import containers.internal.node : fatNodeCapacity, shouldAddGCRange,
 		fullBits, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
+	private import containers.internal.mixins : AllocatorState;
 
 	Node* _back;
 	Node* _front;
 	size_t _length;
-	debug (EMSI_CONTAINERS)
-	{
-		ulong allocCount;
-		ulong deallocCount;
-	}
+	mixin AllocatorState!Allocator;
 
 	Node* allocateNode(T item)
 	{
-		Node* n = Mallocator.instance.make!Node();
-		debug (EMSI_CONTAINERS) ++allocCount;
+		Node* n = allocator.make!Node();
 		static if (supportGC && shouldAddGCRange!T)
 		{
 			import core.memory: GC;
@@ -431,8 +439,7 @@ private:
 		if (_back is n)
 			_back = n.prev;
 
-		debug (EMSI_CONTAINERS) ++deallocCount;
-		Mallocator.instance.dispose(n);
+		allocator.dispose(n);
 		static if (supportGC && shouldAddGCRange!T)
 		{
 			import core.memory: GC;

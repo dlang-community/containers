@@ -7,16 +7,39 @@
 
 module containers.slist;
 
+private import std.experimental.allocator.mallocator : Mallocator;
+
 /**
  * Single-linked allocator-backed list.
  * Params:
  *     T = the element type
  *     A = the allocator type
  */
-struct SList(T)
+struct SList(T, Allocator = Mallocator)
 {
 	/// Disable copying.
 	this(this) @disable;
+
+	private import std.experimental.allocator.common : stateSize;
+
+	static if (stateSize!Allocator != 0)
+	{
+		/// No default construction if an allocator must be provided.
+		this() @disable;
+
+		/**
+		 * Use the given `allocator` for allocations.
+		 */
+		this(Allocator allocator)
+		in
+		{
+			assert(allocator !is null, "Allocator must not be null");
+		}
+		body
+		{
+			this.allocator = allocator;
+		}
+	}
 
 	~this()
 	{
@@ -32,7 +55,7 @@ struct SList(T)
 				import core.memory : GC;
 				GC.removeRange(prev);
 			}
-			Mallocator.instance.dispose(prev);
+			allocator.dispose(prev);
 		}
 		_front = null;
 	}
@@ -69,7 +92,7 @@ struct SList(T)
 			import core.memory : GC;
 			GC.removeRange(f);
 		}
-		Mallocator.instance.dispose(f);
+		allocator.dispose(f);
 		--_length;
 		return r;
 	}
@@ -86,7 +109,7 @@ struct SList(T)
 			import core.memory : GC;
 			GC.removeRange(f);
 		}
-		Mallocator.instance.dispose(f);
+		allocator.dispose(f);
 		--_length;
 	}
 
@@ -112,7 +135,7 @@ struct SList(T)
 	 */
 	void insert(T t) @trusted
 	{
-		_front = Mallocator.instance.make!Node(_front, t);
+		_front = allocator.make!Node(_front, t);
 		static if (shouldAddGCRange!T)
 		{
 			import core.memory : GC;
@@ -154,7 +177,7 @@ struct SList(T)
 					import core.memory : GC;
 					GC.removeRange(cur);
 				}
-				Mallocator.instance.dispose(cur);
+				allocator.dispose(cur);
 				_length--;
 				return true;
 			}
@@ -191,7 +214,7 @@ struct SList(T)
 				import core.memory : GC;
 				GC.removeRange(prev);
 			}
-			Mallocator.instance.dispose(prev);
+			allocator.dispose(prev);
 		}
 		_front = null;
 		_length = 0;
@@ -200,9 +223,9 @@ struct SList(T)
 private:
 
 	import std.experimental.allocator : make, dispose;
-	import std.experimental.allocator.mallocator : Mallocator;
 	import containers.internal.node : shouldAddGCRange;
 	import containers.internal.element_type : ContainerElementType;
+	import containers.internal.mixins : AllocatorState;
 
 	static struct Range(ThisT)
 	{
@@ -233,8 +256,8 @@ private:
 		T value;
 	}
 
+	mixin AllocatorState!Allocator;
 	Node* _front;
-
 	size_t _length;
 }
 

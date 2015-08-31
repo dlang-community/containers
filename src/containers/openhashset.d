@@ -6,8 +6,10 @@
  */
 module containers.openhashset;
 
-import containers.internal.hash : generateHash;
-import containers.internal.node : shouldAddGCRange;
+private import containers.internal.hash : generateHash;
+private import containers.internal.node : shouldAddGCRange;
+private import std.experimental.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.common : stateSize;
 
 /**
  * Simple open-addressed hash set. Use this instead of HashSet when the size and
@@ -20,36 +22,73 @@ import containers.internal.node : shouldAddGCRange;
  *         to ensure that the GC does not accidentally free memory owned by this
  *         container.
  */
-struct OpenHashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAddGCRange!T)
+struct OpenHashSet(T, Allocator = Mallocator,
+	alias hashFunction = generateHash!T, bool supportGC = shouldAddGCRange!T)
 {
 	/**
 	 * Disallow copy construction
 	 */
 	this(this) @disable;
 
-	/**
-	 * Initializes the hash set with the given initial capacity.
-	 *
-	 * Params:
-	 *     initialCapacity = the initial capacity for the hash set
-	 */
-	this(size_t initialCapacity)
-	in
+	static if (stateSize!Allocator != 0)
 	{
-		assert ((initialCapacity & initialCapacity - 1) == 0, "initialCapacity must be a power of 2");
+		this() @disable;
+
+		/**
+		 * Use the given `allocator` for allocations.
+		 */
+		this(Allocator allocator)
+		in
+		{
+			assert(allocator !is null, "Allocator must not be null");
+		}
+		body
+		{
+			this.allocator = allocator;
+		}
+
+		/**
+		 * Initializes the hash set with the given initial capacity.
+		 *
+		 * Params:
+		 *     initialCapacity = the initial capacity for the hash set
+		 */
+		this(size_t initialCapacity, Allocator allocator)
+		in
+		{
+			assert(allocator !is null, "Allocator must not be null");
+			assert ((initialCapacity & initialCapacity - 1) == 0, "initialCapacity must be a power of 2");
+		}
+		body
+		{
+			this.allocator = allocator;
+			initialize(initialCapacity);
+		}
 	}
-	body
+	else
 	{
-		initialize(initialCapacity);
+		/**
+		 * Initializes the hash set with the given initial capacity.
+		 *
+		 * Params:
+		 *     initialCapacity = the initial capacity for the hash set
+		 */
+		this(size_t initialCapacity)
+		in
+		{
+			assert ((initialCapacity & initialCapacity - 1) == 0, "initialCapacity must be a power of 2");
+		}
+		body
+		{
+			initialize(initialCapacity);
+		}
 	}
 
 	~this()
 	{
-		foreach (ref node; nodes)
-			typeid(typeof(node)).destroy(&node);
 		static if (supportGC)
 			GC.removeRange(nodes.ptr);
-		Mallocator.instance.deallocate(nodes);
+		allocator.deallocate(nodes);
 	}
 
 	/**
@@ -168,7 +207,7 @@ private:
 
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
-	import std.experimental.allocator.mallocator : Mallocator;
+	import containers.internal.mixins : AllocatorState;
 	import core.memory : GC;
 
 	enum DEFAULT_INITIAL_CAPACITY = 8;
@@ -214,7 +253,7 @@ private:
 	void grow()
 	{
 		immutable size_t newCapacity = nodes.length << 1;
-		Node[] newNodes = (cast (Node*) Mallocator.instance.allocate(newCapacity * Node.sizeof))
+		Node[] newNodes = (cast (Node*) allocator.allocate(newCapacity * Node.sizeof))
 			[0 .. newCapacity];
 		newNodes[] = Node.init;
 		static if (supportGC)
@@ -226,21 +265,20 @@ private:
 		}
 		static if (supportGC)
 			GC.removeRange(nodes.ptr);
-		Mallocator.instance.deallocate(nodes);
+		allocator.deallocate(nodes);
 		nodes = newNodes;
 	}
 
 	void initialize(size_t nodeCount)
 	{
-		nodes = (cast (Node*) Mallocator.instance.allocate(nodeCount * Node.sizeof))
-			[0 .. nodeCount];
+		nodes = (cast (Node*) allocator.allocate(nodeCount * Node.sizeof))[0 .. nodeCount];
 		nodes[] = Node.init;
 		_length = 0;
 	}
 
 	/**
 	 * Returns:
-	 *     size_t.max if the
+	 *     size_t.max if the item was not found
 	 */
 	static size_t toIndex(const Node[] n, T item, size_t hash) nothrow @safe
 	{
@@ -258,6 +296,7 @@ private:
 
 	Node[] nodes;
 	size_t _length;
+	mixin AllocatorState!Allocator;
 
 	struct Node
 	{
