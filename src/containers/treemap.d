@@ -7,8 +7,8 @@
 
 module containers.treemap;
 
-import std.experimental.allocator.mallocator : Mallocator;
-import std.experimental.allocator.common : stateSize;
+private import std.experimental.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.common : stateSize;
 
 /**
  * A key→value mapping where the keys are guaranteed to be sorted.
@@ -27,6 +27,9 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 
 	static if (stateSize!Allocator != 0)
 	{
+		/// No default construction if an allocator must be provided.
+		this() @disable;
+
 		/**
 		 * Use the given `allocator` for allocations.
 		 */
@@ -143,11 +146,12 @@ unittest
 
 	StatsCollector!(FreeList!(AllocatorList!(a => Region!(Mallocator)(1024 * 1024)),
 		64)) allocator;
-	auto intMap = TreeMap!(int, int, typeof(&allocator))(&allocator);
-	foreach (i; 0 .. 10_000)
-		intMap[i] = 10_000 - i;
-	assert(intMap.length == 10_000);
-	destroy(intMap);
+	{
+		auto intMap = TreeMap!(int, int, typeof(&allocator))(&allocator);
+		foreach (i; 0 .. 10_000)
+			intMap[i] = 10_000 - i;
+		assert(intMap.length == 10_000);
+	}
 	assert(allocator.numAllocate == allocator.numDeallocate);
 	assert(allocator.bytesUsed == 0);
 }

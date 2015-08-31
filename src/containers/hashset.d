@@ -7,8 +7,10 @@
 
 module containers.hashset;
 
-import containers.internal.hash : generateHash;
-import containers.internal.node : shouldAddGCRange;
+private import containers.internal.hash : generateHash;
+private import containers.internal.node : shouldAddGCRange;
+private import std.experimental.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.common : stateSize;
 
 /**
  * Hash Set.
@@ -16,32 +18,68 @@ import containers.internal.node : shouldAddGCRange;
  *     T = the element type
  *     hashFunction = the hash function to use on the elements
  */
-struct HashSet(T, alias hashFunction = generateHash!T, bool supportGC = shouldAddGCRange!T)
+struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
+	bool supportGC = shouldAddGCRange!T)
 {
 	this(this) @disable;
 
-	/**
-	 * Constructs a HashSet with an initial bucket count of bucketCount.
-	 * bucketCount must be a power of two.
-	 */
-	this(size_t bucketCount)
-	in
+	static if (stateSize!Allocator != 0)
 	{
-		assert ((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
+		/// No default construction if an allocator must be provided.
+		this() @disable;
+
+		/**
+		 * Use the given `allocator` for allocations.
+		 */
+		this(Allocator allocator)
+		in
+		{
+			assert(allocator !is null, "Allocator must not be null");
+		}
+		body
+		{
+			this.allocator = allocator;
+		}
+		/**
+		 * Constructs a HashSet with an initial bucket count of bucketCount.
+		 * bucketCount must be a power of two.
+		 */
+		this(size_t bucketCount, Allocator allocator)
+		in
+		{
+			assert(allocator !is null, "Allocator must not be null");
+			assert ((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
+		}
+		body
+		{
+			initialize(bucketCount);
+		}
 	}
-	body
+	else
 	{
-		initialize(bucketCount);
+		/**
+		 * Constructs a HashSet with an initial bucket count of bucketCount.
+		 * bucketCount must be a power of two.
+		 */
+		this(size_t bucketCount)
+		in
+		{
+			assert ((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
+		}
+		body
+		{
+			initialize(bucketCount);
+		}
+
 	}
 
 	~this()
 	{
-		import std.experimental.allocator.mallocator : Mallocator;
 		import std.experimental.allocator : dispose;
 		import core.memory : GC;
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(buckets.ptr);
-		Mallocator.instance.dispose(buckets);
+		allocator.dispose(buckets);
 	}
 
 	/**
@@ -162,10 +200,9 @@ private:
 	void initialize(size_t bucketCount)
 	{
 		import std.experimental.allocator : makeArray;
-		import std.experimental.allocator.mallocator : Mallocator;
 		import core.memory : GC;
 
-		buckets = Mallocator.instance.makeArray!Bucket(bucketCount);
+		makeBuckets(bucketCount);
 		static if (supportGC && shouldAddGCRange!T)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 	}
@@ -232,6 +269,22 @@ private:
 		size_t nodeIndex;
 	}
 
+	void makeBuckets(size_t bucketCount)
+	{
+		import std.experimental.allocator : makeArray;
+
+		static if (stateSize!Allocator == 0)
+			buckets = allocator.makeArray!Bucket(bucketCount);
+		else
+		{
+			import std.conv:emplace;
+
+			buckets = cast(Bucket[]) allocator.allocate(Bucket.sizeof * bucketCount);
+			foreach (ref bucket; buckets)
+				emplace!Bucket(&bucket, allocator);
+		}
+	}
+
 	bool shouldRehash() const pure nothrow @safe @nogc
 	{
 		immutable float numberOfNodes = cast(float) _length / cast(float) ITEMS_PER_NODE;
@@ -241,12 +294,11 @@ private:
 	void rehash() @trusted
 	{
 		import std.experimental.allocator : makeArray, dispose;
-		import std.experimental.allocator.mallocator : Mallocator;
 		import core.memory : GC;
 
 		immutable size_t newLength = buckets.length << 1;
 		Bucket[] oldBuckets = buckets;
-		buckets = Mallocator.instance.makeArray!Bucket(newLength);
+		makeBuckets(newLength);
 		assert (buckets);
 		assert (buckets.length == newLength);
 		static if (supportGC && shouldAddGCRange!T)
@@ -274,7 +326,7 @@ private:
 		}
 		static if (supportGC && shouldAddGCRange!T)
 			GC.removeRange(oldBuckets.ptr);
-		Mallocator.instance.dispose(oldBuckets);
+		allocator.dispose(oldBuckets);
 	}
 
 	size_t hashToIndex(hash_t hash) const pure nothrow @safe
@@ -296,17 +348,25 @@ private:
 	{
 		this(this) @disable;
 
+		static if (stateSize!Allocator != 0)
+		{
+			this(Allocator allocator)
+			{
+				this.allocator = allocator;
+			}
+			this() @disable;
+		}
+
 		~this()
 		{
 			import std.experimental.allocator : dispose;
-			import std.experimental.allocator.mallocator : Mallocator;
 
 			BucketNode* current = root;
 			BucketNode* previous;
 			while (true)
 			{
 				if (previous !is null)
-					Mallocator.instance.dispose(previous);
+					allocator.dispose(previous);
 				previous = current;
 				if (current is null)
 					break;
@@ -394,7 +454,6 @@ private:
 		bool insert(ItemNode n)
 		{
 			import std.experimental.allocator : make;
-			import std.experimental.allocator.mallocator : Mallocator;
 
 			for (BucketNode* current = root; current !is null; current = current.next)
 			{
@@ -406,7 +465,7 @@ private:
 					return true;
 				}
 			}
-			BucketNode* newNode = Mallocator.instance.make!BucketNode();
+			BucketNode* newNode = allocator.make!BucketNode();
 			newNode.insert(n);
 			newNode.next = root;
 			root = newNode;
@@ -416,7 +475,6 @@ private:
 		bool remove(ItemNode n)
 		{
 			import std.experimental.allocator : dispose;
-			import std.experimental.allocator.mallocator : Mallocator;
 
 			BucketNode* current = root;
 			BucketNode* previous;
@@ -431,7 +489,7 @@ private:
 							previous.next = current.next;
 						else
 							root = current.next;
-						Mallocator.instance.dispose(current);
+						allocator.dispose(current);
 					}
 					return true;
 				}
@@ -456,6 +514,11 @@ private:
 		}
 
 		BucketNode* root;
+
+		static if (stateSize!Allocator == 0)
+			alias allocator = Allocator.instance;
+		else
+			Allocator allocator;
 	}
 
 	static struct ItemNode
@@ -483,6 +546,11 @@ private:
 			hash_t hash;
 		ContainerStorageType!T value;
 	}
+
+	static if (stateSize!Allocator == 0)
+		alias allocator = Allocator.instance;
+	else
+		Allocator allocator;
 
 	Bucket[] buckets;
 	size_t _length;
@@ -561,7 +629,7 @@ unittest
 		int b;
 	}
 
-	HashSet!(AStruct*, a => a.a) fred;
+	HashSet!(AStruct*, Mallocator, a => a.a) fred;
 	fred.insert(new AStruct(10, 10));
 	auto h = new AStruct(10, 10);
 	assert(h in fred);

@@ -6,6 +6,9 @@
  */
 module containers.simdset;
 
+private import std.experimental.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.common : stateSize;
+
 /**
  * Set implementation that is well suited for small sets and simple items.
  *
@@ -15,14 +18,33 @@ module containers.simdset;
  * Note: Only works on x86_64. Does NOT add GC ranges. Do not store pointers in
  * this container unless they are also stored somewhere else.
  */
-version (D_InlineAsm_X86_64) struct SimdSet(T) if (T.sizeof == 1
-	|| T.sizeof == 2 || T.sizeof == 4 || T.sizeof == 8)
+version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
+	if (T.sizeof == 1 || T.sizeof == 2 || T.sizeof == 4 || T.sizeof == 8)
 {
 	this(this) @disable;
 
+	static if (stateSize!Allocator != 0)
+	{
+		/// No default construction if an allocator must be provided.
+		this() @disable;
+
+		/**
+		 * Use the given `allocator` for allocations.
+		 */
+		this(Allocator allocator)
+		in
+		{
+			assert(allocator !is null, "Allocator must not be null");
+		}
+		body
+		{
+			this.allocator = allocator;
+		}
+	}
+
 	~this()
 	{
-		free(cast(void*) storage.ptr);
+		allocator.deallocate(cast(void[]) storage);
 	}
 
 	/**
@@ -74,7 +96,9 @@ version (D_InlineAsm_X86_64) struct SimdSet(T) if (T.sizeof == 1
 		{
 			immutable size_t cl = (storage.length * T.sizeof);
 			immutable size_t nl = cl + 16;
-			storage = (cast(T*) realloc(storage.ptr, nl))[0 .. nl / T.sizeof];
+			void[] a = cast(void[]) storage;
+			allocator.reallocate(a, nl);
+			storage = cast(typeof(storage)) a;
 			storage[_length] = item;
 		}
 		_length++;
@@ -105,6 +129,15 @@ version (D_InlineAsm_X86_64) struct SimdSet(T) if (T.sizeof == 1
 	}
 
 	/**
+	 * Slice operator
+	 */
+	auto opSlice(this This)()
+	{
+		import containers.internal.element_type : ContainerElementType;
+		return cast(ContainerElementType!(This, T)[]) storage[0 .. _length];
+	}
+
+	/**
 	 * Returns:
 	 *     the number of items in the set
 	 */
@@ -119,6 +152,8 @@ version (D_InlineAsm_X86_64) struct SimdSet(T) if (T.sizeof == 1
 	}
 
 private:
+
+	import containers.internal.storage_type : ContainerStorageType;
 
 	static string asmSearch()
 	{
@@ -171,7 +206,12 @@ private:
 		}`.format(instruction);
 	}
 
-	T[] storage;
+	static if (stateSize!Allocator == 0)
+		alias allocator = Allocator.instance;
+	else
+		Allocator allocator;
+
+	ContainerStorageType!(T)[] storage;
 	size_t _length;
 }
 
@@ -224,6 +264,3 @@ version (D_InlineAsm_X86_64) struct SimdSet(T) if (!(T.sizeof == 1
 	static assert (false, ("Cannot instantiate SimdSet of type %s because its size "
 		~ "(%d) does not fit evenly into XMM registers.").format(T.stringof, T.sizeof));
 }
-
-private extern (C) void* realloc(void*, size_t);
-private extern (C) void free(void*);

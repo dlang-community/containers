@@ -3,12 +3,17 @@
 SRC=$(shell find ../src/ -name "*.d") $(shell find ../experimental_allocator -name "*.d")
 FLAGS=-unittest -main -g -cov -I../src/ -debug -wi
 
-test: compile_test
+test: compile_test external_allocator_test
 	dmd $(FLAGS) $(SRC) -oftests
 	./tests
+	./compile_test
+	./external_allocator_test
 
-compile_test:
+compile_test: compile_test.d
 	dmd $(FLAGS) compile_test.d $(SRC) -ofcompile_test
+
+external_allocator_test: external_allocator_test.d
+	dmd $(FLAGS) external_allocator_test.d $(SRC) -ofexternal_allocator_test
 
 looptest: looptest.d
 	dmd looptest.d -inline -O -release \

@@ -7,6 +7,9 @@
 
 module containers.dynamicarray;
 
+private import std.experimental.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.common : stateSize;
+
 /**
  * Array that is able to grow itself when items are appended to it. Uses
  * malloc/free/realloc to manage its storage.
@@ -16,10 +19,29 @@ module containers.dynamicarray;
  *     supportGC = true if the container should support holding references to
  *         GC-allocated memory.
  */
-struct DynamicArray(T, bool supportGC = true)
+struct DynamicArray(T, Allocator = Mallocator, bool supportGC = true)
 {
 	import std.traits : hasMember;
 	this(this) @disable;
+
+	static if (stateSize!Allocator != 0)
+	{
+		/// No default construction if an allocator must be provided.
+		this() @disable;
+
+		/**
+		 * Use the given `allocator` for allocations.
+		 */
+		this(Allocator allocator)
+		in
+		{
+			assert(allocator !is null, "Allocator must not be null");
+		}
+		body
+		{
+			this.allocator = allocator;
+		}
+	}
 
 	~this()
 	{
@@ -40,25 +62,28 @@ struct DynamicArray(T, bool supportGC = true)
 			import core.memory : GC;
 			GC.removeRange(arr.ptr);
 		}
-		Mallocator.instance.deallocate(arr);
+		allocator.deallocate(arr);
 	}
 
 	/// Slice operator overload
-	T[] opSlice() @nogc
+	auto opSlice(this This)() @nogc
 	{
-		return arr[0 .. l];
+		alias ET = ContainerElementType!(This, T);
+		return cast(ET[]) arr[0 .. l];
 	}
 
 	/// ditto
-	T[] opSlice(size_t a, size_t b) @nogc
+	auto opSlice(this This)(size_t a, size_t b) @nogc
 	{
-		return arr[a .. b];
+		alias ET = ContainerElementType!(This, T);
+		return cast(ET[]) arr[a .. b];
 	}
 
 	/// Index operator overload
-	T opIndex(size_t i) @nogc
+	auto opIndex(this This)(size_t i) @nogc
 	{
-		return arr[i];
+		alias ET = ContainerElementType!(This, T);
+		return cast(ET) arr[i];
 	}
 
 	/**
@@ -71,7 +96,7 @@ struct DynamicArray(T, bool supportGC = true)
 
 		if (arr.length == 0)
 		{
-			arr = cast(T[]) Mallocator.instance.allocate(T.sizeof * 4);
+			arr = cast(typeof(arr)) allocator.allocate(T.sizeof * 4);
 			static if (supportGC && shouldAddGCRange!T)
 			{
 				import core.memory: GC;
@@ -82,8 +107,8 @@ struct DynamicArray(T, bool supportGC = true)
 		{
 			immutable size_t c = arr.length > 512 ? arr.length + 1024 : arr.length << 1;
 			void[] a = cast(void[]) arr;
-			Mallocator.instance.reallocate(a, c * T.sizeof);
-			arr = cast(T[]) a;
+			allocator.reallocate(a, c * T.sizeof);
+			arr = cast(typeof(arr)) a;
 			static if (supportGC && shouldAddGCRange!T)
 			{
 				import core.memory: GC;
@@ -149,11 +174,23 @@ struct DynamicArray(T, bool supportGC = true)
 	 * As the memory of the array may be freed, access to this array is
 	 * highly unsafe.
 	 */
-	@property T* ptr() @nogc { return arr.ptr; }
+	auto ptr(this This)() @nogc @property
+	{
+		alias ET = ContainerElementType!(This, T);
+		return cast(ET*) arr.ptr;
+	}
 
 private:
 
-	T[] arr;
+	import containers.internal.storage_type : ContainerStorageType;
+	import containers.internal.element_type : ContainerElementType;
+
+	static if (stateSize!Allocator == 0)
+		alias allocator = Allocator.instance;
+	else
+		Allocator allocator;
+
+	ContainerStorageType!(T)[] arr;
 	size_t l;
 }
 
@@ -254,7 +291,7 @@ unittest
 unittest
 {
 	int a = 0;
-	DynamicArray!(Cls,true) arr;
+	DynamicArray!(Cls, Mallocator, true) arr;
 	arr.insert(new Cls(&a));
 
 	arr.remove(0);
@@ -263,6 +300,6 @@ unittest
 
 unittest
 {
-	DynamicArray!(int*,true) arr;
+	DynamicArray!(int*, Mallocator, true) arr;
 	arr.insert(new int(1));
 }

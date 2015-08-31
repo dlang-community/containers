@@ -1,11 +1,12 @@
+import containers.dynamicarray;
 import containers.hashmap;
 import containers.hashset;
-import containers.unrolledlist;
 import containers.openhashset;
 import containers.simdset;
 import containers.slist;
 import containers.treemap;
 import containers.ttree;
+import containers.unrolledlist;
 
 private void testContainerSingle(alias Container)()
 {
@@ -221,6 +222,8 @@ private void testContainerDoubleRef(alias Container)()
 
 private void checkSliceFunctionality(Type, Container)(ref Container container)
 {
+	import std.array : front;
+
 	auto r = container[];
 	static assert(is(typeof(r.front()) == Type));
 	static assert(is(typeof(container.length) == size_t));
@@ -229,7 +232,7 @@ private void checkSliceFunctionality(Type, Container)(ref Container container)
 
 private void checkIndexFunctionality(Type, KeyType, Container)(ref Container container)
 {
-	auto v = container[KeyType.init];
+	static assert(__traits(compiles, {container[KeyType.init];}));
 	static assert(is(typeof(container[KeyType.init]) == Type));
 	static assert(is(typeof(container.length) == size_t));
 	assert(container.length == 0);
@@ -243,7 +246,8 @@ unittest
 	testContainerSingle!(HashSet)();
 	testContainerSingle!(UnrolledList)();
 	testContainerSingle!(OpenHashSet)();
-//	testContainerSingle!(SimdSet)();
+	testContainerSingle!(SimdSet)();
 	testContainerSingle!(SList)();
 	testContainerSingle!(TTree)();
+	testContainerSingle!(DynamicArray)();
 }

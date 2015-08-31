@@ -7,8 +7,8 @@
 
 module containers.ttree;
 
-import std.experimental.allocator.mallocator : Mallocator;
-import std.range : ElementType, isInputRange;
+private import std.experimental.allocator.mallocator : Mallocator;
+private import std.range : ElementType, isInputRange;
 
 /**
  * Implements a binary search tree with multiple items per tree node.
@@ -34,10 +34,18 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 	static if (stateSize!Allocator != 0)
 	{
+		/// No default construction if an allocator must be provided.
+		this() @disable;
+
 		/**
 		 * Use `allocator` to allocate and free nodes in the tree.
 		 */
 		this(Allocator allocator)
+		in
+		{
+			assert(allocator !is null, "Allocator must not be null");
+		}
+		body
 		{
 			this.allocator = allocator;
 		}
@@ -1123,11 +1131,12 @@ unittest
 
 		StatsCollector!(FreeList!(AllocatorList!(a => Region!(Mallocator)(1024 * 1024)),
 			64)) allocator;
-		auto ints4 = TTree!(int, typeof(&allocator))(&allocator);
-		foreach (i; 0 .. 10_000)
-			ints4.insert(i);
-		assert(walkLength(ints4[]) == 10_000);
-		destroy(ints4);
+		{
+			auto ints4 = TTree!(int, typeof(&allocator))(&allocator);
+			foreach (i; 0 .. 10_000)
+				ints4.insert(i);
+			assert(walkLength(ints4[]) == 10_000);
+		}
 		assert(allocator.numAllocate == allocator.numDeallocate);
 		assert(allocator.bytesUsed == 0);
 	}
