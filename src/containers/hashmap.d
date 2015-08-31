@@ -10,7 +10,6 @@ module containers.hashmap;
 private import containers.internal.hash : generateHash;
 private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
-private import std.experimental.allocator.common : stateSize;
 
 /**
  * Associative array / hash map.
@@ -24,9 +23,10 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 {
 	this(this) @disable;
 
+	private import std.experimental.allocator.common : stateSize;
+
 	static if (stateSize!Allocator != 0)
 	{
-		/// No default construction if an allocator must be provided.
 		this() @disable;
 
 		/**
@@ -242,6 +242,7 @@ private:
 	import containers.unrolledlist : UnrolledList;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
+	import containers.internal.mixins : AllocatorState;
 	import core.memory : GC;
 
 	enum bool storeHash = !isBasicType!K;
@@ -396,11 +397,7 @@ private:
 		ContainerStorageType!V value;
 	}
 
-	static if (stateSize!Allocator == 0)
-		alias allocator = Allocator.instance;
-	else
-		Allocator allocator;
-
+	mixin AllocatorState!Allocator;
 	alias Bucket = UnrolledList!(Node, Allocator, supportGC);
 	Bucket[] buckets;
 	size_t _length;

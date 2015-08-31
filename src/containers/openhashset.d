@@ -32,7 +32,6 @@ struct OpenHashSet(T, Allocator = Mallocator,
 
 	static if (stateSize!Allocator != 0)
 	{
-		/// No default construction if an allocator must be provided.
 		this() @disable;
 
 		/**
@@ -208,6 +207,7 @@ private:
 
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
+	import containers.internal.mixins : AllocatorState;
 	import core.memory : GC;
 
 	enum DEFAULT_INITIAL_CAPACITY = 8;
@@ -278,7 +278,7 @@ private:
 
 	/**
 	 * Returns:
-	 *     size_t.max if the
+	 *     size_t.max if the item was not found
 	 */
 	static size_t toIndex(const Node[] n, T item, size_t hash) nothrow @safe
 	{
@@ -296,11 +296,7 @@ private:
 
 	Node[] nodes;
 	size_t _length;
-
-	static if (stateSize!Allocator == 0)
-		alias allocator = Allocator.instance;
-	else
-		Allocator allocator;
+	mixin AllocatorState!Allocator;
 
 	struct Node
 	{

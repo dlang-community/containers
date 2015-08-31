@@ -10,7 +10,6 @@ module containers.hashset;
 private import containers.internal.hash : generateHash;
 private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
-private import std.experimental.allocator.common : stateSize;
 
 /**
  * Hash Set.
@@ -23,9 +22,10 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 {
 	this(this) @disable;
 
+	private import std.experimental.allocator.common : stateSize;
+
 	static if (stateSize!Allocator != 0)
 	{
-		/// No default construction if an allocator must be provided.
 		this() @disable;
 
 		/**
@@ -40,6 +40,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 		{
 			this.allocator = allocator;
 		}
+
 		/**
 		 * Constructs a HashSet with an initial bucket count of bucketCount.
 		 * bucketCount must be a power of two.
@@ -190,6 +191,7 @@ private:
 	import containers.internal.node : shouldAddGCRange, fatNodeCapacity;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
+	import containers.internal.mixins : AllocatorState;
 	import containers.unrolledlist : UnrolledList;
 	import std.traits : isBasicType, isPointer;
 
@@ -514,11 +516,7 @@ private:
 		}
 
 		BucketNode* root;
-
-		static if (stateSize!Allocator == 0)
-			alias allocator = Allocator.instance;
-		else
-			Allocator allocator;
+		mixin AllocatorState!Allocator;
 	}
 
 	static struct ItemNode
@@ -547,11 +545,7 @@ private:
 		ContainerStorageType!T value;
 	}
 
-	static if (stateSize!Allocator == 0)
-		alias allocator = Allocator.instance;
-	else
-		Allocator allocator;
-
+	mixin AllocatorState!Allocator;
 	Bucket[] buckets;
 	size_t _length;
 }

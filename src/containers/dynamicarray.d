@@ -8,7 +8,6 @@
 module containers.dynamicarray;
 
 private import std.experimental.allocator.mallocator : Mallocator;
-private import std.experimental.allocator.common : stateSize;
 
 /**
  * Array that is able to grow itself when items are appended to it. Uses
@@ -21,8 +20,9 @@ private import std.experimental.allocator.common : stateSize;
  */
 struct DynamicArray(T, Allocator = Mallocator, bool supportGC = true)
 {
-	import std.traits : hasMember;
 	this(this) @disable;
+
+	private import std.experimental.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{
@@ -185,12 +185,9 @@ private:
 
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
+	private import containers.internal.mixins : AllocatorState;
 
-	static if (stateSize!Allocator == 0)
-		alias allocator = Allocator.instance;
-	else
-		Allocator allocator;
-
+	mixin AllocatorState!Allocator;
 	ContainerStorageType!(T)[] arr;
 	size_t l;
 }

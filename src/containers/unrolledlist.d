@@ -8,7 +8,6 @@
 module containers.unrolledlist;
 
 private import std.experimental.allocator.mallocator : Mallocator;
-private import std.experimental.allocator.common : stateSize;
 
 /**
  * Unrolled Linked List.
@@ -26,6 +25,8 @@ private import std.experimental.allocator.common : stateSize;
 struct UnrolledList(T, Allocator = Mallocator, bool supportGC = true, size_t cacheLineSize = 64)
 {
 	this(this) @disable;
+
+	private import std.experimental.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{
@@ -407,15 +408,12 @@ private:
 		fullBits, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
+	private import containers.internal.mixins : AllocatorState;
 
 	Node* _back;
 	Node* _front;
 	size_t _length;
-
-	static if (stateSize!Allocator == 0)
-		alias allocator = Allocator.instance;
-	else
-		Allocator allocator;
+	mixin AllocatorState!Allocator;
 
 	Node* allocateNode(T item)
 	{
