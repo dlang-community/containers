@@ -66,13 +66,14 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = true)
 	}
 
 	/// Slice operator overload
+	pragma(inline, true)
 	auto opSlice(this This)() @nogc
 	{
-		alias ET = ContainerElementType!(This, T);
-		return cast(ET[]) arr[0 .. l];
+		return opSlice!(This)(0, l);
 	}
 
 	/// ditto
+	pragma(inline, true)
 	auto opSlice(this This)(size_t a, size_t b) @nogc
 	{
 		alias ET = ContainerElementType!(This, T);
@@ -80,10 +81,10 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = true)
 	}
 
 	/// Index operator overload
+	pragma(inline, true)
 	auto opIndex(this This)(size_t i) @nogc
 	{
-		alias ET = ContainerElementType!(This, T);
-		return cast(ET) arr[i];
+		return opSlice!(This)(i, i + 1)[0];
 	}
 
 	/**
