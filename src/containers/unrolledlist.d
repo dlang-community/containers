@@ -7,6 +7,7 @@
 
 module containers.unrolledlist;
 
+private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
 
 /**
@@ -23,7 +24,8 @@ private import std.experimental.allocator.mallocator : Mallocator;
  *         will be stored in this container.
  *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
  */
-struct UnrolledList(T, Allocator = Mallocator, bool supportGC = true, size_t cacheLineSize = 64)
+struct UnrolledList(T, Allocator = Mallocator,
+	bool supportGC = shouldAddGCRange!T, size_t cacheLineSize = 64)
 {
 	this(this) @disable;
 

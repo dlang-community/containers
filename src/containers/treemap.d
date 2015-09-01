@@ -7,8 +7,8 @@
 
 module containers.treemap;
 
+private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
-private import std.experimental.allocator.common : stateSize;
 
 /**
  * A key→value mapping where the keys are guaranteed to be sorted.
@@ -23,8 +23,9 @@ private import std.experimental.allocator.common : stateSize;
 struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V, size_t cacheLineSize = 64)
 {
-
 	this(this) @disable;
+
+	private import std.experimental.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{

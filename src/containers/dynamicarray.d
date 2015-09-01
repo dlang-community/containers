@@ -7,6 +7,7 @@
 
 module containers.dynamicarray;
 
+private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
 
 /**

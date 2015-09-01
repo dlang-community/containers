@@ -7,8 +7,8 @@
 
 module containers.ttree;
 
+private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
-private import std.range : ElementType, isInputRange;
 
 /**
  * Implements a binary search tree with multiple items per tree node.
@@ -29,7 +29,7 @@ private import std.range : ElementType, isInputRange;
  * See_also: $(LINK http://en.wikipedia.org/wiki/T-tree)
  */
 struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
-	alias less = "a < b", bool supportGC = true, size_t cacheLineSize = 64)
+	alias less = "a < b", bool supportGC = shouldAddGCRange!T, size_t cacheLineSize = 64)
 {
 	this(this) @disable;
 
@@ -380,6 +380,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 private:
 
+	private import std.range : ElementType, isInputRange;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.internal.node : fatNodeCapacity, fullBits, shouldAddGCRange, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
