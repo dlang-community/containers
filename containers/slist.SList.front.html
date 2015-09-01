@@ -11,14 +11,14 @@
 <table id="results"></table>
 <input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
 containers.<a href="containers/slist.SList.html">slist</a>.<a href="containers/slist.SList.html">SList</a>.front</div>
-<pre><code>public T front() inout pure nothrow @property
+<pre><code>public auto front(this This)() @property
 </code></pre><div class="section"><h3>Contracts</h3><pre><code>in
 {
     assert (!empty);
 }</code></pre></div>
 <div class="section">
 <h3>Returns</h3>
- the most recently inserted item
+the most recently inserted item
 </div>
 
 <script>hljs.initHighlightingOnLoad();</script>

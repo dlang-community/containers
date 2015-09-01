@@ -11,7 +11,7 @@
 <table id="results"></table>
 <input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
 containers.<a href="containers/dynamicarray.DynamicArray.html">dynamicarray</a>.<a href="containers/dynamicarray.DynamicArray.html">DynamicArray</a>.opIndex</div>
-<pre><code>public T opIndex(size_t i)
+<pre><code>public pragma(inline, true) auto opIndex(this This)(size_t i) @nogc
 </code></pre><div class="section">
 Index operator overload
 </div>

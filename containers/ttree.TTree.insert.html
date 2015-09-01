@@ -13,21 +13,46 @@
 containers.<a href="containers/ttree.TTree.html">ttree</a>.<a href="containers/ttree.TTree.html">TTree</a>.insert</div>
 <pre><code>public bool insert(T value)
 </code></pre><div class="section">
-Returns true if any values were added. This is not a stable insert. You
+
+Inserts the given value into the tree.
+</div>
+<div class="section">
+This is not a stable insert. You
 will get strange results if you insert into a tree while iterating over
 it.
 </div>
-<hr/><pre><code>public bool insert(R)(R r)
+<div class="section">
+<h3>Returns</h3>
+true if any values were added.
+</div>
+<hr/><pre><code>public bool insert(R)(R r) 
+if(isInputRange!R && is(ElementType!R == T))
 </code></pre><div class="section">
-Returns true if any values were added. This is not a stable insert. You
+
+Inserts the given value into the tree.
+</div>
+<div class="section">
+This is not a stable insert. You
 will get strange results if you insert into a tree while iterating over
 it.
+</div>
+<div class="section">
+<h3>Returns</h3>
+true if any values were added.
 </div>
 <hr/><pre><code>public bool insert(T[] values)
 </code></pre><div class="section">
-Returns true if any values were added. This is not a stable insert. You
+
+Inserts the given value into the tree.
+</div>
+<div class="section">
+This is not a stable insert. You
 will get strange results if you insert into a tree while iterating over
 it.
+</div>
+<div class="section">
+<h3>Returns</h3>
+true if any values were added.
 </div>
 
 <script>hljs.initHighlightingOnLoad();</script>

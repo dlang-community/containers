@@ -11,14 +11,14 @@
 <table id="results"></table>
 <input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
 containers.<a href="containers/slist.SList.html">slist</a>.<a href="containers/slist.SList.html">SList</a>.remove</div>
-<pre><code>public bool remove(V)(V value) nothrow @trusted
+<pre><code>public bool remove(V)(V value) @trusted
 </code></pre><div class="section">
-Removes the first instance of value found in the list.
 
+Removes the first instance of value found in the list.
 </div>
 <div class="section">
 <h3>Returns</h3>
- true if a value was removed.
+true if a value was removed.
 </div>
 
 <script>hljs.initHighlightingOnLoad();</script>

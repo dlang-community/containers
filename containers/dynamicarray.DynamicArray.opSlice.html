@@ -11,11 +11,11 @@
 <table id="results"></table>
 <input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
 containers.<a href="containers/dynamicarray.DynamicArray.html">dynamicarray</a>.<a href="containers/dynamicarray.DynamicArray.html">DynamicArray</a>.opSlice</div>
-<pre><code>public T[] opSlice()
+<pre><code>public pragma(inline, true) auto opSlice(this This)() @nogc
 </code></pre><div class="section">
 Slice operator overload
 </div>
-<hr/><pre><code>public T[] opSlice(size_t a, size_t b)
+<hr/><pre><code>public pragma(inline, true) auto opSlice(this This)(size_t a, size_t b) @nogc
 </code></pre><div class="section">
 Slice operator overload
 </div>

@@ -13,15 +13,17 @@
 containers.<a href="containers/slist.SList.html">slist</a>.<a href="containers/slist.SList.html">SList</a>.this</div>
 <pre><code>public this() @disable
 </code></pre><div class="section">
-Disable default-construction and postblit
+No default construction if an allocator must be provided.
 </div>
-<hr/><pre><code>public this(A allocator) pure nothrow
+<hr/><pre><code>public this(Allocator allocator)
 </code></pre><div class="section">
-<h3>Parameters</h3>
-<table class="params">
-<tr class="param"><td class="paramName">allocator</td><td class="paramDoc">the allocator instance used to allocate nodes
-</td></tr>
-</table></div>
+
+Use the given <pre style="display:inline;" class="d_inline_code">allocator</pre> for allocations.
+</div>
+<div class="section"><h3>Contracts</h3><pre><code>in
+{
+    assert (allocator !is null, "Allocator must not be null");
+}</code></pre></div>
 
 <script>hljs.initHighlightingOnLoad();</script>
 </body>

@@ -91,9 +91,22 @@ pre > code {
 	padding: 1em;
 }
 
+pre.inlined {
+	display: inline;
+	margin: 0;
+	padding: 0;
+}
+
+pre.inlined > code{
+	display: inline;
+	margin: 0;
+	padding: .33em;
+}
+
 .d_inlinecode {
 	font-family: monospace;
 	font-weight: bold;
+	display: inline-block;
 }
 
 .hljs {

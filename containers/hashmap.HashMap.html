@@ -11,22 +11,23 @@
 <table id="results"></table>
 <input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
 containers.<a href="containers/hashmap.html">hashmap</a>.HashMap</div>
-<pre><code>public struct HashMap(K, V, alias hashFunction)</code></pre>
-<div class="section">
-Associative array / hash map.
+<pre><code>public struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K, bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V)
+</code></pre><div class="section">
 
+Associative array / hash map.
 </div>
 <div class="section">
 <h3>Parameters</h3>
 <table class="params">
 <tr class="param"><td class="paramName">K</td><td class="paramDoc">the key type</td></tr>
 <tr class="param"><td class="paramName">V</td><td class="paramDoc">the value type</td></tr>
-<tr class="param"><td class="paramName">hashFunction</td><td class="paramDoc">the hash function to use on the keys
-</td></tr>
+<tr class="param"><td class="paramName">Allocator</td><td class="paramDoc">the allocator type to use. Defaults to Mallocator</td></tr>
+<tr class="param"><td class="paramName">hashFunction</td><td class="paramDoc">the hash function to use on the keys</td></tr>
+<tr class="param"><td class="paramName">supportGC</td><td class="paramDoc">true if the container should support holding references to
+        GC-allocated memory.</td></tr>
 </table></div>
 <div class="section"><h3>Example</h3>
-<pre><code>import std.stdio;
-import std.uuid;
+<pre><code>import std.uuid : randomUUID;
 auto hm = HashMap!(string, int)(16);
 assert (hm.length == 0);
 assert (!hm.remove("abc"));
@@ -46,7 +47,7 @@ foreach (i; 0 .. 1000)
 assert (hm.length == 1001);
 assert (hm.keys().length == hm.length);
 assert (hm.values().length == hm.length);
-foreach (ref k, ref v; hm) {}
+foreach (ref string k, ref int v; hm) {}
 
 auto hm2 = HashMap!(char, char)(4);
 hm2['a'] = 'a';
@@ -55,9 +56,18 @@ hm2['a'] = 'a';
 <div class="section">
 <h3>Functions</h3>
 <table>
-<tr><td><a href="containers/hashmap.HashMap.this.html">this</a></td><td></td><td>Constructs an HashMap with an initial bucket count of bucketCount. bucketCount
-must be a power of two.</td></tr><tr><td><a href="containers/hashmap.HashMap.opIndex.html">opIndex</a></td><td></td><td>Supports <b>aa[key]</b> syntax.</td></tr><tr><td><a href="containers/hashmap.HashMap.opIndexAssign.html">opIndexAssign</a></td><td></td><td>Supports <b>aa[key] = value;</b> syntax.</td></tr><tr><td><a href="containers/hashmap.HashMap.opBinaryRight.html">opBinaryRight</a></td><td></td><td>Supports <b>key in aa</b> syntax.</td></tr><tr><td><a href="containers/hashmap.HashMap.remove.html">remove</a></td><td></td><td>Removes the value associated with the given key
-</td></tr><tr><td><a href="containers/hashmap.HashMap.length.html">length</a></td><td></td><td>Returns:  the number of key/value pairs in this aa</td></tr><tr><td><a href="containers/hashmap.HashMap.keys.html">keys</a></td><td></td><td>Returns:  a GC-allocated array filled with the keys contained in this map.</td></tr><tr><td><a href="containers/hashmap.HashMap.values.html">values</a></td><td></td><td>Returns:  a GC-allocated array containing the values contained in this map.</td></tr><tr><td><a href="containers/hashmap.HashMap.opApply.html">opApply</a></td><td></td><td>Support for  syntax;</td></tr><tr><td><a href="containers/hashmap.HashMap.shouldRehash.html">shouldRehash</a></td><td></td><td>Returns:  true if the load factor has been exceeded</td></tr><tr><td><a href="containers/hashmap.HashMap.rehash.html">rehash</a></td><td></td><td>Rehash the map.</td></tr></table>
+<tr><td><a href="containers/hashmap.HashMap.this.html">this</a></td><td></td><td>
+Use the given <pre style="display:inline;" class="d_inline_code">allocator</pre> for allocations.</td></tr><tr><td><a href="containers/hashmap.HashMap.this.html">this</a></td><td></td><td>
+Constructs an HashMap with an initial bucket count of bucketCount. bucketCount
+must be a power of two.</td></tr><tr><td><a href="containers/hashmap.HashMap.this.html">this</a></td><td></td><td>
+Constructs an HashMap with an initial bucket count of bucketCount. bucketCount
+must be a power of two.</td></tr><tr><td><a href="containers/hashmap.HashMap.opIndex.html">opIndex</a></td><td></td><td>
+Supports <b>aa[key]</b> syntax.</td></tr><tr><td><a href="containers/hashmap.HashMap.opIndexAssign.html">opIndexAssign</a></td><td></td><td>
+Supports <b>aa[key] = value;</b> syntax.</td></tr><tr><td><a href="containers/hashmap.HashMap.opBinaryRight.html">opBinaryRight</a></td><td></td><td>
+Supports <b>key in aa</b> syntax.</td></tr><tr><td><a href="containers/hashmap.HashMap.remove.html">remove</a></td><td></td><td>
+Removes the value associated with the given key</td></tr><tr><td><a href="containers/hashmap.HashMap.length.html">length</a></td><td></td><td>Returns: the number of key/value pairs in this aa</td></tr><tr><td><a href="containers/hashmap.HashMap.keys.html">keys</a></td><td></td><td>Returns: a GC-allocated array filled with the keys contained in this map.</td></tr><tr><td><a href="containers/hashmap.HashMap.values.html">values</a></td><td></td><td>Returns: a GC-allocated array containing the values contained in this map.</td></tr><tr><td><a href="containers/hashmap.HashMap.opApply.html">opApply</a></td><td></td><td>
+Support for  syntax;</td></tr><tr><td><a href="containers/hashmap.HashMap.shouldRehash.html">shouldRehash</a></td><td></td><td>Returns: true if the load factor has been exceeded</td></tr><tr><td><a href="containers/hashmap.HashMap.rehash.html">rehash</a></td><td></td><td>
+Rehash the map.</td></tr></table>
 </div>
 
 <script>hljs.initHighlightingOnLoad();</script>

@@ -11,10 +11,10 @@
 <table id="results"></table>
 <input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
 containers.<a href="containers/ttree.TTree.html">ttree</a>.<a href="containers/ttree.TTree.html">TTree</a>.upperBound</div>
-<pre><code>public Range upperBound(inout T value) const
+<pre><code>public auto upperBound(this This)(inout T value)
 </code></pre><div class="section">
 <h3>Returns</h3>
- a range of elements which are greater than value.
+a range of elements which are greater than value.
 </div>
 
 <script>hljs.initHighlightingOnLoad();</script>

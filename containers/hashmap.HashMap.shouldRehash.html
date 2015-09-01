@@ -11,10 +11,10 @@
 <table id="results"></table>
 <input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
 containers.<a href="containers/hashmap.HashMap.html">hashmap</a>.<a href="containers/hashmap.HashMap.html">HashMap</a>.shouldRehash</div>
-<pre><code>private bool shouldRehash() const pure nothrow @safe
+<pre><code>private bool shouldRehash() const pure nothrow @safe @nogc
 </code></pre><div class="section">
 <h3>Returns</h3>
- true if the load factor has been exceeded
+true if the load factor has been exceeded
 </div>
 
 <script>hljs.initHighlightingOnLoad();</script>

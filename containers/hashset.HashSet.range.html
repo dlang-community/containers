@@ -11,8 +11,9 @@
 <table id="results"></table>
 <input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
 containers.<a href="containers/hashset.HashSet.html">hashset</a>.<a href="containers/hashset.HashSet.html">HashSet</a>.range</div>
-<pre><code>public Range range() @property
+<pre><code>public auto range(this This)() nothrow @nogc @trusted @property
 </code></pre><div class="section">
+
 Forward range interface
 </div>
 

@@ -11,10 +11,10 @@
 <table id="results"></table>
 <input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
 containers.<a href="containers/unrolledlist.UnrolledList.html">unrolledlist</a>.<a href="containers/unrolledlist.UnrolledList.html">UnrolledList</a>.range</div>
-<pre><code>public Range range() const nothrow pure
+<pre><code>public auto range(this This)() const nothrow pure @nogc @trusted @property
 </code></pre><div class="section">
 <h3>Returns</h3>
- a range over the list
+a range over the list
 </div>
 
 <script>hljs.initHighlightingOnLoad();</script>

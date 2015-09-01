@@ -11,8 +11,9 @@
 <table id="results"></table>
 <input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
 containers.<a href="containers/hashmap.HashMap.html">hashmap</a>.<a href="containers/hashmap.HashMap.html">HashMap</a>.opIndex</div>
-<pre><code>public V opIndex(K key) const
+<pre><code>public auto opIndex(this This)(K key)
 </code></pre><div class="section">
+
 Supports <b>aa[key]</b> syntax.
 </div>
 

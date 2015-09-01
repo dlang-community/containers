@@ -11,41 +11,53 @@
 <table id="results"></table>
 <input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
 containers.<a href="containers/unrolledlist.html">unrolledlist</a>.UnrolledList</div>
-<pre><code>public struct UnrolledList(T, bool supportGC = true, size_t cacheLineSize = 64)</code></pre>
-<div class="section">
+<pre><code>public struct UnrolledList(T, Allocator = Mallocator, bool supportGC = true, size_t cacheLineSize = 64)
+</code></pre><div class="section">
+
 Unrolled Linked List.
 </div>
 <div class="section">
 Nodes are (by default) sized to fit within a 64-byte cache line. The number
 of items stored per node can be read from the <b>nodeCapacity</b> field.
-
 </div>
 <div class="section">
 <h3>See Also</h3>
- <a href="http://en.wikipedia.org/wiki/Unrolled_linked_list">http://en.wikipedia.org/wiki/Unrolled_linked_list</a>
-
+<a href="http://en.wikipedia.org/wiki/Unrolled_linked_list">http://en.wikipedia.org/wiki/Unrolled_linked_list</a>
 </div>
 <div class="section">
 <h3>Parameters</h3>
 <table class="params">
 <tr class="param"><td class="paramName">T</td><td class="paramDoc">the element type</td></tr>
-<tr class="param"><td class="paramName">supportGC</td><td class="paramDoc">true to ensure that the GC scans the nodes of the unrolled list, false if you are sure that no references to GC-managed memory will be stored in this container.</td></tr>
-<tr class="param"><td class="paramName">cacheLineSize</td><td class="paramDoc">Nodes will be sized to fit within this number of bytes.
+<tr class="param"><td class="paramName">Allocator</td><td class="paramDoc">the allocator to use. Defaults to Mallocator.</td></tr>
+<tr class="param"><td class="paramName">supportGC</td><td class="paramDoc">true to ensure that the GC scans the nodes of the unrolled
+        list, false if you are sure that no references to GC-managed memory
+        will be stored in this container.
 </td></tr>
+<tr class="param"><td class="paramName">cacheLineSize</td><td class="paramDoc">Nodes will be sized to fit within this number of bytes.</td></tr>
 </table></div>
 <div class="section">
 <h3>Aliases</h3>
 <table>
-<tr><td><a href="containers/unrolledlist.UnrolledList.put.html">put</a></td><td><pre><code>insertBack</code></pre></td><td>Inserts the given range into the end of the list</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.insert.html">insert</a></td><td><pre><code>insertBack</code></pre></td><td>Inserts the given range into the end of the list</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.opSlice.html">opSlice</a></td><td><pre><code>range</code></pre></td><td>Returns:  a range over the list</td></tr></table>
+<tr><td><a href="containers/unrolledlist.UnrolledList.put.html">put</a></td><td><pre><code>insertBack</code></pre></td><td>
+Inserts the given range into the end of the list</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.insert.html">insert</a></td><td><pre><code>insertBack</code></pre></td><td>
+Inserts the given range into the end of the list</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.opSlice.html">opSlice</a></td><td><pre><code>range</code></pre></td><td>Returns: a range over the list</td></tr></table>
 <h3>Variables</h3>
 <table>
-<tr><td><a href="containers/unrolledlist.UnrolledList.nodeCapacity.html">nodeCapacity</a></td><td><pre><code>size_t</code></pre></td><td>Number of items stored per node.</td></tr></table>
+<tr><td><a href="containers/unrolledlist.UnrolledList.nodeCapacity.html">nodeCapacity</a></td><td><pre><code>size_t</code></pre></td><td>
+Number of items stored per node.</td></tr></table>
 <h3>Functions</h3>
 <table>
-<tr><td><a href="containers/unrolledlist.UnrolledList.insertBack.html">insertBack</a></td><td></td><td>Inserts the given item into the end of the list.</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.insertBack.html">insertBack</a></td><td></td><td>Inserts the given range into the end of the list</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.insertAnywhere.html">insertAnywhere</a></td><td></td><td>Inserts the given item in the frontmost available cell, which may put the
+<tr><td><a href="containers/unrolledlist.UnrolledList.this.html">this</a></td><td></td><td>No default construction if an allocator must be provided.</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.this.html">this</a></td><td></td><td>
+Use the given <pre style="display:inline;" class="d_inline_code">allocator</pre> for allocations.</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.clear.html">clear</a></td><td></td><td>
+Removes all items from the list</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.insertBack.html">insertBack</a></td><td></td><td>
+Inserts the given item into the end of the list.</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.insertBack.html">insertBack</a></td><td></td><td>
+Inserts the given range into the end of the list</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.insertAnywhere.html">insertAnywhere</a></td><td></td><td>
+Inserts the given item in the frontmost available cell, which may put the
 item anywhere in the list as removal may leave gaps in list nodes. Use
-this only if the order of elements is not important.</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.length.html">length</a></td><td></td><td>Returns:  the length of the list</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.empty.html">empty</a></td><td></td><td>Returns:  true if the list is empty</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.remove.html">remove</a></td><td></td><td>Removes the given item from the list.
-</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.popFront.html">popFront</a></td><td></td><td>Pops the front item off of the list</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.moveFront.html">moveFront</a></td><td></td><td>Pops the front item off of the list and returns it</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.front.html">front</a></td><td></td><td>Returns:  the item at the front of the list</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.range.html">range</a></td><td></td><td>Returns:  a range over the list</td></tr></table>
+this only if the order of elements is not important.</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.length.html">length</a></td><td></td><td>Returns: the length of the list</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.empty.html">empty</a></td><td></td><td>Returns: true if the list is empty</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.remove.html">remove</a></td><td></td><td>
+Removes the given item from the list.</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.popFront.html">popFront</a></td><td></td><td>Pops the front item off of the list</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.moveFront.html">moveFront</a></td><td></td><td>Pops the front item off of the list and returns it</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.front.html">front</a></td><td></td><td>
+Time complexity is O(1)</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.back.html">back</a></td><td></td><td>
+Time complexity is O(n)</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.popBack.html">popBack</a></td><td></td><td>Pops the back item off of the list.</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.moveBack.html">moveBack</a></td><td></td><td>Removes an item from the back of the list and returns it.</td></tr><tr><td><a href="containers/unrolledlist.UnrolledList.range.html">range</a></td><td></td><td>Returns: a range over the list</td></tr></table>
 </div>
 
 <script>hljs.initHighlightingOnLoad();</script>

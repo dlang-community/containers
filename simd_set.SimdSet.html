@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="style.css"/><script src="highlight.pack.js"></script>
+<title>SimdSet</title>
+<base href=""/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+<a href="simd_set.html">simd_set</a>.SimdSet</div>
+<pre><code>public struct SimdSet(T)
+</code></pre><div class="section">
+
+Set implementation that is well suited for small sets and simple items.
+</div>
+<div class="section">
+Uses SSE instructions to compare multiple elements simultaneously. SimdSet
+has the following time complexities for contains:
+<ul><li>T == ubyte: n / 16</li>
+<li>T == ushort: n / 8</li>
+<li>T == uint: n / 4</li>
+<li>T == ulong: n / 2</li>
+</ul>
+</div>
+<div class="section">
+<h3>Note</h3>
+Only works on x86_64
+</div>
+<div class="section"><h3>Example</h3>
+<pre><code>import std.string : format;
+
+void testSimdSet(T)()
+{
+	SimdSet!T set;
+	assert(set.insert(1));
+	assert(set.length == 1);
+	assert(set.contains(1));
+	assert(!set.insert(1));
+	set.insert(0);
+	set.insert(20);
+	assert(set.contains(1));
+	assert(set.contains(0));
+	assert(!set.contains(10));
+	assert(!set.contains(50));
+	assert(set.contains(20));
+	foreach (ubyte i; 100 .. 200)
+		set.insert(i);
+	foreach (ubyte i; 100 .. 200)
+		assert(set.contains(i), "%d".format(i));
+}
+testSimdSet!ubyte();
+testSimdSet!ushort();
+testSimdSet!uint();
+testSimdSet!ulong();
+testSimdSet!byte();
+testSimdSet!short();
+testSimdSet!int();
+testSimdSet!long();
+</code></pre>
+</div>
+<div class="section">
+<h3>Functions</h3>
+<table>
+<tr><td><a href="simd_set.SimdSet.contains.html">contains</a></td><td></td><td></td></tr><tr><td><a href="simd_set.SimdSet.insert.html">insert</a></td><td></td><td>
+Inserts the given item into the set.</td></tr><tr><td><a href="simd_set.SimdSet.length.html">length</a></td><td></td><td></td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>
