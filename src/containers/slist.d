@@ -1,6 +1,6 @@
 /**
  * Singly-linked list.
- * Copyright: © 2014 Economic Modeling Specialists, Intl.
+ * Copyright: © 2015 Economic Modeling Specialists, Intl.
  * Authors: Brian Schott
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  */
@@ -13,9 +13,11 @@ private import std.experimental.allocator.mallocator : Mallocator;
  * Single-linked allocator-backed list.
  * Params:
  *     T = the element type
- *     A = the allocator type
+ *     Allocator = the allocator to use. Defaults to `Mallocator`.
+ *     supportGC = true if the container should support holding references to
+ *         GC-allocated memory.
  */
-struct SList(T, Allocator = Mallocator)
+struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 {
 	/// Disable copying.
 	this(this) @disable;
@@ -50,7 +52,7 @@ struct SList(T, Allocator = Mallocator)
 			prev = current;
 			current = current.next;
 			typeid(Node).destroy(prev);
-			static if (shouldAddGCRange!T)
+			static if (useGC)
 			{
 				import core.memory : GC;
 				GC.removeRange(prev);
@@ -87,7 +89,7 @@ struct SList(T, Allocator = Mallocator)
 		Node* f = _front;
 		_front = f.next;
 		T r = f.value;
-		static if (shouldAddGCRange!T)
+		static if (useGC)
 		{
 			import core.memory : GC;
 			GC.removeRange(f);
@@ -104,7 +106,7 @@ struct SList(T, Allocator = Mallocator)
 	{
 		Node* f = _front;
 		_front = f.next;
-		static if (shouldAddGCRange!T)
+		static if (useGC)
 		{
 			import core.memory : GC;
 			GC.removeRange(f);
@@ -136,7 +138,7 @@ struct SList(T, Allocator = Mallocator)
 	void insert(T t) @trusted
 	{
 		_front = allocator.make!Node(_front, t);
-		static if (shouldAddGCRange!T)
+		static if (useGC)
 		{
 			import core.memory : GC;
 			GC.addRange(_front, Node.sizeof);
@@ -226,6 +228,8 @@ private:
 	import containers.internal.node : shouldAddGCRange;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.internal.mixins : AllocatorState;
+
+	enum bool useGC = supportGC && shouldAddGCRange!T;
 
 	static struct Range(ThisT)
 	{

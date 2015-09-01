@@ -1,6 +1,6 @@
 /**
  * Open-Addressed Hash Set
- * Copyright: © 2014 Economic Modeling Specialists, Intl.
+ * Copyright: © 2015 Economic Modeling Specialists, Intl.
  * Authors: Brian Schott
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  */
@@ -17,6 +17,7 @@ private import std.experimental.allocator.common : stateSize;
  *
  * Params:
  *     T = the element type of the hash set
+ *     Allocator = the allocator to use. Defaults to `Mallocator`.
  *     hashFunction = the hash function to use
  *     supportGC = if true, calls to GC.addRange and GC.removeRange will be used
  *         to ensure that the GC does not accidentally free memory owned by this
@@ -86,7 +87,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 
 	~this()
 	{
-		static if (supportGC)
+		static if (useGC)
 			GC.removeRange(nodes.ptr);
 		allocator.deallocate(nodes);
 	}
@@ -211,6 +212,7 @@ private:
 	import core.memory : GC;
 
 	enum DEFAULT_INITIAL_CAPACITY = 8;
+	enum bool useGC = supportGC && shouldAddGCRange!T;
 
 	static struct Range(ThisT)
 	{
@@ -256,14 +258,14 @@ private:
 		Node[] newNodes = (cast (Node*) allocator.allocate(newCapacity * Node.sizeof))
 			[0 .. newCapacity];
 		newNodes[] = Node.init;
-		static if (supportGC)
+		static if (useGC)
 			GC.addRange(newNodes.ptr, newNodes.length, typeid(typeof(nodes)));
 		foreach (ref node; nodes)
 		{
 			immutable size_t newIndex = toIndex(newNodes, node.data, node.hash);
 			newNodes[newIndex] = node;
 		}
-		static if (supportGC)
+		static if (useGC)
 			GC.removeRange(nodes.ptr);
 		allocator.deallocate(nodes);
 		nodes = newNodes;

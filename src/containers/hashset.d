@@ -1,6 +1,6 @@
 /**
  * Hash Set
- * Copyright: © 2014 Economic Modeling Specialists, Intl.
+ * Copyright: © 2015 Economic Modeling Specialists, Intl.
  * Authors: Brian Schott
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  */
@@ -15,7 +15,10 @@ private import std.experimental.allocator.mallocator : Mallocator;
  * Hash Set.
  * Params:
  *     T = the element type
+ *     Allocator = the allocator to use. Defaults to `Mallocator`.
  *     hashFunction = the hash function to use on the elements
+ *     supportGC = true if the container should support holding references to
+ *         GC-allocated memory.
  */
 struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	bool supportGC = shouldAddGCRange!T)
@@ -78,7 +81,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	{
 		import std.experimental.allocator : dispose;
 		import core.memory : GC;
-		static if (supportGC && shouldAddGCRange!T)
+		static if (useGC)
 			GC.removeRange(buckets.ptr);
 		allocator.dispose(buckets);
 	}
@@ -198,6 +201,7 @@ private:
 	enum ITEMS_PER_NODE = fatNodeCapacity!(ItemNode.sizeof, 1, size_t, 128);
 
 	enum bool storeHash = !isBasicType!T;
+	enum bool useGC = supportGC && shouldAddGCRange!T;
 
 	void initialize(size_t bucketCount)
 	{
@@ -205,7 +209,7 @@ private:
 		import core.memory : GC;
 
 		makeBuckets(bucketCount);
-		static if (supportGC && shouldAddGCRange!T)
+		static if (useGC)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 	}
 
@@ -303,7 +307,7 @@ private:
 		makeBuckets(newLength);
 		assert (buckets);
 		assert (buckets.length == newLength);
-		static if (supportGC && shouldAddGCRange!T)
+		static if (useGC)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		foreach (ref const bucket; oldBuckets)
 		{
@@ -326,7 +330,7 @@ private:
 				}
 			}
 		}
-		static if (supportGC && shouldAddGCRange!T)
+		static if (useGC)
 			GC.removeRange(oldBuckets.ptr);
 		allocator.dispose(oldBuckets);
 	}

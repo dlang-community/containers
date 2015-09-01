@@ -1,6 +1,6 @@
 /**
  * Tree Map
- * Copyright: © 2014 Economic Modeling Specialists, Intl.
+ * Copyright: © 2015 Economic Modeling Specialists, Intl.
  * Authors: Brian Schott
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  */
@@ -15,12 +15,13 @@ private import std.experimental.allocator.common : stateSize;
  * Params:
  *     K = the key type
  *     V = the value type
+ *     Allocator = the allocator to use. Defaults to `Mallocator`.
  *     less = the key comparison function to use
  *     supportGC = true to support storing GC-allocated objects, false otherwise
  *     cacheLineSize = the size of the internal nodes in bytes
  */
 struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
-	bool supportGC = true, size_t cacheLineSize = 64)
+	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V, size_t cacheLineSize = 64)
 {
 
 	this(this) @disable;
@@ -108,6 +109,8 @@ private:
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
 
+	enum bool useGC = supportGC && (shouldAddGCRange!K || shouldAddGCRange!V);
+
 	static struct TreeMapElement
 	{
 		ContainerStorageType!K key;
@@ -119,7 +122,7 @@ private:
 		}
 	}
 
-	alias TreeType = TTree!(TreeMapElement, Allocator, false, "a.opCmp(b) > 0", supportGC, cacheLineSize);
+	alias TreeType = TTree!(TreeMapElement, Allocator, false, "a.opCmp(b) > 0", useGC, cacheLineSize);
 	static if (stateSize!Allocator == 0)
 		TreeType tree = void;
 	else

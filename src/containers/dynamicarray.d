@@ -1,6 +1,6 @@
 /**
  * Dynamic Array
- * Copyright: © 2014 Economic Modeling Specialists, Intl.
+ * Copyright: © 2015 Economic Modeling Specialists, Intl.
  * Authors: Brian Schott
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  */
@@ -15,10 +15,11 @@ private import std.experimental.allocator.mallocator : Mallocator;
  *
  * Params:
  *     T = the array element type
+ *     Allocator = the allocator to use. Defaults to `Mallocator`.
  *     supportGC = true if the container should support holding references to
  *         GC-allocated memory.
  */
-struct DynamicArray(T, Allocator = Mallocator, bool supportGC = true)
+struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 {
 	this(this) @disable;
 
@@ -98,7 +99,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = true)
 		if (arr.length == 0)
 		{
 			arr = cast(typeof(arr)) allocator.allocate(T.sizeof * 4);
-			static if (supportGC && shouldAddGCRange!T)
+			static if (useGC)
 			{
 				import core.memory: GC;
 				GC.addRange(arr.ptr, arr.length * T.sizeof);
@@ -110,7 +111,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = true)
 			void[] a = cast(void[]) arr;
 			allocator.reallocate(a, c * T.sizeof);
 			arr = cast(typeof(arr)) a;
-			static if (supportGC && shouldAddGCRange!T)
+			static if (useGC)
 			{
 				import core.memory: GC;
 				GC.removeRange(arr.ptr);
@@ -185,8 +186,9 @@ private:
 
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
-	private import containers.internal.mixins : AllocatorState;
+	import containers.internal.mixins : AllocatorState;
 
+	enum bool useGC = supportGC && shouldAddGCRange!T;
 	mixin AllocatorState!Allocator;
 	ContainerStorageType!(T)[] arr;
 	size_t l;

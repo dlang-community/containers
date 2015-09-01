@@ -1,6 +1,6 @@
 /**
  * Unrolled Linked List.
- * Copyright: © 2014 Economic Modeling Specialists, Intl.
+ * Copyright: © 2015 Economic Modeling Specialists, Intl.
  * Authors: Brian Schott
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  */
@@ -17,6 +17,7 @@ private import std.experimental.allocator.mallocator : Mallocator;
  * See_also: $(LINK http://en.wikipedia.org/wiki/Unrolled_linked_list)
  * Params:
  *     T = the element type
+ *     Allocator = the allocator to use. Defaults to `Mallocator`.
  *     supportGC = true to ensure that the GC scans the nodes of the unrolled
  *         list, false if you are sure that no references to GC-managed memory
  *         will be stored in this container.
@@ -410,6 +411,8 @@ private:
 	import containers.internal.element_type : ContainerElementType;
 	private import containers.internal.mixins : AllocatorState;
 
+	enum bool useGC = supportGC && shouldAddGCRange!T;
+
 	Node* _back;
 	Node* _front;
 	size_t _length;
@@ -418,7 +421,7 @@ private:
 	Node* allocateNode(T item)
 	{
 		Node* n = allocator.make!Node();
-		static if (supportGC && shouldAddGCRange!T)
+		static if (useGC)
 		{
 			import core.memory: GC;
 			GC.addRange(n, Node.sizeof);
@@ -440,7 +443,7 @@ private:
 			_back = n.prev;
 
 		allocator.dispose(n);
-		static if (supportGC && shouldAddGCRange!T)
+		static if (useGC)
 		{
 			import core.memory: GC;
 			GC.removeRange(n);

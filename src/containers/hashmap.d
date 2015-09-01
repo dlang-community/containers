@@ -1,6 +1,6 @@
 /**
  * Hash Map
- * Copyright: © 2014 Economic Modeling Specialists, Intl.
+ * Copyright: © 2015 Economic Modeling Specialists, Intl.
  * Authors: Brian Schott
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  */
@@ -16,7 +16,10 @@ private import std.experimental.allocator.mallocator : Mallocator;
  * Params:
  *     K = the key type
  *     V = the value type
+ *     Allocator = the allocator type to use. Defaults to `Mallocator`
  *     hashFunction = the hash function to use on the keys
+ *     supportGC = true if the container should support holding references to
+ *         GC-allocated memory.
  */
 struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K,
 	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V)
@@ -83,7 +86,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	~this()
 	{
 		import std.experimental.allocator : dispose;
-		static if (supportGC)
+		static if (useGC)
 			GC.removeRange(buckets.ptr);
 		allocator.dispose(buckets);
 	}
@@ -246,13 +249,14 @@ private:
 	import core.memory : GC;
 
 	enum bool storeHash = !isBasicType!K;
+	enum bool useGC = supportGC && (shouldAddGCRange!K || shouldAddGCRange!V);
 
 	void initialize(size_t bucketCount = 4)
 	{
 		import std.conv : emplace;
 
 		buckets = (cast(Bucket*) allocator.allocate(bucketCount * Bucket.sizeof))[0 .. bucketCount];
-		static if (supportGC)
+		static if (useGC)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		foreach (ref bucket; buckets)
 		{
@@ -317,7 +321,7 @@ private:
 		Bucket[] oldBuckets = buckets;
 		assert (oldBuckets.ptr == buckets.ptr);
 		buckets = cast(Bucket[]) allocator.allocate(newSize);
-		static if (supportGC)
+		static if (useGC)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		assert (buckets);
 		assert (buckets.length == newLength);
@@ -347,7 +351,7 @@ private:
 			}
 			typeid(typeof(bucket)).destroy(&bucket);
 		}
-		static if (supportGC)
+		static if (useGC)
 			GC.removeRange(oldBuckets.ptr);
 		allocator.deallocate(cast(void[]) oldBuckets);
 	}
@@ -398,7 +402,7 @@ private:
 	}
 
 	mixin AllocatorState!Allocator;
-	alias Bucket = UnrolledList!(Node, Allocator, supportGC);
+	alias Bucket = UnrolledList!(Node, Allocator, useGC);
 	Bucket[] buckets;
 	size_t _length;
 }

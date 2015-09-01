@@ -1,6 +1,6 @@
 /**
  * T-Tree.
- * Copyright: © 2014 Economic Modeling Specialists, Intl.
+ * Copyright: © 2015 Economic Modeling Specialists, Intl.
  * Authors: Brian Schott
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  */
@@ -20,6 +20,7 @@ private import std.range : ElementType, isInputRange;
  * more children.
  * Params:
  *     T = the element type
+ *     Allocator = the allocator to use. Defaults to `Mallocator`.
  *     allowDuplicates = if true, duplicate values will be allowed in the tree
  *     less = the comparitor function to use
  *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
@@ -80,9 +81,13 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	}
 
 	/**
-	 * Returns true if any values were added. This is not a stable insert. You
+	 * Inserts the given value into the tree.
+	 *
+	 * This is not a stable insert. You
 	 * will get strange results if you insert into a tree while iterating over
 	 * it.
+	 *
+	 * Returns: true if any values were added.
 	 */
 	bool insert(T value)
 	{
@@ -123,6 +128,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 	/**
 	 * Removes a value from the tree.
+	 *
 	 * Params:
 	 *     value = a value equal to the one to be removed
 	 *     cleanup = a function that should be run on the removed item
@@ -139,7 +145,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	}
 
 	/**
-	 * Returns true if the tree _conains the given value
+	 * Returns: true if the tree _conains the given value
 	 */
 	bool contains(T value) const
 	{

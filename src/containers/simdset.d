@@ -12,10 +12,14 @@ private import std.experimental.allocator.mallocator : Mallocator;
  * Set implementation that is well suited for small sets and simple items.
  *
  * Uses SSE instructions to compare multiple elements simultaneously, but has
- * linear time complexity. Use this container when you need to
+ * linear time complexity.
  *
  * Note: Only works on x86_64. Does NOT add GC ranges. Do not store pointers in
  * this container unless they are also stored somewhere else.
+ *
+ * Params:
+ *     T = the element type
+ *     Allocator = the allocator to use. Defaults to `Mallocator`.
  */
 version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 	if (T.sizeof == 1 || T.sizeof == 2 || T.sizeof == 4 || T.sizeof == 8)
