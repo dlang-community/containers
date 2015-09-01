@@ -136,9 +136,9 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	 * Inserts an item at the front of the list.
 	 * Params: t = the item to insert into the list
 	 */
-	void insert(T t) @trusted
+	void insertFront(T t) @trusted
 	{
-		_front = allocator.make!Node(_front, t);
+		_front = make!Node(allocator, _front, t);
 		static if (useGC)
 		{
 			import core.memory : GC;
@@ -148,10 +148,10 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	}
 
 	/// ditto
-	alias insertFront = insert;
+	alias insert = insertFront;
 
 	/// ditto
-	alias put = insert;
+	alias put = insertFront;
 
 	/// Supports $(B list ~= item) syntax
 	void opOpAssign(string op)(T t) if (op == "~")

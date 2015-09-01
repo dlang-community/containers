@@ -422,7 +422,7 @@ private:
 
 	Node* allocateNode(T item)
 	{
-		Node* n = allocator.make!Node();
+		Node* n = make!Node(allocator);
 		static if (useGC)
 		{
 			import core.memory: GC;
