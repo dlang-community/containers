@@ -3,6 +3,9 @@ Containers [![CI status](https://travis-ci.org/economicmodeling/containers.svg?b
 
 Containers backed by std.experimental.allocator
 
+# Dependencies
+Run `git submodule update --init --recursive` after cloning this repository.
+
 # Documentation
 Documentation is available at http://economicmodeling.github.io/containers/index.html
 
