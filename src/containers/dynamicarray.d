@@ -171,6 +171,9 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/// Returns: the number of items in the array
 	size_t length() const nothrow pure @property @safe @nogc { return l; }
 
+	/// Returns: whether or not the DynamicArray is empty.
+	bool empty() const nothrow pure @property @safe @nogc { return l == 0; }
+
 	/**
 	 * Returns: a slice to the underlying array.
 	 *
@@ -181,6 +184,18 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	{
 		alias ET = ContainerElementType!(This, T);
 		return cast(ET*) arr.ptr;
+	}
+
+	/// Returns: the front element of the DynamicArray.
+	auto ref T front() pure @property
+	{
+		return arr[0];
+	}
+
+	/// Returns: the back element of the DynamicArray.
+	auto ref T back() pure @property
+	{
+		return arr[l - 1];
 	}
 
 private:
@@ -200,8 +215,14 @@ unittest
 	import std.algorithm : equal;
 	import std.range : iota;
 	DynamicArray!int ints;
+	assert(ints.empty);
 	foreach (i; 0 .. 100)
+	{
 		ints.insert(i);
+		assert(ints.front == 0);
+		assert(ints.back == i);
+	}
+
 	assert (equal(ints[], iota(100)));
 	assert (ints.length == 100);
 	ints[0] = 100;
