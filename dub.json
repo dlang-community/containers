@@ -7,6 +7,6 @@
         "EMSI"
     ],
 
-    "sourcePaths": [ "src" ],
-    "importPaths": [ "src" ]
+    "sourcePaths": [ "src", "experimental_allocator/src/std/" ],
+    "importPaths": [ "src", "experimental_allocator/src/std/" ]
 }
