@@ -91,6 +91,18 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 		return tree.length;
 	}
 
+	auto keys() const pure nothrow @property @safe @nogc
+	{
+		import std.algorithm.iteration : map;
+		return tree[].map!(a => a.key);
+	}
+
+	auto values() const pure nothrow @property @safe @nogc
+	{
+		import std.algorithm.iteration : map;
+		return tree[].map!(a => a.value);
+	}
+
 	/// Supports $(B foreach(k, v; treeMap)) syntax.
 	int opApply(this This)(int delegate(ref K, ref V) loopBody)
 	{
@@ -158,4 +170,17 @@ unittest
 	}
 	assert(allocator.numAllocate == allocator.numDeallocate);
 	assert(allocator.bytesUsed == 0);
+}
+
+unittest
+{
+	import std.algorithm.iteration : each;
+	import std.algorithm.comparison : equal;
+	import std.range : repeat, take;
+
+	TreeMap!(int, int) tm;
+	int[] a = [1, 2, 3, 4, 5];
+	a.each!(a => tm[a] = 0);
+	assert(equal(tm.keys, a));
+	assert(equal(tm.values, repeat(0).take(a.length)));
 }
