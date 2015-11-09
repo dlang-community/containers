@@ -175,11 +175,19 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	}
 
 	/**
-	 * Returns: the number of key/value pairs in this aa
+	 * Returns: the number of key/value pairs in this container.
 	 */
 	size_t length() const nothrow pure @property @safe @nogc
 	{
 		return _length;
+	}
+
+	/**
+	 * Returns: `true` if there are no items in this container.
+	 */
+	bool empty() const nothrow pure @property @safe @nogc
+	{
+		return _length == 0;
 	}
 
 	/**
