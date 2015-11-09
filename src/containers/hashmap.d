@@ -135,6 +135,8 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 */
 	bool opBinaryRight(string op)(K key) const nothrow if (op == "in")
 	{
+		if (_length == 0)
+			return false;
 		size_t hash = generateHash(key);
 		size_t index = hashToIndex(hash);
 		foreach (ref node; buckets[index].range)
