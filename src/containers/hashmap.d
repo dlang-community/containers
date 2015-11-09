@@ -96,8 +96,6 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 */
 	auto opIndex(this This)(K key)
 	{
-		import std.algorithm : find;
-		import std.exception : enforce;
 		import std.conv : text;
 
 		alias CET = ContainerElementType!(This, V);
@@ -120,6 +118,39 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 			}
 		}
 		throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
+	}
+
+	/**
+	 * Gets the value for the given key, or returns `defaultValue` if the given
+	 * key is not present.
+	 *
+	 * Params:
+	 *     key = the key to look up
+	 *     value = the default value
+	 * Returns: the value indexed by `key`, if present, or `defaultValue` otherwise.
+	 */
+	auto get(this This)(K key, lazy V defaultValue)
+	{
+		alias CET = ContainerElementType!(This, V);
+
+		if (_length == 0)
+			return defaultValue;
+		size_t hash = generateHash(key);
+		size_t index = hashToIndex(hash);
+		foreach (r; buckets[index].range)
+		{
+			static if (storeHash)
+			{
+				if (r.hash == hash && r == key)
+					return cast(CET) r.value;
+			}
+			else
+			{
+				if (r == key)
+					return cast(CET) r.value;
+			}
+		}
+		return defaultValue;
 	}
 
 	/**
@@ -444,4 +475,9 @@ unittest
 
 	auto hm2 = HashMap!(char, char)(4);
 	hm2['a'] = 'a';
+
+	HashMap!(int, int) hm3;
+	assert (hm3.get(100, 20) == 20);
+	hm3[100] = 1;
+	assert (hm3.get(100, 20) == 1);
 }
