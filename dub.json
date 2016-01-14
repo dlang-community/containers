@@ -7,6 +7,6 @@
         "EMSI"
     ],
     "dependencies": {
-		"experimental_allocator": "~>0.3.0"
+		"experimental_allocator": "~>2.70.0-b1"
 	}
 }
