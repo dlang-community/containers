@@ -7,5 +7,6 @@ test/looptest
 perf.data
 doc/
 .dub/
+dub.selections.json
 test/compile_test
 test/external_allocator_test
