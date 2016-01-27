@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>DynamicArray</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+containers.<a href="containers/dynamicarray.html">dynamicarray</a>.DynamicArray</div>
+<pre><code>public struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
+</code></pre><div class="section">
+Array that is able to grow itself when items are appended to it. Uses
+malloc/free/realloc to manage its storage.
+</div>
+<div class="section">
+<h3>Parameters</h3>
+<table class="params">
+<tr class="param"><td class="paramName">T</td><td class="paramDoc">the array element type</td></tr>
+<tr class="param"><td class="paramName">Allocator</td><td class="paramDoc">the allocator to use. Defaults to Mallocator.</td></tr>
+<tr class="param"><td class="paramName">supportGC</td><td class="paramDoc">true if the container should support holding references to
+        GC-allocated memory.</td></tr>
+</table></div>
+<div class="section">
+<h3>Aliases</h3>
+<table>
+<tr><td><a href="containers/dynamicarray.DynamicArray.put.html">put</a></td><td><pre><code>insert</code></pre></td><td>Inserts the given value into the end of the array.</td></tr></table>
+<h3>Functions</h3>
+<table>
+<tr><td><a href="containers/dynamicarray.DynamicArray.this.html">this</a></td><td></td><td>No default construction if an allocator must be provided.</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.this.html">this</a></td><td></td><td>Use the given <pre style="display:inline;" class="d_inline_code">allocator</pre> for allocations.</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.opSlice.html">opSlice</a></td><td></td><td>Slice operator overload</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.opSlice.html">opSlice</a></td><td></td><td>Slice operator overload</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.opIndex.html">opIndex</a></td><td></td><td>Index operator overload</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.insert.html">insert</a></td><td></td><td>Inserts the given value into the end of the array.</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.opIndexAssign.html">opIndexAssign</a></td><td></td><td>Index assignment support</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.opSliceAssign.html">opSliceAssign</a></td><td></td><td>Slice assignment support</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.opSliceAssign.html">opSliceAssign</a></td><td></td><td>Slice assignment support</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.length.html">length</a></td><td></td><td>Returns: the number of items in the array</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.empty.html">empty</a></td><td></td><td>Returns: whether or not the DynamicArray is empty.</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.ptr.html">ptr</a></td><td></td><td>Returns: a slice to the underlying array.
+
+As the memory of the array may be freed, access to this array is
+highly unsafe.</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.front.html">front</a></td><td></td><td>Returns: the front element of the DynamicArray.</td></tr><tr><td><a href="containers/dynamicarray.DynamicArray.back.html">back</a></td><td></td><td>Returns: the back element of the DynamicArray.</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

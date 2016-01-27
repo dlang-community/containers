@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>OpenHashSet</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+containers.<a href="containers/openhashset.html">openhashset</a>.OpenHashSet</div>
+<pre><code>public struct OpenHashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T, bool supportGC = shouldAddGCRange!T)
+</code></pre><div class="section">
+Simple open-addressed hash set. Use this instead of HashSet when the size and
+quantity of the data to be inserted is small.
+</div>
+<div class="section">
+<h3>Parameters</h3>
+<table class="params">
+<tr class="param"><td class="paramName">T</td><td class="paramDoc">the element type of the hash set</td></tr>
+<tr class="param"><td class="paramName">Allocator</td><td class="paramDoc">the allocator to use. Defaults to Mallocator.</td></tr>
+<tr class="param"><td class="paramName">hashFunction</td><td class="paramDoc">the hash function to use</td></tr>
+<tr class="param"><td class="paramName">supportGC</td><td class="paramDoc">if true, calls to GC.addRange and GC.removeRange will be used
+        to ensure that the GC does not accidentally free memory owned by this
+        container.</td></tr>
+</table></div>
+<div class="section">
+<h3>Aliases</h3>
+<table>
+<tr><td><a href="containers/openhashset.OpenHashSet.opSlice.html">opSlice</a></td><td><pre><code>range</code></pre></td><td>Returns: A range over the set.</td></tr></table>
+<h3>Functions</h3>
+<table>
+<tr><td><a href="containers/openhashset.OpenHashSet.this.html">this</a></td><td></td><td>Disallow copy construction</td></tr><tr><td><a href="containers/openhashset.OpenHashSet.this.html">this</a></td><td></td><td>Use the given <pre style="display:inline;" class="d_inline_code">allocator</pre> for allocations.</td></tr><tr><td><a href="containers/openhashset.OpenHashSet.this.html">this</a></td><td></td><td>Initializes the hash set with the given initial capacity.</td></tr><tr><td><a href="containers/openhashset.OpenHashSet.this.html">this</a></td><td></td><td>Initializes the hash set with the given initial capacity.</td></tr><tr><td><a href="containers/openhashset.OpenHashSet.clear.html">clear</a></td><td></td><td>Removes all items from the hash set.</td></tr><tr><td><a href="containers/openhashset.OpenHashSet.empty.html">empty</a></td><td></td><td></td></tr><tr><td><a href="containers/openhashset.OpenHashSet.length.html">length</a></td><td></td><td></td></tr><tr><td><a href="containers/openhashset.OpenHashSet.contains.html">contains</a></td><td></td><td>Returns: <b>true</b> if the hash set contains the given item, false otherwise.</td></tr><tr><td><a href="containers/openhashset.OpenHashSet.opBinaryRight.html">opBinaryRight</a></td><td></td><td>Returns: <b>true</b> if the hash set contains the given item, false otherwise.</td></tr><tr><td><a href="containers/openhashset.OpenHashSet.insert.html">insert</a></td><td></td><td>Inserts the gien item into the set.</td></tr><tr><td><a href="containers/openhashset.OpenHashSet.opOpAssign.html">opOpAssign</a></td><td></td><td>Inserts the gien item into the set.</td></tr><tr><td><a href="containers/openhashset.OpenHashSet.remove.html">remove</a></td><td></td><td>Returns: <b>true</b> if the item was removed, <b>false</b> if it was not present</td></tr><tr><td><a href="containers/openhashset.OpenHashSet.range.html">range</a></td><td></td><td>Returns: A range over the set.</td></tr><tr><td><a href="containers/openhashset.OpenHashSet.toIndex.html">toIndex</a></td><td></td><td>Returns: size_t.max if the item was not found</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>
