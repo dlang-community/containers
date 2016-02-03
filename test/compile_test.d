@@ -1,3 +1,4 @@
+import containers.cyclicbuffer;
 import containers.dynamicarray;
 import containers.hashmap;
 import containers.hashset;
@@ -250,4 +251,5 @@ unittest
 	testContainerSingle!(SList)();
 	testContainerSingle!(TTree)();
 	testContainerSingle!(DynamicArray)();
+	testContainerSingle!(CyclicBuffer)();
 }

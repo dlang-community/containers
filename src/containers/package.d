@@ -1,5 +1,6 @@
 module containers;
 
+public import containers.cyclicbuffer;
 public import containers.dynamicarray;
 public import containers.hashmap;
 public import containers.hashset;

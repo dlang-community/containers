@@ -1,5 +1,6 @@
 module external_allocator_test;
 
+import containers.cyclicbuffer;
 import containers.dynamicarray;
 import containers.hashmap;
 import containers.hashset;
@@ -39,12 +40,12 @@ private void testDouble(alias Container, Allocator)(Allocator allocator)
 
 version (D_InlineAsm_X86_64)
 {
-	alias SingleContainers = AliasSeq!(DynamicArray,  HashSet,  /+ImmutableHashSet,+/
+	alias SingleContainers = AliasSeq!(CyclicBuffer, DynamicArray,  HashSet,  /+ImmutableHashSet,+/
 	OpenHashSet, SimdSet, SList, TTree, UnrolledList);
 }
 else
 {
-	alias SingleContainers = AliasSeq!(DynamicArray,  HashSet,  /+ImmutableHashSet,+/
+	alias SingleContainers = AliasSeq!(CyclicBuffer, DynamicArray,  HashSet,  /+ImmutableHashSet,+/
 	OpenHashSet, /+SimdSet,+/ SList, TTree, UnrolledList);
 }
 
