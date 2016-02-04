@@ -479,7 +479,6 @@ private:
 }
 
 version (unittest) private
-
 {
 	import std.algorithm.comparison : equal, max;
 	import std.experimental.allocator.gc_allocator : GCAllocator;
@@ -514,7 +513,7 @@ version (unittest) private
 
 unittest
 {
-	static void test(size_t size)
+	static void test(int size)
 	{
 
 		{
@@ -535,7 +534,6 @@ unittest
 			}
 			assert(b.empty);
 		}
-
 		{
 			CyclicBuffer!int b;
 			foreach (i; 0 .. size)
@@ -561,7 +559,7 @@ unittest
 
 unittest
 {
-	static void test(size_t prefix, size_t suffix, size_t newSize)
+	static void test(int prefix, int suffix, int newSize)
 	{
 		CyclicBuffer!int b;
 		foreach_reverse (i; 0 .. suffix)
@@ -585,10 +583,8 @@ unittest
 unittest
 {
 	int a = 0;
-
 	{
 		CyclicBuffer!S b;
-
 		{
 			S s = { &a };
 			foreach (i; 0 .. 5)
@@ -613,7 +609,6 @@ unittest
 {
 	int* a = new int;
 	CyclicBuffer!C b;
-
 	{
 		C c = new C(a);
 		foreach (i; 0 .. 10)
@@ -707,7 +702,6 @@ unittest
 unittest
 {
 	int a = 0;
-
 	{
 		CyclicBuffer!S b;
 		foreach (i; 0 .. 5)
@@ -716,7 +710,6 @@ unittest
 	}
 	assert(a == 10);
 	a = 0;
-
 	{
 		CyclicBuffer!S b;
 		foreach (i; 0 .. 4)
@@ -806,14 +799,12 @@ unittest
 		assert(equal(copy, copy2));
 	}
 
-
 	{
 		CyclicBuffer!int b;
 		foreach (i; 4 .. 12)
 			b.insertBack(i);
 		test(b);
 	}
-
 	{
 		CyclicBuffer!int b;
 		foreach (i; 0 .. 8)
