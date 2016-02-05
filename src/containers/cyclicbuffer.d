@@ -117,6 +117,7 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			immutable suffix = oldCapacity - start;
 			if (prefix <= suffix)
 			{
+				//The prefix is being moved right behind of suffix.
 				immutable space = newCapacity - oldCapacity;
 				if (space >= prefix)
 				{
@@ -125,6 +126,8 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 				}
 				else
 				{
+					//There is not enough space, so move what we can,
+					//and shift the rest to the start of the buffer.
 					moveEmplaceAll(storage[0 .. space], storage[oldCapacity .. $]);
 					end -= space;
 					moveEmplaceAll(storage[space .. prefix], storage[0 .. end + 1]);
@@ -133,6 +136,8 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			else
 			{
 				import std.range : retro;
+				//The suffix is being moved forward, to the end of the buffer.
+				//Due to the fact that these locations may overlap, use `retro`.
 				moveEmplaceAll(
 					retro(storage[start .. oldCapacity]),
 					retro(storage[$ - suffix .. $]),
@@ -155,7 +160,7 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		if (empty)
 			reserve(4);
 		else if ((end + 1) % capacity == start)
-			reserve(capacity & ~0xFFFF ? capacity + 0x10000 : capacity << 1);
+			reserve(capacity >= 65_536 ? capacity + 65_536 : capacity * 2);
 		start = (start - 1 + capacity) % capacity;
 		_length++;
 		emplace(&storage[start], value);
@@ -169,7 +174,7 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		if (empty)
 			reserve(4);
 		else if ((end + 1) % capacity == start)
-			reserve(capacity & ~0xFFFF ? capacity + 0x10000 : capacity << 1);
+			reserve(capacity >= 65_536 ? capacity + 65_536 : capacity * 2);
 		end = (end + 1) % capacity;
 		_length++;
 		emplace(&storage[end], value);
@@ -223,28 +228,10 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/// buffer[i]
 	auto ref opIndex(this This)(size_t i) nothrow pure @safe
 	{
-		return get(i);
+		version (assert) if (i >= length) onRangeError();
+		alias ET = ContainerElementType!(This, T);
+		return cast(ET) storage[(start + i) % $];
 	}
-
-	/*
-	/// ++buffer[i]
-	auto ref opIndexUnary(string op)(size_t i) /+nothrow pure @safe+/
-	{
-		return mixin(op ~ "get(i)");
-	}
-
-	/// buffer[i] = value
-	auto ref opIndexAssign(U)(const auto ref U value, size_t i) /+nothrow pure @safe+/
-	{
-		return (get(i) = value);
-	}
-
-	/// buffer[i] += value
-	auto ref opIndexOpAssign(string op, U)(const auto ref U value, size_t i) /+nothrow pure @safe+/
-	{
-		return mixin("get(i) " ~ op ~ "= value");
-	}
-	*/
 
 	/// buffer[]
 	Range!This opIndex(this This)() nothrow pure @safe @nogc
@@ -359,28 +346,8 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		/// range[i]
 		auto ref opIndex(this This)(size_t i) nothrow pure @safe
 		{
-			return get(i);
+			return cast(ET) (i < head.length ? head[i] : tail[i - head.length]);
 		}
-
-		/*
-		/// ++range[i]
-		auto ref opIndexUnary(string op)(size_t i) /+nothrow pure @safe+/
-		{
-			return mixin(op ~ "get(i)");
-		}
-
-		/// range[i] = value
-		auto ref opIndexAssign(U)(const auto ref U value, size_t i) /+nothrow pure @safe+/
-		{
-			return (get(i) = value);
-		}
-
-		/// range[i] += value
-		auto ref opIndexOpAssign(string op, U)(const auto ref U value, size_t i) /+nothrow pure @safe+/
-		{
-			return mixin("get(i) " ~ op ~ "= value");
-		}
-		*/
 
 		/// range[]
 		This opIndex(this This)() nothrow pure @safe @nogc
@@ -437,11 +404,6 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 
 	private:
 
-		auto ref get(this This)(size_t i) nothrow pure @safe
-		{
-			return cast(ET) (i < head.length ? head[i] : tail[i - head.length]);
-		}
-
 		alias ET = ContainerElementType!(ThisT, T);
 
 		SliceT head, tail;
@@ -465,13 +427,6 @@ private:
 	import containers.internal.element_type : ContainerElementType;
 	import containers.internal.mixins : AllocatorState;
 
-	auto ref get(this This)(size_t i) nothrow pure @safe
-	{
-		version (assert) if (i >= length) onRangeError();
-		alias ET = ContainerElementType!(This, T);
-		return cast(ET) storage[(start + i) % $];
-	}
-
 	enum bool useGC = supportGC && shouldAddGCRange!T;
 	mixin AllocatorState!Allocator;
 	ContainerStorageType!T[] storage;
@@ -480,7 +435,7 @@ private:
 
 version (unittest) private
 {
-	import std.algorithm.comparison : equal, max;
+	import std.algorithm.comparison : equal;
 	import std.experimental.allocator.gc_allocator : GCAllocator;
 	import std.experimental.allocator.building_blocks.free_list : FreeList;
 	import std.range : iota, lockstep, StoppingPolicy;
@@ -515,7 +470,6 @@ unittest
 {
 	static void test(int size)
 	{
-
 		{
 			CyclicBuffer!int b;
 			assert(b.empty);
@@ -553,7 +507,7 @@ unittest
 		}
 	}
 
-	foreach (size; [1, 2, 3, 4, 5, 7, 8, 9, 512, 520, 1024, 1025])
+	foreach (size; [1, 2, 3, 4, 5, 7, 8, 9, 512, 520, 0x10000, 0x10001, 0x20000])
 		test(size);
 }
 
@@ -651,6 +605,16 @@ unittest
 	assert(b[3] == 5);
 	b.back = 7;
 	assert(b[3] == 7);
+}
+
+unittest
+{
+	import std.range : isInputRange, isForwardRange, isBidirectionalRange, isRandomAccessRange;
+	CyclicBuffer!int b;
+	static assert(isInputRange!(typeof(b[])));
+	static assert(isForwardRange!(typeof(b[])));
+	static assert(isBidirectionalRange!(typeof(b[])));
+	static assert(isRandomAccessRange!(typeof(b[])));
 }
 
 unittest
@@ -755,16 +719,6 @@ unittest
 
 unittest
 {
-	import std.range : isInputRange, isForwardRange, isBidirectionalRange, isRandomAccessRange;
-	CyclicBuffer!int b;
-	static assert(isInputRange!(typeof(b[])));
-	static assert(isForwardRange!(typeof(b[])));
-	static assert(isBidirectionalRange!(typeof(b[])));
-	static assert(isRandomAccessRange!(typeof(b[])));
-}
-
-unittest
-{
 	static void test(ref CyclicBuffer!int b)
 	{
 		assert(equal(b[], [4, 5, 6, 7, 8, 9, 10, 11]));
@@ -825,4 +779,16 @@ unittest
 	assert(b.capacity >= 10);
 	b.reserve(12);
 	assert(b.capacity >= 12);
+}
+
+unittest
+{
+	CyclicBuffer!int b;
+	foreach (i; 0 .. 6)
+		b.insertBack(i);
+	foreach (i; 6 .. 8)
+		b.insertFront(i);
+	assert(equal(b[], [7, 6, 0, 1, 2, 3, 4, 5]));
+	b.reserve(b.capacity + 1);
+	assert(equal(b[], [7, 6, 0, 1, 2, 3, 4, 5]));
 }
