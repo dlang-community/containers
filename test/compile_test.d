@@ -1,3 +1,4 @@
+import containers.cyclicbuffer;
 import containers.dynamicarray;
 import containers.hashmap;
 import containers.hashset;
@@ -246,8 +247,9 @@ unittest
 	testContainerSingle!(HashSet)();
 	testContainerSingle!(UnrolledList)();
 	testContainerSingle!(OpenHashSet)();
-	testContainerSingle!(SimdSet)();
+	version (D_InlineAsm_X86_64) testContainerSingle!(SimdSet)();
 	testContainerSingle!(SList)();
 	testContainerSingle!(TTree)();
 	testContainerSingle!(DynamicArray)();
+	testContainerSingle!(CyclicBuffer)();
 }
