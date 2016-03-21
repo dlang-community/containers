@@ -63,9 +63,6 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		deallocateNode(root, allocator);
 	}
 
-	private enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 3, size_t, cacheLineSize);
-	static assert (nodeCapacity <= (size_t.sizeof * 4), "cannot fit height info and registry in size_t");
-
 	debug(EMSI_CONTAINERS) invariant()
 	{
 		assert (root is null || _length != 0);
@@ -382,14 +379,20 @@ private:
 
 	private import std.range : ElementType, isInputRange;
 	import containers.internal.element_type : ContainerElementType;
-	import containers.internal.node : fatNodeCapacity, fullBits, shouldAddGCRange, shouldNullSlot;
+	import containers.internal.node : FatNodeInfo, fullBits, shouldAddGCRange, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
 	import std.algorithm : sort;
 	import std.experimental.allocator.common : stateSize;
 	import std.functional: binaryFun;
 	import std.traits: isPointer, PointerTarget;
 
-	enum RangeType : ubyte {all, lower, equal, upper}
+	alias N = FatNodeInfo!(T.sizeof, 3, cacheLineSize, ulong.sizeof);
+	enum size_t nodeCapacity = N[0];
+	alias BookkeepingType = N[1];
+	static assert (nodeCapacity <= (uint.sizeof * 8), "cannot fit height info and registry in ulong");
+	enum fullBitPattern = fullBits!(ulong, nodeCapacity);
+
+	enum RangeType : ubyte { all, lower, equal, upper }
 
 	// If we're storing a struct that defines opCmp, don't compare pointers as
 	// that is almost certainly not what the user intended.
@@ -449,37 +452,37 @@ private:
 	static assert (Node.sizeof <= cacheLineSize);
 	static struct Node
 	{
-		private size_t nextAvailableIndex() const nothrow pure
+		private size_t nextAvailableIndex() const nothrow pure @nogc @safe
 		{
 			import core.bitop : bsf;
-			return bsf(~(registry & fullBits!nodeCapacity));
+			return bsf(~(registry & fullBitPattern));
 		}
 
-		private void markUsed(size_t index) pure nothrow
+		private void markUsed(size_t index) pure nothrow @nogc @safe
 		{
-			registry |= (1 << index);
+			registry |= (1UL << index);
 		}
 
-		private void markUnused(size_t index) pure nothrow
+		private void markUnused(size_t index) pure nothrow @nogc @safe
 		{
-			registry &= ~(1 << index);
+			registry &= ~(1UL << index);
 			static if (shouldNullSlot!T)
 				values[index] = null;
 		}
 
-		private bool isFree(size_t index) const pure nothrow
+		private bool isFree(size_t index) const pure nothrow @nogc @safe
 		{
-			return (registry & (1 << index)) == 0;
+			return (registry & (1UL << index)) == 0;
 		}
 
-		private bool isFull() const pure nothrow
+		private bool isFull() const pure nothrow @nogc @safe
 		{
-			return (registry & fullBits!nodeCapacity) == fullBits!nodeCapacity;
+			return (registry & fullBitPattern) == fullBitPattern;
 		}
 
-		private bool isEmpty() const pure nothrow
+		private bool isEmpty() const pure nothrow @nogc @safe
 		{
-			return (registry & fullBits!nodeCapacity) == 0;
+			return (registry & fullBitPattern) == 0;
 		}
 
 		bool contains(Value value) const
@@ -493,22 +496,22 @@ private:
 			return !assumeSorted!_less(values[0 .. i]).equalRange(value).empty;
 		}
 
-		size_t calcHeight() nothrow pure
+		ulong calcHeight() nothrow pure @nogc @safe
 		{
 			immutable size_t l = left !is null ? left.height() : 0;
 			immutable size_t r = right !is null ? right.height() : 0;
-			size_t h = 1 + (l > r ? l : r);
-			registry &= fullBits!nodeCapacity;
-			registry |= (h << (size_t.sizeof * 4));
+			immutable ulong h = 1 + (l > r ? l : r);
+			registry &= fullBitPattern;
+			registry |= (h << 32UL);
 			return h;
 		}
 
-		size_t height() const nothrow pure
+		ulong height() const nothrow pure @nogc @safe
 		{
-			return registry >>> (size_t.sizeof * 4);
+			return registry >>> 32UL;
 		}
 
-		int imbalanced() const nothrow pure
+		int imbalanced() const nothrow pure @nogc @safe
 		{
 			if (right !is null
 					&& ((left is null && right.height() > 1)
@@ -868,7 +871,7 @@ private:
 		Node* parent;
 
 		Value[nodeCapacity] values;
-		size_t registry = (cast(size_t) 1) << (size_t.sizeof * 4);
+		ulong registry = 1UL << 32UL;
 	}
 
 	AllocatorType allocator;
@@ -1127,6 +1130,16 @@ unittest
 			assert(!ints3.equalRange(i).empty);
 		foreach (i; iota(0, 1_000_000).filter!(a => a % 2 == 1))
 			assert(ints3.equalRange(i).empty);
+	}
+
+	{
+		TTree!(ubyte, Mallocator, true) ubytes;
+		foreach (i; iota(0, 1_000_000).filter!(a => a % 2 == 0).map!(a => cast(ubyte)(a % ubyte.max)))
+			ubytes.insert(i);
+		assert(ubytes[].walkLength == 500_000, "%d".format(ubytes[].walkLength));
+		assert(ubytes.length == 500_000, "%d".format(ubytes.length));
+		foreach (i; iota(0, 1_000_000).filter!(a => a % 2 == 0).map!(a => cast(ubyte)(a % ubyte.max)))
+			assert(!ubytes.equalRange(i).empty);
 	}
 
 	{

@@ -109,7 +109,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			}
 		}
 		_length++;
-		assert (_back.registry <= fullBits!nodeCapacity);
+		assert (_back.registry <= fullBitPattern);
 	}
 
 	/**
@@ -147,7 +147,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			n.items[i] = item;
 			n.markUsed(i);
 			_length++;
-			assert (n.registry <= fullBits!nodeCapacity);
+			assert (n.registry <= fullBitPattern);
 			return;
 		}
 		assert (n is _back);
@@ -155,7 +155,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		_back.next = n;
 		_back = n;
 		_length++;
-		assert (_back.registry <= fullBits!nodeCapacity);
+		assert (_back.registry <= fullBitPattern);
 	}
 
 	/// Returns: the length of the list
@@ -233,7 +233,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			if (_front is null)
 				_back = null;
 			else
-				assert (_front.registry <= fullBits!nodeCapacity);
+				assert (_front.registry <= fullBitPattern);
 			deallocateNode(f);
 			return r;
 		}
@@ -331,15 +331,10 @@ struct UnrolledList(T, Allocator = Mallocator,
 		return item;
 	}
 
-	/**
-	 * Number of items stored per node.
-	 */
-	enum size_t nodeCapacity = fatNodeCapacity!(T.sizeof, 2, ushort, cacheLineSize);
-
 	/// Returns: a range over the list
 	auto range(this This)() const nothrow pure @nogc @trusted @property
 	{
-		return Range!(This)(_front);
+		return Range!(This)(_front, _length);
 	}
 
 	/// ditto
@@ -349,10 +344,11 @@ struct UnrolledList(T, Allocator = Mallocator,
 	{
 		@disable this();
 
-		this(inout(Node)* current)
+		this(inout(Node)* current, size_t l)
 		{
 			import core.bitop: bsf;
 			this.current = current;
+			this.length = l;
 			if (current !is null)
 			{
 				index = bsf(current.registry);
@@ -379,6 +375,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 				}
 				else
 				{
+
 					if (current.isFree(index))
 						index++;
 					else
@@ -402,17 +399,22 @@ struct UnrolledList(T, Allocator = Mallocator,
 		alias ET = ContainerElementType!(ThisT, T);
 		const(Node)* current;
 		size_t index;
+		size_t length;
 	}
 
 private:
 
 	import std.experimental.allocator: make, dispose;
-	import containers.internal.node : fatNodeCapacity, shouldAddGCRange,
+	import containers.internal.node : FatNodeInfo, shouldAddGCRange,
 		fullBits, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
 	private import containers.internal.mixins : AllocatorState;
 
+	alias N = FatNodeInfo!(T.sizeof, 2, cacheLineSize);
+	enum size_t nodeCapacity = N[0];
+	alias BookkeepingType = N[1];
+	enum fullBitPattern = fullBits!(BookkeepingType, nodeCapacity);
 	enum bool useGC = supportGC && shouldAddGCRange!T;
 
 	Node* _back;
@@ -458,8 +460,18 @@ private:
 
 		if (first is null || second is null)
 			return false;
-		immutable f = popcnt(first.registry);
-		immutable s = popcnt(second.registry);
+		static if (first.registry.sizeof > uint.sizeof)
+		{
+			immutable f = popcnt(cast(uint) first.registry)
+				+ popcnt(cast(uint) (first.registry >>> 32));
+			immutable s = popcnt(cast(uint) second.registry)
+				+ popcnt(cast(uint) (second.registry >>> 32));
+		}
+		else
+		{
+			immutable f = popcnt(first.registry);
+			immutable s = popcnt(second.registry);
+		}
 		return f + s <= nodeCapacity;
 	}
 
@@ -485,7 +497,7 @@ private:
 		first.registry = 0;
 		foreach (k; 0 .. i)
 			first.markUsed(k);
-		assert (first.registry <= fullBits!nodeCapacity);
+		assert (first.registry <= fullBitPattern);
 		deallocateNode(second);
 	}
 
@@ -499,12 +511,12 @@ private:
 
 		void markUsed(size_t index) nothrow pure @safe @nogc
 		{
-			registry |= (1 << index);
+			registry |= (BookkeepingType(1) << index);
 		}
 
 		void markUnused(size_t index) nothrow pure @safe @nogc
 		{
-			registry &= ~(1 << index);
+			registry &= ~(BookkeepingType(1) << index);
 			static if (shouldNullSlot!T)
 				items[index] = null;
 		}
@@ -516,18 +528,18 @@ private:
 
 		bool isFree(size_t index) const nothrow pure @safe @nogc
 		{
-			return (registry & (1 << index)) == 0;
+			return (registry & (BookkeepingType(1) << index)) == 0;
 		}
 
 		debug(EMSI_CONTAINERS) invariant()
 		{
 			import std.string : format;
-			assert (registry <= fullBits!nodeCapacity, format("%016b %016b", registry, fullBits!nodeCapacity));
+			assert (registry <= fullBitPattern, format("%016b %016b", registry, fullBitPattern));
 			assert (prev !is &this);
 			assert (next !is &this);
 		}
 
-		ushort registry;
+		BookkeepingType registry;
 		ContainerStorageType!T[nodeCapacity] items;
 		Node* prev;
 		Node* next;
@@ -539,21 +551,21 @@ unittest
 	import std.algorithm : equal;
 	import std.range : iota;
 	import std.string : format;
-	UnrolledList!int l;
+	UnrolledList!ubyte l;
 	static assert (l.Node.sizeof <= 64);
 	assert (l.empty);
 	l.insert(0);
 	assert (l.length == 1);
 	assert (!l.empty);
 	foreach (i; 1 .. 100)
-		l.insert(i);
+		l.insert(cast(ubyte) i);
 	assert (l.length == 100);
 	assert (equal(l[], iota(100)));
 	foreach (i; 0 .. 100)
-		assert (l.remove(i), format("%d", i));
+		assert (l.remove(cast(ubyte) i), format("%d", i));
 	assert (l.length == 0, format("%d", l.length));
 	assert (l.empty);
-	UnrolledList!int l2;
+	UnrolledList!ubyte l2;
 	l2.insert(1);
 	l2.insert(2);
 	l2.insert(3);

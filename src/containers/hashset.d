@@ -191,15 +191,17 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 
 private:
 
-	import containers.internal.node : shouldAddGCRange, fatNodeCapacity;
+	import containers.internal.node : shouldAddGCRange, FatNodeInfo;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.internal.mixins : AllocatorState;
 	import containers.unrolledlist : UnrolledList;
 	import std.traits : isBasicType, isPointer;
 
-	enum ITEMS_PER_NODE = fatNodeCapacity!(ItemNode.sizeof, 1, size_t, 128);
-
+	alias LengthType = ubyte;
+	alias N = FatNodeInfo!(ItemNode.sizeof, 1, 64, LengthType.sizeof);
+	enum ITEMS_PER_NODE = N[0];
+	static assert(LengthType.max > ITEMS_PER_NODE);
 	enum bool storeHash = !isBasicType!T;
 	enum bool useGC = supportGC && shouldAddGCRange!T;
 
@@ -453,7 +455,7 @@ private:
 			}
 
 			BucketNode* next;
-			size_t l;
+			LengthType l;
 			ItemNode[ITEMS_PER_NODE] items;
 		}
 

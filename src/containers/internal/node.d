@@ -6,22 +6,49 @@
  */
 module containers.internal.node;
 
-template fatNodeCapacity(size_t bytesPerItem, size_t pointerCount,
-	T, size_t cacheLineSize = 64)
+template FatNodeInfo(size_t bytesPerItem, size_t pointerCount, size_t cacheLineSize = 64,
+	size_t extraSpace = size_t.max)
 {
-	enum size_t optimistic = (cacheLineSize
-		- ((void*).sizeof * pointerCount) - T.sizeof) / bytesPerItem;
-	static if (optimistic > 0)
-		enum fatNodeCapacity = optimistic;
+	import std.meta : AliasSeq;
+	import std.format : format;
+	template fatNodeCapacity(alias L, bool CheckLength = true)
+	{
+		enum size_t optimistic = (cacheLineSize
+			- ((void*).sizeof * pointerCount) - L) / bytesPerItem;
+		static if (optimistic > 0)
+		{
+			enum fatNodeCapacity = optimistic;
+			static if (CheckLength)
+			{
+				static assert(optimistic <= L * 8, ("%d bits required for bookkeeping"
+					~ " but only %d are possible. Try reducing the cache line size argument.")
+					.format(optimistic, L * 8));
+			}
+		}
+		else
+			enum fatNodeCapacity = 1;
+	}
+	static if (extraSpace == size_t.max)
+	{
+		static if (__traits(compiles, fatNodeCapacity!(ubyte.sizeof)))
+			alias FatNodeInfo = AliasSeq!(fatNodeCapacity!(ubyte.sizeof), ubyte);
+		else static if (__traits(compiles, fatNodeCapacity!(ushort.sizeof)))
+			alias FatNodeInfo = AliasSeq!(fatNodeCapacity!(ushort.sizeof), ushort);
+		else static if (__traits(compiles, fatNodeCapacity!(uint.sizeof)))
+			alias FatNodeInfo = AliasSeq!(fatNodeCapacity!(uint.sizeof), uint);
+		else static if (__traits(compiles, fatNodeCapacity!(ulong.sizeof)))
+			alias FatNodeInfo = AliasSeq!(fatNodeCapacity!(ulong.sizeof), ulong);
+		else static assert(false, "aaargh" ~ extraSpace.stringof);
+	}
 	else
-		enum fatNodeCapacity = 1;
+		alias FatNodeInfo = AliasSeq!(fatNodeCapacity!(extraSpace, false), void);
 }
 
 // Double linked fat node of int with bookkeeping in a uint should be able to
 // hold 11 ints per node.
 // 64 - 16 - 4 = 4 * 11
 version (X86_64)
-	static assert (fatNodeCapacity!(int.sizeof, 2, uint) == 11);
+	static assert (FatNodeInfo!(int.sizeof, 2)[0] == 11);
 
 template shouldNullSlot(T)
 {
@@ -38,15 +65,15 @@ template shouldAddGCRange(T)
 static assert (shouldAddGCRange!string);
 static assert (!shouldAddGCRange!int);
 
-template fullBits(size_t n, size_t c = 0)
+template fullBits(T, size_t n, size_t c = 0)
 {
 	static if (c >= (n - 1))
-		enum fullBits = (1 << c);
+		enum T fullBits = (T(1) << c);
 	else
-		enum fullBits = (1 << c) | fullBits!(n, c + 1);
+		enum T fullBits = (T(1) << c) | fullBits!(T, n, c + 1);
 }
 
-static assert (fullBits!1 == 1);
-static assert (fullBits!2 == 3);
-static assert (fullBits!3 == 7);
-static assert (fullBits!4 == 15);
+static assert (fullBits!(ushort, 1) == 1);
+static assert (fullBits!(ushort, 2) == 3);
+static assert (fullBits!(ushort, 3) == 7);
+static assert (fullBits!(ushort, 4) == 15);
