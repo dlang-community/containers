@@ -171,6 +171,9 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/// Returns: the number of items in the array
 	size_t length() const nothrow pure @property @safe @nogc { return l; }
 
+	/// Ditto
+	alias opDollar = length;
+
 	/// Returns: whether or not the DynamicArray is empty.
 	bool empty() const nothrow pure @property @safe @nogc { return l == 0; }
 
@@ -323,5 +326,14 @@ unittest
 unittest
 {
 	DynamicArray!(int*, Mallocator, true) arr;
-	arr.insert(new int(1));
+
+	foreach (i; 0 .. 4)
+		arr.insert(new int(i));
+
+	assert (arr.length == 4);
+
+	int*[] slice = arr[1 .. $ - 1];
+	assert (slice.length == 2);
+	assert (*slice[0] == 1);
+	assert (*slice[1] == 2);
 }
