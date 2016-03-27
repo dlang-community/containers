@@ -125,6 +125,9 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/// ditto
 	alias put = insert;
 
+	/**
+	 * Remove the item at the given index from the array.
+	 */
 	void remove(const size_t i)
 	{
 		if (i < this.l)
