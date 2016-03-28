@@ -389,7 +389,8 @@ private:
 	alias N = FatNodeInfo!(T.sizeof, 3, cacheLineSize, ulong.sizeof);
 	enum size_t nodeCapacity = N[0];
 	alias BookkeepingType = N[1];
-	static assert (nodeCapacity <= (uint.sizeof * 8), "cannot fit height info and registry in ulong");
+	enum HEIGHT_BIT_OFFSET = 48UL;
+	static assert (nodeCapacity <= HEIGHT_BIT_OFFSET, "cannot fit height info and registry in ulong");
 	enum fullBitPattern = fullBits!(ulong, nodeCapacity);
 
 	enum RangeType : ubyte { all, lower, equal, upper }
@@ -454,7 +455,8 @@ private:
 	{
 		private size_t nextAvailableIndex() const nothrow pure @nogc @safe
 		{
-			import core.bitop : bsf;
+			import containers.internal.backwards : bsf;
+
 			return bsf(~(registry & fullBitPattern));
 		}
 
@@ -501,14 +503,15 @@ private:
 			immutable ulong l = left !is null ? left.height() : 0;
 			immutable ulong r = right !is null ? right.height() : 0;
 			immutable ulong h = 1 + (l > r ? l : r);
+			assert (h < ushort.max);
 			registry &= fullBitPattern;
-			registry |= (h << 32UL);
+			registry |= (h << HEIGHT_BIT_OFFSET);
 			return h;
 		}
 
 		ulong height() const nothrow pure @nogc @safe
 		{
-			return registry >>> 32UL;
+			return registry >>> HEIGHT_BIT_OFFSET;
 		}
 
 		int imbalanced() const nothrow pure @nogc @safe
@@ -720,7 +723,7 @@ private:
 		{
 			if (left is null && right is null)
 			{
-				size_t i = nextAvailableIndex() - 1;
+				immutable size_t i = nextAvailableIndex() - 1;
 				Value r = values[i];
 				markUnused(i);
 				return r;
@@ -871,7 +874,7 @@ private:
 		Node* parent;
 
 		Value[nodeCapacity] values;
-		ulong registry = 1UL << 32UL;
+		ulong registry = 1UL << HEIGHT_BIT_OFFSET;
 	}
 
 	AllocatorType allocator;

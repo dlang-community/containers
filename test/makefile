@@ -1,19 +1,31 @@
 .PHONY: test graphs clean
 
-SRC=$(shell find ../src/ -name "*.d") $(shell find ../experimental_allocator -name "*.d")
-FLAGS=-unittest -main -g -cov -I../src/ -debug -wi
+SRC:=$(shell find ../src/ -name "*.d") $(shell find ../experimental_allocator -name "*.d")
+FLAGS:=-unittest -main -g -cov -I../src/ -debug -wi
+FLAGS32:=$(FLAGS) -m32
 
-test: compile_test external_allocator_test
-	dmd $(FLAGS) $(SRC) -oftests
+all: test test_32 compile_test compile_test_32 external_allocator_test external_allocator_test_32
 	./tests
+	./tests_32
 	./compile_test
+	./compile_test_32
 	./external_allocator_test
+	./external_allocator_test_32
 
-compile_test: compile_test.d
+test: $(SRC)
+	dmd $(FLAGS) $(SRC) -oftests
+test_32: $(SRC)
+	dmd $(FLAGS32) $(SRC) -oftests_32
+
+compile_test: compile_test.d $(SRC)
 	dmd $(FLAGS) compile_test.d $(SRC) -ofcompile_test
+compile_test_32: compile_test.d $(SRC)
+	dmd $(FLAGS32) compile_test.d $(SRC) -ofcompile_test_32
 
-external_allocator_test: external_allocator_test.d
+external_allocator_test: external_allocator_test.d $(SRC)
 	dmd $(FLAGS) external_allocator_test.d $(SRC) -ofexternal_allocator_test
+external_allocator_test_32: external_allocator_test.d $(SRC)
+	dmd $(FLAGS32) external_allocator_test.d $(SRC) -ofexternal_allocator_test_32
 
 looptest: looptest.d
 	dmd looptest.d -inline -O -release \

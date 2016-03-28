@@ -176,7 +176,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 */
 	bool remove(T item)
 	{
-		import core.bitop : popcnt;
+		import containers.internal.backwards : popcnt;
 		if (_front is null)
 			return false;
 		bool retVal = false;
@@ -218,7 +218,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 	body
 	{
-		import core.bitop : bsf, popcnt;
+		import containers.internal.backwards : bsf;
 		size_t index = bsf(_front.registry);
 		T r = _front.items[index];
 		_front.markUnused(index);
@@ -268,7 +268,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 	body
 	{
-		import core.bitop: bsf;
+		import containers.internal.backwards : bsf;
 		import std.string: format;
 		size_t index = bsf(_front.registry);
 		assert (index < nodeCapacity, format("%d", index));
@@ -308,7 +308,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 	body
 	{
-		import core.bitop : popcnt;
+		import containers.internal.backwards : popcnt;
 		size_t i = nodeCapacity - 1;
 		while (_back.isFree(i))
 		{
@@ -346,13 +346,15 @@ struct UnrolledList(T, Allocator = Mallocator,
 
 		this(inout(Node)* current, size_t l)
 		{
-			import core.bitop: bsf;
+			import containers.internal.backwards : bsf;
+			version(assert) import std.format:format;
+
 			this.current = current;
 			this.length = l;
 			if (current !is null)
 			{
 				index = bsf(current.registry);
-				assert (index < nodeCapacity);
+				assert (index < nodeCapacity, "index = %d, nodeCapacity = %d".format(index, nodeCapacity));
 			}
 		}
 
@@ -456,22 +458,12 @@ private:
 
 	static bool shouldMerge(const Node* first, const Node* second)
 	{
-		import core.bitop : popcnt;
+		import containers.internal.backwards : popcnt;
 
 		if (first is null || second is null)
 			return false;
-		static if (first.registry.sizeof > uint.sizeof)
-		{
-			immutable f = popcnt(cast(uint) first.registry)
-				+ popcnt(cast(uint) (first.registry >>> 32));
-			immutable s = popcnt(cast(uint) second.registry)
-				+ popcnt(cast(uint) (second.registry >>> 32));
-		}
-		else
-		{
-			immutable f = popcnt(first.registry);
-			immutable s = popcnt(second.registry);
-		}
+		immutable f = popcnt(first.registry);
+		immutable s = popcnt(second.registry);
 		return f + s <= nodeCapacity;
 	}
 
@@ -484,7 +476,7 @@ private:
 	}
 	body
 	{
-		import core.bitop: bsf;
+		import containers.internal.backwards : bsf;
 		size_t i;
 		ContainerStorageType!T[nodeCapacity] temp;
 		foreach (j; 0 .. nodeCapacity)
@@ -505,7 +497,7 @@ private:
 	{
 		size_t nextAvailableIndex() const nothrow pure @safe @nogc
 		{
-			import core.bitop: bsf;
+			import containers.internal.backwards : bsf;
 			return bsf(~registry);
 		}
 

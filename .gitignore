@@ -3,10 +3,14 @@
 *.lst
 *.s
 test/tests
+test/tests_32
 test/looptest
 perf.data
 doc/
 .dub/
 dub.selections.json
 test/compile_test
+test/compile_test_32
 test/external_allocator_test
+test/external_allocator_test_32
+.gdb_history
