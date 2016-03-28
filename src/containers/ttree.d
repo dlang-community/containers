@@ -498,8 +498,8 @@ private:
 
 		ulong calcHeight() nothrow pure @nogc @safe
 		{
-			immutable size_t l = left !is null ? left.height() : 0;
-			immutable size_t r = right !is null ? right.height() : 0;
+			immutable ulong l = left !is null ? left.height() : 0;
+			immutable ulong r = right !is null ? right.height() : 0;
 			immutable ulong h = 1 + (l > r ? l : r);
 			registry &= fullBitPattern;
 			registry |= (h << 32UL);
