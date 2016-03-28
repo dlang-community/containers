@@ -347,14 +347,14 @@ struct UnrolledList(T, Allocator = Mallocator,
 		this(inout(Node)* current, size_t l)
 		{
 			import containers.internal.backwards : bsf;
-			version(assert) import std.format:format;
+			import std.format:format;
 
 			this.current = current;
 			this.length = l;
 			if (current !is null)
 			{
 				index = bsf(current.registry);
-				assert (index < nodeCapacity, "index = %d, nodeCapacity = %d".format(index, nodeCapacity));
+				assert (index < nodeCapacity);
 			}
 		}
 
