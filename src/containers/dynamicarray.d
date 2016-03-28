@@ -126,6 +126,38 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	alias put = insert;
 
 	/**
+	 * ~= operator overload
+	 */
+	void opOpAssign(string op)(T value) if (op == "~")
+	{
+		insert(value);
+	}
+
+	/**
+	 * ~ operator overload
+	 */
+	typeof(this) opBinary(string op)(ref typeof(this) other) if (op == "~")
+	{
+		typeof(this) ret;
+		foreach (value; arr[0 .. l])
+			ret.insert(value);
+		foreach (value; other.arr[0 .. other.l])
+			ret.insert(value);
+		return ret;
+	}
+
+	/// ditto
+	typeof(this) opBinary(string op)(T[] values) if (op == "~")
+	{
+		typeof(this) ret;
+		foreach (value; arr[0 .. l])
+			ret.insert(value);
+		foreach (value; values)
+			ret.insert(value);
+		return ret;
+	}
+
+	/**
 	 * Remove the item at the given index from the array.
 	 */
 	void remove(const size_t i)
@@ -339,4 +371,19 @@ unittest
 	assert (slice.length == 2);
 	assert (*slice[0] == 1);
 	assert (*slice[1] == 2);
+}
+
+unittest
+{
+	import std.format : format;
+
+	DynamicArray!int arr;
+	foreach (int i; 0 .. 10)
+		arr ~= i;
+	assert(arr.length == 10, "arr.length = %d".format(arr.length));
+
+	auto arr2 = arr ~ arr;
+	assert(arr2.length == 20);
+	auto arr3 = arr2 ~ [100, 99, 98];
+	assert(arr3.length == 23);
 }
