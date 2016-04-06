@@ -1,9 +1,11 @@
-sudo: true
+sudo: false
 
 language: d
 
-install:
-- sudo apt-get install gcc-multilib -y
+addons:
+    apt:
+        packages:
+            gcc-multilib
 
 script:
 - git submodule update --init --recursive
