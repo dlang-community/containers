@@ -1,5 +1,14 @@
 sudo: false
+
 language: d
+
+before_install:
+- sudo apt-get update -qq
+
+install:
+- sudo apt-get install gcc-multilib -y
+- sudo apt-get install libgc-dev:i386 zlib1g:i386 -y
+
 script:
-    - git submodule update --init --recursive
-    - make -B -C test/
+- git submodule update --init --recursive
+- make -B -C test/
