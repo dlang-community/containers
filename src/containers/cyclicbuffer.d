@@ -792,3 +792,13 @@ unittest
 	b.reserve(b.capacity + 1);
 	assert(equal(b[], [7, 6, 0, 1, 2, 3, 4, 5]));
 }
+
+unittest
+{
+    static class Foo
+    {
+        string name;
+    }
+
+    CyclicBuffer!Foo b;
+}

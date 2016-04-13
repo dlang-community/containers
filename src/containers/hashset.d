@@ -119,7 +119,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	/**
 	 * Returns: true if value is contained in the set.
 	 */
-	bool contains(T value) inout nothrow
+	bool contains(T value) inout
 	{
 		return (value in this) !is null;
 	}
@@ -127,7 +127,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	/**
 	 * Supports $(B a in b) syntax
 	 */
-	inout(T)* opBinaryRight(string op)(T value) inout nothrow if (op == "in")
+	inout(T)* opBinaryRight(string op)(T value) inout if (op == "in")
 	{
 		if (buckets.length == 0 || _length == 0)
 			return null;
@@ -633,4 +633,29 @@ unittest
 	fred.insert(new AStruct(10, 10));
 	auto h = new AStruct(10, 10);
 	assert(h in fred);
+}
+
+unittest
+{
+    static class Foo
+    {
+        string name;
+    }
+
+    hash_t stringToHash(string str) @safe pure nothrow @nogc
+    {
+        hash_t hash = 5381;
+        return hash;
+    }
+
+    hash_t FooToHash(Foo e) pure @safe nothrow @nogc
+    {
+        return stringToHash(e.name);
+    }
+
+    HashSet!(Foo, Mallocator, FooToHash) hs;
+    auto f = new Foo;
+    hs.insert(f);
+    assert(f in hs);
+    auto r = hs.range();
 }

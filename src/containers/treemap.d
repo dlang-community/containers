@@ -184,3 +184,15 @@ unittest
 	assert(equal(tm.keys, a));
 	assert(equal(tm.values, repeat(0).take(a.length)));
 }
+
+unittest
+{
+    static class Foo
+    {
+        string name;
+    }
+
+    TreeMap!(string, Foo) tm;
+    auto f = new Foo;
+    tm["foo"] = f;
+}

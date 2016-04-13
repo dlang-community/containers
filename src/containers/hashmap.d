@@ -481,3 +481,16 @@ unittest
 	hm3[100] = 1;
 	assert (hm3.get(100, 20) == 1);
 }
+
+unittest
+{
+    static class Foo
+    {
+        string name;
+    }
+
+    auto hm = HashMap!(string, Foo)(16);
+    auto f = new Foo;
+    hm.insert("foo", f);
+    assert("foo" in hm);
+}

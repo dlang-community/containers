@@ -1164,3 +1164,23 @@ unittest
 		assert(allocator.bytesUsed == 0);
 	}
 }
+
+unittest
+{
+    static class Foo
+    {
+        string name;
+
+        this(string s)
+        {
+            this.name = s;
+        }
+    }
+
+    TTree!(Foo, Mallocator, false, "a.name < b.name") tt;
+    auto f = new Foo("foo");
+    tt.insert(f);
+    f = new Foo("bar");
+    tt.insert(f);
+    auto r = tt.range();
+}
