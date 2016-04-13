@@ -599,3 +599,21 @@ unittest
 	static assert (is (typeof(objs.front) == const));
 	static assert (is (typeof(objs[].front) == const));
 }
+
+unittest
+{
+    static class A
+    {
+        int a;
+        int b;
+
+        this(int a, int b)
+        {
+            this.a = a;
+            this.b = b;
+        }
+    }
+
+    UnrolledList!(A) objs;
+    objs.insert(new A(10, 11));
+}

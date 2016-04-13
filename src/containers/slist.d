@@ -284,3 +284,15 @@ unittest
 	l ~= "fghij";
 	assert (l.length == 2);
 }
+
+unittest
+{
+    static class Foo
+    {
+        string name;
+    }
+
+    SList!Foo hs;
+    auto f = new Foo;
+    hs.put(f);
+}

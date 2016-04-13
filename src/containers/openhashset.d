@@ -123,7 +123,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 	 * Returns:
 	 *     $(B true) if the hash set contains the given item, false otherwise.
 	 */
-	bool contains(T item) const nothrow @safe
+	bool contains(T item) const
 	{
 		if (empty)
 			return false;
@@ -135,7 +135,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 	}
 
 	/// ditto
-	bool opBinaryRight(string op)(T item) inout nothrow if (op == "in")
+	bool opBinaryRight(string op)(T item) inout if (op == "in")
 	{
 		return contains(item);
 	}
@@ -282,7 +282,7 @@ private:
 	 * Returns:
 	 *     size_t.max if the item was not found
 	 */
-	static size_t toIndex(const Node[] n, T item, size_t hash) nothrow @safe
+	static size_t toIndex(const Node[] n, T item, size_t hash)
 	{
 		immutable size_t bucketMask = (n.length - 1);
 		immutable size_t index = hash & bucketMask;
@@ -353,4 +353,35 @@ unittest
 	assert (!ohs.remove(9999));
 	assert (ohs.remove(0));
 	assert (ohs.remove(1));
+}
+
+unittest
+{
+    static class Foo
+    {
+        string name;
+
+        override bool opEquals(Object other) const @safe pure nothrow @nogc
+        {
+            Foo f = cast(Foo)other;
+            return f !is null && f.name == this.name;
+        }
+    }
+
+    hash_t stringToHash(string str) @safe pure nothrow @nogc
+    {
+        hash_t hash = 5381;
+        return hash;
+    }
+
+    hash_t FooToHash(Foo e) pure @safe nothrow @nogc
+    {
+        return stringToHash(e.name);
+    }
+
+    OpenHashSet!(Foo, Mallocator, FooToHash) hs;
+    auto f = new Foo;
+    hs.insert(f);
+    assert(f in hs);
+    auto r = hs.range();
 }
