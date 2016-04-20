@@ -112,7 +112,11 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			end = (start - 1 + capacity) % capacity;
 		else if (start > end)
 		{
-			import std.algorithm.mutation : moveEmplaceAll;
+			//The buffer was wrapped around prior to reallocation.
+
+			//`moveEmplaceAll` is only available in 2.069+, so use a low level alternative.
+			//Even more, we don't have to .init the moved away data, because we don't .destroy it.
+			import core.stdc.string : memcpy, memmove;
 			immutable prefix = end + 1;
 			immutable suffix = oldCapacity - start;
 			if (prefix <= suffix)
@@ -121,29 +125,26 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 				immutable space = newCapacity - oldCapacity;
 				if (space >= prefix)
 				{
-					moveEmplaceAll(storage[0 .. prefix], storage[oldCapacity .. $]);
+					memcpy(storage.ptr + oldCapacity, storage.ptr, prefix * T.sizeof);
 					end += oldCapacity;
 				}
 				else
 				{
 					//There is not enough space, so move what we can,
 					//and shift the rest to the start of the buffer.
-					moveEmplaceAll(storage[0 .. space], storage[oldCapacity .. $]);
+					memcpy(storage.ptr + oldCapacity, storage.ptr, space * T.sizeof);
 					end -= space;
-					moveEmplaceAll(storage[space .. prefix], storage[0 .. end + 1]);
+					memmove(storage.ptr, storage.ptr + space, (end + 1) * T.sizeof);
 				}
 			}
 			else
 			{
-				import std.range : retro;
 				//The suffix is being moved forward, to the end of the buffer.
-				//Due to the fact that these locations may overlap, use `retro`.
-				moveEmplaceAll(
-					retro(storage[start .. oldCapacity]),
-					retro(storage[$ - suffix .. $]),
-				);
+				//Due to the fact that these locations may overlap, use `memmove`.
+				memmove(storage.ptr + newCapacity - suffix, storage.ptr + start, suffix * T.sizeof);
 				start = newCapacity - suffix;
 			}
+			//Ensure everything is still alright.
 			if (start <= end)
 				assert(end + 1 - start == length);
 			else
