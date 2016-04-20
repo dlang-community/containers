@@ -141,7 +141,7 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			{
 				//The suffix is being moved forward, to the end of the buffer.
 				//Due to the fact that these locations may overlap, use `memmove`.
-				memmove(storage.ptr + newCapacity - suffix, storage.ptr + start, suffix * T.sizeof);				start = newCapacity - suffix;
+				memmove(storage.ptr + newCapacity - suffix, storage.ptr + start, suffix * T.sizeof);
 				start = newCapacity - suffix;
 			}
 			//Ensure everything is still alright.
