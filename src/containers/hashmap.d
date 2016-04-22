@@ -264,12 +264,28 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	/**
 	 * Support for $(D foreach(key, value; aa) { ... }) syntax;
 	 */
-	int opApply(this This)(int delegate(ref K, ref V) del)
+	int opApply(D)(D del) if(isOpApplyDelegate!(D, const(K), V))
 	{
 		int result = 0;
 		foreach (ref bucket; buckets)
 		{
 			foreach (ref node; bucket.range)
+			{
+				result = del(node.key, node.value);
+				if (result != 0)
+					return result;
+			}
+		}
+		return result;
+	}
+
+	///
+	int opApply(D)(D del) const if(isOpApplyDelegate!(D, const(K), const(V)))
+	{
+		int result = 0;
+		foreach (const ref bucket; buckets)
+		{
+			foreach (const ref node; bucket.range)
 			{
 				result = del(node.key, node.value);
 				if (result != 0)
@@ -291,6 +307,17 @@ private:
 
 	enum bool storeHash = !isBasicType!K;
 	enum bool useGC = supportGC && (shouldAddGCRange!K || shouldAddGCRange!V);
+
+	template isOpApplyDelegate(D, KT, VT)
+	{
+		import std.traits : isDelegate, isImplicitlyConvertible, isIntegral, Parameters, ReturnType;
+
+		enum isOpApplyDelegate = isDelegate!D
+			&& isIntegral!(ReturnType!D)
+			&& Parameters!(D).length == 2
+			&& is(KT == Parameters!(D)[0])
+			&& isImplicitlyConvertible!(VT, Parameters!(D)[1]);
+	}
 
 	void initialize(size_t bucketCount = 4)
 	{
@@ -471,7 +498,7 @@ unittest
 	assert (hm.length == 1001);
 	assert (hm.keys().length == hm.length);
 	assert (hm.values().length == hm.length);
-	foreach (ref string k, ref int v; hm) {}
+	foreach (const ref string k, ref int v; hm) {}
 
 	auto hm2 = HashMap!(char, char)(4);
 	hm2['a'] = 'a';
@@ -489,8 +516,18 @@ unittest
         string name;
     }
 
+	void someFunc(ref in HashMap!(string,Foo) map) @safe
+	{
+		foreach (const ref string k, const ref Foo v; map)
+		{
+			assert (k == "foo");
+			assert (v.name == "Foo");
+		}
+	}
+
     auto hm = HashMap!(string, Foo)(16);
     auto f = new Foo;
+	f.name = "Foo";
     hm.insert("foo", f);
     assert("foo" in hm);
 }
