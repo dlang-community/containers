@@ -363,7 +363,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			return cast(T) current.items[index];
 		}
 
-		void popFront() nothrow pure
+		void popFront() nothrow pure @safe
 		{
 			index++;
 			while (true)
