@@ -512,9 +512,14 @@ private:
 			for (BucketNode* current = cast(BucketNode*) root; current !is null; current = current.next)
 			{
 				static if (storeHash)
+				{
 					auto v = current.get(ItemNode(hash, value));
+				}
 				else
+				{
 					auto v = current.get(ItemNode(value));
+				}
+
 				if (v !is null)
 					return cast(typeof(return)) v;
 			}
@@ -549,6 +554,22 @@ private:
 		static if (storeHash)
 			hash_t hash;
 		ContainerStorageType!T value;
+
+        static if (storeHash)
+        {
+            this(Z)(hash_t nh, Z nv)
+            {
+                this.hash = nh;
+                this.value = nv;
+            }
+        }
+        else
+        {
+            this(Z)(Z nv)
+            {
+                this.value = nv;
+            }
+        }
 	}
 
 	mixin AllocatorState!Allocator;
@@ -658,4 +679,38 @@ unittest
     hs.insert(f);
     assert(f in hs);
     auto r = hs.range();
+}
+
+unittest
+{
+    static class Foo
+    {
+        string name;
+        this(string n) { this.name = n; }
+        bool opEquals(const Foo of) const {
+            if(of !is null) { return this.name == of.name; }
+            else { return false; }
+        }
+    }
+
+    hash_t stringToHash(string str) @safe pure nothrow @nogc
+    {
+        hash_t hash = 5381;
+        return hash;
+    }
+
+    hash_t FooToHash(in Foo e) pure @safe nothrow @nogc
+    {
+        return stringToHash(e.name);
+    }
+
+    string foo = "foo";
+    HashSet!(const(Foo), Mallocator, FooToHash) hs;
+    const(Foo) f = new const Foo(foo);
+    hs.insert(f);
+    assert(f in hs);
+    auto r = hs.range();
+    assert(!r.empty);
+    auto fro = r.front;
+    assert(fro.name == foo);
 }
