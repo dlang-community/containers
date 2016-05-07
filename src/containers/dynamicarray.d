@@ -185,6 +185,23 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		}
 	}
 
+	/** Deletes all the elements, but does not disallocate the memory
+	of the DynamicArray. If references to the content of the DynamicArray are
+	used after calling $(D clear), the behaviour is undefined.
+	*/
+	void clear()
+	{
+		for (size_t i = 0; i < this.l; ++i)
+		{
+			static if (is(T == class))
+				destroy(arr[i]);
+			else
+				typeid(T).destroy(&arr[i]);
+		}
+
+		this.l = 0;
+	}
+
 	/// Index assignment support
 	void opIndexAssign(T value, size_t i) @nogc
 	{
@@ -253,29 +270,32 @@ unittest
 	import std.algorithm : equal;
 	import std.range : iota;
 	DynamicArray!int ints;
-	assert(ints.empty);
-	foreach (i; 0 .. 100)
+
+	for (int t = 0; t < 2; ++t)
 	{
-		ints.insert(i);
-		assert(ints.front == 0);
-		assert(ints.back == i);
+		foreach (i; 0 .. 100)
+			ints.insert(i);
+		assert (equal(ints[], iota(100)));
+		assert (ints.length == 100);
+		ints[0] = 100;
+		assert (ints[0] == 100);
+		ints[0 .. 5] = 20;
+		foreach (i; ints[0 .. 5])
+			assert (i == 20);
+		ints[] = 432;
+		foreach (i; ints[])
+			assert (i == 432);
+
+		auto arr = ints.ptr;
+		arr[0] = 1337;
+		assert(arr[0] == 1337);
+		assert(ints[0] == 1337);
+
+		assert(ints.length == 100);
+		ints.clear();
+		assert(ints.length == 0);
 	}
-
-	assert (equal(ints[], iota(100)));
-	assert (ints.length == 100);
-	ints[0] = 100;
-	assert (ints[0] == 100);
-	ints[0 .. 5] = 20;
-	foreach (i; ints[0 .. 5])
-		assert (i == 20);
-	ints[] = 432;
-	foreach (i; ints[])
-		assert (i == 432);
-
-	auto arr = ints.ptr;
-	arr[0] = 1337;
-	assert(arr[0] == 1337);
-	assert(ints[0] == 1337);
+	assert(ints.length == 0);
 }
 
 version(unittest)
