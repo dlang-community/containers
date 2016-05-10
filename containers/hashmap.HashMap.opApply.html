@@ -11,11 +11,14 @@
 <table id="results"></table>
 <input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
 containers.<a href="containers/hashmap.HashMap.html">hashmap</a>.<a href="containers/hashmap.HashMap.html">HashMap</a>.opApply</div>
-<pre><code>public int opApply(this This)(int delegate(ref K, ref V) del)
+<pre><code>public int opApply(D)(D del) 
+if(isOpApplyDelegate!(D, const(K), V))
 </code></pre><div class="section">
 Support for  syntax;
 </div>
-
+<hr/><pre><code>public int opApply(D)(D del) const 
+if(isOpApplyDelegate!(D, const(K), const(V)))
+</code></pre>
 <script>hljs.initHighlightingOnLoad();</script>
 </body>
 </html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>CyclicBuffer</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+containers.<a href="containers/cyclicbuffer.html">cyclicbuffer</a>.CyclicBuffer</div>
+<pre><code>public struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
+</code></pre><div class="section">
+Array that provides constant time (amortized) appending and popping
+at either end, as well as random access to the elements.
+</div>
+<div class="section">
+<h3>Parameters</h3>
+<table class="params">
+<tr class="param"><td class="paramName">T</td><td class="paramDoc">the array element type</td></tr>
+<tr class="param"><td class="paramName">Allocator</td><td class="paramDoc">the allocator to use. Defaults to <pre style="display:inline;" class="d_inline_code">Mallocator</pre>.</td></tr>
+<tr class="param"><td class="paramName">supportGC</td><td class="paramDoc">true if the container should support holding references to GC-allocated memory.</td></tr>
+</table></div>
+<div class="section">
+<h3>Aliases</h3>
+<table>
+<tr><td><a href="containers/cyclicbuffer.CyclicBuffer.insert.html">insert</a></td><td><pre><code>insertBack</code></pre></td><td>Inserts the given item into the end of the buffer.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.opDollar.html">opDollar</a></td><td><pre><code>length</code></pre></td><td>Returns: the number of items in the buffer.</td></tr></table>
+<h3>Functions</h3>
+<table>
+<tr><td><a href="containers/cyclicbuffer.CyclicBuffer.this.html">this</a></td><td></td><td>No default construction if an allocator must be provided.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.this.html">this</a></td><td></td><td>Use the given <pre style="display:inline;" class="d_inline_code">allocator</pre> for allocations.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.clear.html">clear</a></td><td></td><td>Removes all contents from the buffer.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.reserve.html">reserve</a></td><td></td><td>Ensures capacity is at least as large as specified.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.insertFront.html">insertFront</a></td><td></td><td>Inserts the given item into the start of the buffer.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.insertBack.html">insertBack</a></td><td></td><td>Inserts the given item into the end of the buffer.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.removeFront.html">removeFront</a></td><td></td><td>Removes the item at the start of the buffer.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.removeBack.html">removeBack</a></td><td></td><td>Removes the item at the end of the buffer.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.front.html">front</a></td><td></td><td>Accesses to the item at the start of the buffer.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.back.html">back</a></td><td></td><td>Accesses to the item at the end of the buffer.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.opIndex.html">opIndex</a></td><td></td><td>buffer[i]</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.opIndex.html">opIndex</a></td><td></td><td>buffer[]</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.opSlice.html">opSlice</a></td><td></td><td>buffer[i .. j]</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.opIndex.html">opIndex</a></td><td></td><td>buffer[i .. j]</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.length.html">length</a></td><td></td><td>Returns: the number of items in the buffer.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.capacity.html">capacity</a></td><td></td><td>Returns: maximal number of items the buffer can hold without reallocation.</td></tr><tr><td><a href="containers/cyclicbuffer.CyclicBuffer.empty.html">empty</a></td><td></td><td>Returns: whether or not the CyclicBuffer is empty.</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

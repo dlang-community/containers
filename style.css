@@ -77,6 +77,12 @@ div.section td {
 	padding: .25em;
 }
 
+code {
+	tab-size: 4;
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+}
+
 div.section code {
 	background-color: #333;
 	color: #eee;
