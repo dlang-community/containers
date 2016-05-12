@@ -256,11 +256,21 @@ struct UnrolledList(T, Allocator = Mallocator,
 		}
 	}
 
+	template ModSelect(A,B,S)
+	{
+		static if(is(A == immutable) || is(B == immutable))
+			alias ModSelect = immutable(S);
+		else static if(is(A == const) || is(B == const))
+			alias ModSelect = const(S);
+		else
+			alias ModSelect = S;
+	}
+
 	/**
 	 * Time complexity is O(1)
 	 * Returns: the item at the front of the list
 	 */
-	inout(T) front() inout @property
+	ref auto front(this This)() @property
 	in
 	{
 		assert (!empty);
@@ -272,14 +282,14 @@ struct UnrolledList(T, Allocator = Mallocator,
 		import std.string: format;
 		size_t index = bsf(_front.registry);
 		assert (index < nodeCapacity, format("%d", index));
-		return _front.items[index];
+		return cast(ModSelect!(typeof(this),T,T))_front.items[index];
 	}
 
 	/**
 	 * Time complexity is O(n)
 	 * Returns: the item at the back of the list
 	 */
-	inout(T) back() inout @property
+	ref auto back(this This)() @property
 	in
 	{
 		assert (!empty);
@@ -290,7 +300,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		size_t i = nodeCapacity - 1;
 		while (_back.isFree(i))
 			i--;
-		return _back.items[i];
+		return cast(ModSelect!(typeof(this),T,T))_back.items[i];
 	}
 
 	/// Pops the back item off of the list.
@@ -332,19 +342,52 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 
 	/// Returns: a range over the list
-	auto range(this This)() const nothrow pure @nogc @trusted @property
+	auto range(this This)() nothrow pure @nogc @trusted @property
 	{
-		return Range!(This)(_front, _length);
+		return Range!(
+			ModSelect!(typeof(this),T,T),
+			ModSelect!(typeof(this),T,Node)
+		)
+		(cast(ModSelect!(typeof(this),T,Node)*)_front, _length);
 	}
+
+	/// ditto
+	/*auto range() const nothrow pure @nogc @trusted @property
+	{
+		return Range!(
+			ModSelect!(typeof(this),T,T),
+			ModSelect!(typeof(this),T,Node)
+		)
+		(cast(ModSelect!(typeof(this),T,Node)*)_front, _length);
+		//return Range!(ModSelect!(typeof(this),T,T),const(Node))(_front, _length);
+	}
+
+	/// ditto
+	auto range() immutable nothrow pure @nogc @trusted @property
+	{
+		return Range!(
+			ModSelect!(typeof(this),T,T),
+			ModSelect!(typeof(this),T,Node)
+		)
+		(cast(ModSelect!(typeof(this),T,Node)*)_front, _length);
+		//return Range!(ModSelect!(typeof(this),immutable(T),T),immutable(Node))(_front, _length);
+	}*/
 
 	/// ditto
 	alias opSlice = range;
 
-	static struct Range(ThisT)
+	static struct Range(S,NT)
 	{
 		@disable this();
 
-		this(inout(Node)* current, size_t l)
+		this(NT* current, size_t i, size_t l)
+		{
+			this.current = current;
+			this.index = i;
+			this.length = l;
+		}
+
+		this(NT* current, size_t l)
 		{
 			import containers.internal.backwards : bsf;
 			import std.format:format;
@@ -358,9 +401,13 @@ struct UnrolledList(T, Allocator = Mallocator,
 			}
 		}
 
-		ET front() const @property @trusted @nogc
+		ref S front() @property @trusted @nogc
 		{
-			return cast(T) current.items[index];
+			//pragma(msg, "");
+			//pragma(msg, S.stringof);
+			//pragma(msg, NT.stringof);
+			//pragma(msg, typeof(current.items[0]));
+			return current.items[index];
 		}
 
 		void popFront() nothrow pure @safe
@@ -391,15 +438,17 @@ struct UnrolledList(T, Allocator = Mallocator,
 			return current is null;
 		}
 
-		Range save() const nothrow pure @property @safe @nogc
+		auto save() nothrow pure @property @safe @nogc
 		{
-			return this;
+			return Range!(S,NT)(this.current, index, length);
 		}
 
 	private:
+		import std.traits : CopyConstness;
 
-		alias ET = ContainerElementType!(ThisT, T);
-		const(Node)* current;
+		//alias ET = ContainerElementType!(ThisT, T);
+		//alias FT = CopyConstness!(ThisT, T);
+		NT* current;
 		size_t index;
 		size_t length;
 	}
@@ -594,10 +643,34 @@ unittest
 unittest
 {
 	struct A { int a; int b; }
-	UnrolledList!(const(A)) objs;
-	objs.insert(A(10, 11));
-	static assert (is (typeof(objs.front) == const));
-	static assert (is (typeof(objs[].front) == const));
+
+	{
+		UnrolledList!(const(A)) objs;
+		objs.insert(A(10, 11));
+		static assert (is (typeof(objs.front) == const),
+			typeof(objs.front).stringof
+		);
+
+		auto tmp = objs[];
+		static assert (is (typeof(tmp.front) == const),
+			typeof(tmp.front).stringof
+		);
+		static assert (is (typeof(objs[].front) == const),
+			typeof(objs[].front).stringof
+		);
+	}
+
+	{
+		const(UnrolledList!(const(A))) objs;
+		static assert (is (typeof(objs.front) == const));
+		static assert (is (typeof(objs[].front) == const));
+	}
+
+	{
+		immutable(UnrolledList!(const(A))) objs;
+		static assert (is (typeof(objs.front) == immutable));
+		static assert (is (typeof(objs[].front) == immutable));
+	}
 }
 
 unittest
@@ -616,4 +689,51 @@ unittest
 
     UnrolledList!(A) objs;
     objs.insert(new A(10, 11));
+}
+
+unittest
+{
+	UnrolledList!int ints;
+	ints.insertBack(0);
+	ints.insertBack(0);
+
+	ints.front = 1;
+	ints.back = 11;
+
+	assert(ints.front == 1);
+	assert(ints.back == 11);
+}
+
+unittest
+{
+	UnrolledList!int list;
+	list.insert(0);
+	list.insert(0);
+	list.insert(0);
+	list.insert(0);
+	list.insert(0);
+
+	foreach(ref it; list.range) {
+		it = 1;
+	}
+
+	foreach(it; list.range) {
+		assert(it == 1);
+	}
+}
+
+unittest
+{
+	immutable(UnrolledList!int) lst;
+	auto r = lst[];
+	static assert(is(typeof(r.front()) == immutable(int)));
+	static assert(is(typeof(lst.length) == size_t));
+}
+
+unittest
+{
+	UnrolledList!(immutable(int)) lst;
+	auto r = lst[];
+	static assert(is(typeof(r.front()) == immutable(int)));
+	static assert(is(typeof(lst.length) == size_t));
 }

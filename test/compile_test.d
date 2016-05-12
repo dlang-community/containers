@@ -226,6 +226,9 @@ private void checkSliceFunctionality(Type, Container)(ref Container container)
 	import std.array : front;
 
 	auto r = container[];
+	pragma(msg, "");
+	pragma(msg, typeof(r).stringof);
+	pragma(msg, typeof(r.front()).stringof);
 	static assert(is(typeof(r.front()) == Type));
 	static assert(is(typeof(container.length) == size_t));
 	assert(container.length == 0);
