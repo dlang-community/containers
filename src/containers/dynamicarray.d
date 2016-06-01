@@ -185,6 +185,14 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		}
 	}
 
+	/**
+     * Removes the last element from the array.
+	 */
+	void removeBack()
+	{
+		this.remove(this.length - 1);
+	}
+
 	/// Index assignment support
 	void opIndexAssign(T value, size_t i) @nogc
 	{
@@ -386,4 +394,9 @@ unittest
 	assert(arr2.length == 20);
 	auto arr3 = arr2 ~ [100, 99, 98];
 	assert(arr3.length == 23);
+
+	while(!arr3.empty)
+		arr3.removeBack();
+	assert(arr3.empty);
+
 }
