@@ -395,6 +395,8 @@ private:
 
 	enum RangeType : ubyte { all, lower, equal, upper }
 
+	enum bool useGC = supportGC && shouldAddGCRange!T;
+
 	// If we're storing a struct that defines opCmp, don't compare pointers as
 	// that is almost certainly not what the user intended.
 	static if (is(typeof(less) == string ) && less == "a < b" && isPointer!T && __traits(hasMember, PointerTarget!T, "opCmp"))
@@ -420,7 +422,7 @@ private:
 		n.parent = parent;
 		n.markUsed(0);
 		n.values[0] = cast(Value) value;
-		static if (supportGC && shouldAddGCRange!T)
+		static if (useGC)
 			GC.addRange(n, Node.sizeof);
 		return n;
 	}
@@ -440,7 +442,7 @@ private:
 		if (n.right !is null)
 			deallocateNode(n.right, allocator);
 
-		static if (supportGC && shouldAddGCRange!T)
+		static if (useGC)
 			GC.removeRange(n);
 		static if (stateSize!Allocator == 0)
 			dispose(Allocator.instance, n);

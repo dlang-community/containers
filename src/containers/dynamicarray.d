@@ -59,7 +59,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			else
 				typeid(T).destroy(&item);
 		}
-		static if (shouldAddGCRange!T)
+		static if (useGC)
 		{
 			import core.memory : GC;
 			GC.removeRange(arr.ptr);
