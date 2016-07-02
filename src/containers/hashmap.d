@@ -104,7 +104,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 			throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
 		size_t hash = generateHash(key);
 		size_t index = hashToIndex(hash);
-		foreach (r; buckets[index].range)
+		foreach (ref r; buckets[index].range)
 		{
 			static if (storeHash)
 			{
@@ -264,7 +264,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	/**
 	 * Support for $(D foreach(key, value; aa) { ... }) syntax;
 	 */
-	int opApply(D)(D del) if(isOpApplyDelegate!(D, const(K), V))
+	int opApply(D)(D del) if(isOpApplyDelegate!(D, const K, V))
 	{
 		int result = 0;
 		foreach (ref bucket; buckets)
@@ -280,7 +280,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	}
 
 	///
-	int opApply(D)(D del) const if(isOpApplyDelegate!(D, const(K), const(V)))
+	int opApply(D)(D del) const if(isOpApplyDelegate!(D, const K, const V))
 	{
 		int result = 0;
 		foreach (const ref bucket; buckets)
@@ -516,18 +516,61 @@ unittest
         string name;
     }
 
-	void someFunc(ref in HashMap!(string,Foo) map) @safe
-	{
-		foreach (const ref string k, const ref Foo v; map)
-		{
-			assert (k == "foo");
-			assert (v.name == "Foo");
-		}
-	}
+    void someFunc(ref in HashMap!(string,Foo) map) @safe
+    {
+		static assert(is(typeof(map[""]) == const(Foo)));
+        foreach (const ref string k, const ref Foo v; map)
+        {
+            assert (k == "foo");
+            assert (v.name == "Foo");
+        }
+    }
+
+    void someFunc2(ref HashMap!(string,Foo) map) @safe
+    {
+		static assert(is(typeof(map[""]) == Foo));
+        foreach (const ref string k, Foo v; map)
+        {
+            assert (k == "foo");
+            assert (v.name == "Foo");
+        }
+    }
 
     auto hm = HashMap!(string, Foo)(16);
     auto f = new Foo;
-	f.name = "Foo";
+    f.name = "Foo";
     hm.insert("foo", f);
     assert("foo" in hm);
+    someFunc(hm);
+    someFunc2(hm);
+}
+
+unittest
+{
+    HashMap!(string, int) map;
+    map.insert("foo", 0);
+    map.insert("bar", 0);
+
+    foreach(const(string) key, ref int value; map) {
+        value = 1;
+    }
+
+    foreach(const(string) key, ref int value; map) {
+        assert(value == 1);
+    }
+}
+
+unittest
+{
+    HashMap!(string, int) map;
+    map.insert("foo", 0);
+    map.insert("bar", 0);
+
+    foreach(key; map.keys()) {
+        map[key] = 1;
+    }
+
+    foreach(const(string) key, ref int value; map) {
+        assert(value == 1);
+    }
 }
