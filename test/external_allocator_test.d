@@ -15,6 +15,7 @@ import std.experimental.allocator.building_blocks.free_list : FreeList;
 import std.experimental.allocator.building_blocks.allocator_list : AllocatorList;
 import std.experimental.allocator.building_blocks.region : Region;
 import std.experimental.allocator.building_blocks.stats_collector : StatsCollector;
+import std.experimental.allocator.mallocator : Mallocator;
 import std.stdio : stdout;
 import std.algorithm.iteration : walkLength;
 import std.meta : AliasSeq;
