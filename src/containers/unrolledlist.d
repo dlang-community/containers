@@ -184,7 +184,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		{
 			foreach (i; 0 .. nodeCapacity)
 			{
-				if (n.items[i] == item)
+				if (!n.isFree(i) && n.items[i] == item)
 				{
 					n.markUnused(i);
 					--_length;
@@ -557,6 +557,13 @@ unittest
 		assert (l.remove(cast(ubyte) i), format("%d", i));
 	assert (l.length == 0, format("%d", l.length));
 	assert (l.empty);
+
+	l.insert(1);
+	l.insert(2);
+	assert (l.remove(1));
+	assert (!l.remove(1));
+	assert (!l.empty);
+
 	UnrolledList!ubyte l2;
 	l2.insert(1);
 	l2.insert(2);
