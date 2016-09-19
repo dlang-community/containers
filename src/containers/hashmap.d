@@ -491,6 +491,8 @@ unittest
 	hm["one"] = 1;
 	assert (hm.length == 1);
 	assert (hm["one"] == 1);
+	hm["one"] = 2;
+	assert (hm["one"] == 2);
 	foreach (i; 0 .. 1000)
 	{
 		hm[randomUUID().toString] = i;
