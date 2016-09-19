@@ -358,9 +358,9 @@ struct UnrolledList(T, Allocator = Mallocator,
 			}
 		}
 
-		ET front() const @property @trusted @nogc
+		ref ET front() const @property @trusted @nogc
 		{
-			return cast(T) current.items[index];
+			return *(cast(T*) &current.items[index]);
 		}
 
 		void popFront() nothrow pure @safe
