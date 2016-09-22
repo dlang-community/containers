@@ -491,6 +491,8 @@ unittest
 	hm["one"] = 1;
 	assert (hm.length == 1);
 	assert (hm["one"] == 1);
+	hm["one"] = 2;
+	assert(hm["one"] == 2);
 	foreach (i; 0 .. 1000)
 	{
 		hm[randomUUID().toString] = i;
@@ -511,10 +513,10 @@ unittest
 
 unittest
 {
-    static class Foo
-    {
-        string name;
-    }
+	static class Foo
+	{
+		string name;
+	}
 
 	void someFunc(ref in HashMap!(string,Foo) map) @safe
 	{
@@ -525,9 +527,37 @@ unittest
 		}
 	}
 
-    auto hm = HashMap!(string, Foo)(16);
-    auto f = new Foo;
+	auto hm = HashMap!(string, Foo)(16);
+	auto f = new Foo;
 	f.name = "Foo";
-    hm.insert("foo", f);
-    assert("foo" in hm);
+	hm.insert("foo", f);
+	assert("foo" in hm);
+}
+
+// Issue #54
+unittest
+{
+	HashMap!(string, int) map;
+	map.insert("foo", 0);
+	map.insert("bar", 0);
+
+	foreach (key; map.keys())
+		map[key] = 1;
+
+	foreach (const(string) key, ref int value; map)
+		assert(value == 1);
+}
+
+// Issue #55
+unittest
+{
+	HashMap!(string, int) map;
+	map.insert("foo", 0);
+	map.insert("bar", 0);
+
+	foreach (const(string) key, ref int value; map)
+		value = 1;
+
+	foreach (const(string) key, ref int value; map)
+		assert(value == 1);
 }

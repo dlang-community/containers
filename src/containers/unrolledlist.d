@@ -260,7 +260,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 * Time complexity is O(1)
 	 * Returns: the item at the front of the list
 	 */
-	inout(T) front() inout @property
+	ref inout(T) front() inout @property
 	in
 	{
 		assert (!empty);
@@ -272,14 +272,14 @@ struct UnrolledList(T, Allocator = Mallocator,
 		import std.string: format;
 		size_t index = bsf(_front.registry);
 		assert (index < nodeCapacity, format("%d", index));
-		return _front.items[index];
+		return *(cast(typeof(return)*) &_front.items[index]);
 	}
 
 	/**
 	 * Time complexity is O(n)
 	 * Returns: the item at the back of the list
 	 */
-	inout(T) back() inout @property
+	ref inout(T) back() inout @property
 	in
 	{
 		assert (!empty);
@@ -290,7 +290,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		size_t i = nodeCapacity - 1;
 		while (_back.isFree(i))
 			i--;
-		return _back.items[i];
+		return *(cast(typeof(return)*) &_back.items[i]);
 	}
 
 	/// Pops the back item off of the list.
@@ -358,9 +358,10 @@ struct UnrolledList(T, Allocator = Mallocator,
 			}
 		}
 
-		ET front() const @property @trusted @nogc
+		ref ET front() const @property @trusted @nogc
 		{
-			return cast(T) current.items[index];
+			return *(cast(ET*) &current.items[index]);
+			//return cast(T) current.items[index];
 		}
 
 		void popFront() nothrow pure @safe
@@ -609,18 +610,49 @@ unittest
 
 unittest
 {
-    static class A
-    {
-        int a;
-        int b;
+	static class A
+	{
+		int a;
+		int b;
 
-        this(int a, int b)
-        {
-            this.a = a;
-            this.b = b;
-        }
-    }
+		this(int a, int b)
+		{
+			this.a = a;
+			this.b = b;
+		}
+	}
 
-    UnrolledList!(A) objs;
-    objs.insert(new A(10, 11));
+	UnrolledList!(A) objs;
+	objs.insert(new A(10, 11));
+}
+
+// Issue #52
+unittest
+{
+	UnrolledList!int list;
+	list.insert(0);
+	list.insert(0);
+	list.insert(0);
+	list.insert(0);
+	list.insert(0);
+
+	foreach (ref it; list[])
+		it = 1;
+
+	foreach (it; list[])
+		assert(it == 1);
+}
+
+// Issue #53
+unittest
+{
+	UnrolledList!int ints;
+	ints.insertBack(0);
+	ints.insertBack(0);
+
+	ints.front = 1;
+	ints.back = 11;
+
+	assert(ints.front == 1);
+	assert(ints.back == 11);
 }
