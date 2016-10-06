@@ -102,7 +102,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 		if (buckets.length == 0)
 			throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
-		size_t hash = generateHash(key);
+		size_t hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (r; buckets[index].range)
 		{
@@ -135,7 +135,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 		if (_length == 0)
 			return defaultValue;
-		size_t hash = generateHash(key);
+		size_t hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (r; buckets[index].range)
 		{
@@ -168,7 +168,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	{
 		if (_length == 0)
 			return false;
-		size_t hash = generateHash(key);
+		size_t hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (ref node; buckets[index].range)
 		{
@@ -194,7 +194,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	{
 		if (buckets.length == 0)
 			return false;
-		size_t hash = generateHash(key);
+		size_t hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		static if (storeHash)
 			bool removed = buckets[index].remove(Node(hash, key));
@@ -339,7 +339,7 @@ private:
 	{
 		if (buckets.length == 0)
 			initialize();
-		size_t hash = generateHash(key);
+		size_t hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (ref item; buckets[index].range)
 		{
@@ -412,7 +412,7 @@ private:
 				}
 				else
 				{
-					size_t hash = generateHash(node.key);
+					size_t hash = hashFunction(node.key);
 					size_t index = hashToIndex(hash);
 					buckets[index].put(Node(node.key, node.value));
 				}
@@ -445,7 +445,7 @@ private:
 	}
 	body
 	{
-		return hashToIndex(generateHash(key));
+		return hashToIndex(hashFunction(key));
 	}
 
 	struct Node
