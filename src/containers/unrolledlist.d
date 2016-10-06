@@ -276,7 +276,9 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 
 	/**
-	 * Time complexity is O(n)
+	 * Time complexity is O(nodeCapacity), where the nodeCapacity
+	 * is the number of items in a single list node. It is a constant
+	 * related to the cache line size.
 	 * Returns: the item at the back of the list
 	 */
 	ref inout(T) back() inout @property
