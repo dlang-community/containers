@@ -10,6 +10,7 @@ module containers.hashmap;
 private import containers.internal.hash : generateHash;
 private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
+private import std.traits : isBasicType;
 
 /**
  * Associative array / hash map.
@@ -22,7 +23,8 @@ private import std.experimental.allocator.mallocator : Mallocator;
  *         GC-allocated memory.
  */
 struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K,
-	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V)
+	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V,
+	bool storeHash = !isBasicType!K)
 {
 	this(this) @disable;
 
@@ -298,14 +300,12 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 private:
 
 	import std.experimental.allocator : make;
-	import std.traits : isBasicType;
 	import containers.unrolledlist : UnrolledList;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.internal.mixins : AllocatorState;
 	import core.memory : GC;
 
-	enum bool storeHash = !isBasicType!K;
 	enum bool useGC = supportGC && (shouldAddGCRange!K || shouldAddGCRange!V);
 
 	template isOpApplyDelegate(D, KT, VT)
