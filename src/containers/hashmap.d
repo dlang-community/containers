@@ -104,7 +104,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 		if (buckets.length == 0)
 			throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
-		size_t hash = hashFunction(key);
+		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (r; buckets[index].range)
 		{
@@ -137,7 +137,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 		if (_length == 0)
 			return defaultValue;
-		size_t hash = hashFunction(key);
+		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (r; buckets[index].range)
 		{
@@ -173,7 +173,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 		if (buckets.length == 0)
 			initialize();
-		size_t hash = hashFunction(key);
+		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (ref item; buckets[index].range)
 		{
@@ -221,7 +221,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	{
 		if (_length == 0)
 			return null;
-		size_t hash = hashFunction(key);
+		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (ref node; buckets[index].range)
 		{
@@ -247,7 +247,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	{
 		if (buckets.length == 0)
 			return false;
-		size_t hash = hashFunction(key);
+		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		static if (storeHash)
 			bool removed = buckets[index].remove(Node(hash, key));
@@ -358,6 +358,7 @@ private:
 	import core.memory : GC;
 
 	enum bool useGC = supportGC && (shouldAddGCRange!K || shouldAddGCRange!V);
+	alias Hash = typeof({ K k = void; return hashFunction(k); }());
 
 	template isOpApplyDelegate(D, KT, VT)
 	{
@@ -390,7 +391,7 @@ private:
 	{
 		if (buckets.length == 0)
 			initialize();
-		size_t hash = hashFunction(key);
+		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (ref item; buckets[index].range)
 		{
@@ -465,7 +466,7 @@ private:
 				}
 				else
 				{
-					size_t hash = hashFunction(node.key);
+					Hash hash = hashFunction(node.key);
 					size_t index = hashToIndex(hash);
 					buckets[index].put(Node(node.key, node.value));
 				}
@@ -477,7 +478,7 @@ private:
 		allocator.deallocate(cast(void[]) oldBuckets);
 	}
 
-	size_t hashToIndex(size_t hash) const pure nothrow @safe @nogc
+	size_t hashToIndex(Hash hash) const pure nothrow @safe @nogc
 	in
 	{
 		assert (buckets.length > 0);
@@ -488,7 +489,7 @@ private:
 	}
 	body
 	{
-		return hash & (buckets.length - 1);
+		return cast(size_t)hash & (buckets.length - 1);
 	}
 
 	size_t hashIndex(K key) const
@@ -517,7 +518,7 @@ private:
 		}
 
 		static if (storeHash)
-			size_t hash;
+			Hash hash;
 		ContainerStorageType!K key;
 		ContainerStorageType!V value;
 	}
