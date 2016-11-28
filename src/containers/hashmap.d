@@ -156,6 +156,54 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	}
 
 	/**
+	 * If the given key does not exist in the HashMap, adds it with
+	 * the value `defaultValue`.
+	 *
+	 * Params:
+	 *     key = the key to look up
+	 *     value = the default value
+	 *
+	 * Returns: pointer to the value stored in the HashMap with the
+	 * given key. The pointer is guaranteed to be valid only until
+	 * the next HashMap modification.
+	 */
+	auto getOrAdd(this This)(K key, lazy V defaultValue = V.init)
+	{
+		alias CET = ContainerElementType!(This, V);
+
+		if (buckets.length == 0)
+			initialize();
+		size_t hash = hashFunction(key);
+		size_t index = hashToIndex(hash);
+		foreach (ref item; buckets[index].range)
+		{
+			static if (storeHash)
+			{
+				if (item.hash == hash && item.key == key)
+					return cast(CET*)&item.value;
+			}
+			else
+			{
+				if (item.key == key)
+					return cast(CET*)&item.value;
+			}
+		}
+		Node* n;
+		static if (storeHash)
+			n = buckets[index].put(Node(hash, key, defaultValue));
+		else
+			n = buckets[index].put(Node(key, defaultValue));
+		_length++;
+		if (shouldRehash)
+		{
+			rehash();
+			return key in this;
+		}
+		else
+			return &n.value;
+	}
+
+	/**
 	 * Supports $(B aa[key] = value;) syntax.
 	 */
 	void opIndexAssign(V value, K key)
@@ -338,7 +386,7 @@ private:
 		}
 	}
 
-	void insert(K key, V value)
+	Node* insert(K key, V value)
 	{
 		if (buckets.length == 0)
 			initialize();
@@ -351,7 +399,7 @@ private:
 				if (item.hash == hash && item.key == key)
 				{
 					item.value = value;
-					return;
+					return &item;
 				}
 			}
 			else
@@ -359,17 +407,19 @@ private:
 				if (item.key == key)
 				{
 					item.value = value;
-					return;
+					return &item;
 				}
 			}
 		}
+		Node* n;
 		static if (storeHash)
-			buckets[index].put(Node(hash, key, value));
+			n = buckets[index].put(Node(hash, key, value));
 		else
-			buckets[index].put(Node(key, value));
+			n = buckets[index].put(Node(key, value));
 		_length++;
 		if (shouldRehash)
 			rehash();
+		return n;
 	}
 
 	/**
@@ -565,4 +615,13 @@ unittest
 
 	foreach (const(string) key, ref int value; map)
 		assert(value == 1);
+}
+
+unittest
+{
+	HashMap!(int, int) map;
+	auto p = map.getOrAdd(1, 1);
+	assert(*p == 1);
+	*p = 2;
+	assert(map[1] == 2);
 }
