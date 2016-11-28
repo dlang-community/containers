@@ -165,11 +165,14 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 	/**
 	 * Supports $(B key in aa) syntax.
+	 *
+	 * Returns: pointer to the value corresponding to the given key,
+	 * or null if the key is not present in the HashMap.
 	 */
-	bool opBinaryRight(string op)(K key) const nothrow if (op == "in")
+	inout(V)* opBinaryRight(string op)(K key) inout nothrow if (op == "in")
 	{
 		if (_length == 0)
-			return false;
+			return null;
 		size_t hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (ref node; buckets[index].range)
@@ -177,15 +180,15 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 			static if (storeHash)
 			{
 				if (node.hash == hash && node == key)
-					return true;
+					return &(cast(inout)node).value;
 			}
 			else
 			{
 				if (node == key)
-					return true;
+					return &(cast(inout)node).value;
 			}
 		}
-		return false;
+		return null;
 	}
 
 	/**
@@ -509,6 +512,8 @@ unittest
 	assert (hm3.get(100, 20) == 20);
 	hm3[100] = 1;
 	assert (hm3.get(100, 20) == 1);
+	auto pValue = 100 in hm3;
+	assert(*pValue == 1);
 }
 
 unittest
