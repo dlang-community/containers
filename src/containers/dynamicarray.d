@@ -54,7 +54,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			return;
 		foreach (ref item; arr[0 .. l])
 		{
-			static if (is(T == class))
+			static if (is(T == class) || is(T == interface))
 				destroy(item);
 			else
 				typeid(T).destroy(&item);
@@ -164,7 +164,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	{
 		if (i < this.l)
 		{
-			static if (is(T == class))
+			static if (is(T == class) || is(T == interface))
 				destroy(arr[i]);
 			else
 				typeid(T).destroy(&arr[i]);

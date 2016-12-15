@@ -53,13 +53,13 @@ version (X86_64)
 template shouldNullSlot(T)
 {
 	import std.traits;
-	enum shouldNullSlot = isPointer!T || is (T == class);
+	enum shouldNullSlot = isPointer!T || is (T == class) || is (T == interface) || isDynamicArray!T;
 }
 
 template shouldAddGCRange(T)
 {
 	import std.traits;
-	enum shouldAddGCRange = isPointer!T || hasIndirections!T || is (T == class);
+	enum shouldAddGCRange = hasIndirections!T;
 }
 
 static assert (shouldAddGCRange!string);
