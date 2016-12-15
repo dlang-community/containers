@@ -17,3 +17,5 @@ test/external_allocator_test_32
 __test__*__
 *.exe
 .directory
+*.userprefs
+.vscode
