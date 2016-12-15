@@ -103,7 +103,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/// ditto
 	bool insert(R)(R r) if (isInputRange!R && is(ElementType!R == T))
 	{
-		immutable bool retVal = false;
+		bool retVal = false;
 		while (!r.empty)
 		{
 			retVal = insert(r.front()) || retVal;

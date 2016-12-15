@@ -33,13 +33,7 @@ looptest: looptest.d
 		../src/memory/allocators.d \
 		../src/containers/ttree.d \
 		../src/containers/internal/node.d \
-		../experimental_allocator/src/std/experimental/allocator/package.d \
-		../experimental_allocator/src/std/experimental/allocator/common.d \
-		../experimental_allocator/src/std/experimental/allocator/gc_allocator.d \
-		../experimental_allocator/src/std/experimental/allocator/mallocator.d \
-		../experimental_allocator/src/std/experimental/allocator/typed.d \
 		-I../src/ \
-		-I../experimental_allocator/src/ \
 
 clean:
 	rm -f tests
