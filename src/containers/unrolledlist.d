@@ -72,7 +72,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		{
 			prev = cur;
 			cur = cur.next;
-			static if (!is(T == class))
+			static if (!(is(T == class) || is(T == interface)))
 				foreach (ref item; cur.items)
 					typeid(T).destroy(&item);
 			deallocateNode(prev);

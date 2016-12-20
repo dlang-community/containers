@@ -532,7 +532,7 @@ private:
 		bool insert(T value, ref Node* root, AllocatorType allocator)
 		in
 		{
-			static if (isPointer!T || is (T == class))
+			static if (isPointer!T || is (T == class) || is (T == interface)) 
 				assert (value !is null);
 		}
 		body
@@ -718,7 +718,7 @@ private:
 		}
 		out (result)
 		{
-			static if (isPointer!T || is (T == class))
+			static if (isPointer!T || is (T == class) || is(T == interface))
 				assert (result !is null);
 		}
 		body
