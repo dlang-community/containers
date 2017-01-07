@@ -256,6 +256,8 @@ private:
 	size_t l;
 }
 
+version (EmsiContainersUnittest):
+
 unittest
 {
 	import std.algorithm : equal;
@@ -288,7 +290,7 @@ unittest
 
 version(unittest)
 {
-	class Cls
+	private class Cls
 	{
 		int* a;
 

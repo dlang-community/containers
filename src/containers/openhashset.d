@@ -308,6 +308,8 @@ private:
 	}
 }
 
+version (EmsiContainersUnittest):
+
 unittest
 {
 	import std.string : format;

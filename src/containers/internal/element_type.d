@@ -62,6 +62,8 @@ template ContainerElementType(ContainerType, ElementType)
 	}
 }
 
+version (EmsiContainersUnittest):
+
 unittest
 {
 	static struct Container {}

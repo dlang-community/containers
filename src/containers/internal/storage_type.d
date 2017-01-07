@@ -70,6 +70,8 @@ template ContainerStorageType(T)
 		alias ContainerStorageType = T;
 }
 
+version (EmsiContainersUnittest):
+
 ///
 unittest
 {

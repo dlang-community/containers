@@ -580,6 +580,8 @@ private:
 	size_t _length;
 }
 
+version (EmsiContainersUnittest):
+
 ///
 unittest
 {

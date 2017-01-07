@@ -142,6 +142,8 @@ private:
 		TreeType tree;
 }
 
+version (EmsiContainersUnittest):
+
 unittest
 {
 	TreeMap!(string, string) tm;
