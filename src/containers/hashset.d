@@ -477,7 +477,7 @@ private:
 				hasSpace.insert(n);
 			else
 			{
-				BucketNode* newNode = allocator.make!BucketNode();
+				BucketNode* newNode = make!BucketNode(allocator);
 				newNode.insert(n);
 				newNode.next = root;
 				root = newNode;
@@ -738,4 +738,11 @@ unittest
 	bool ret = set.insert(0); // 0 should be already in the set
 	assert(!ret); // Fails
 	assert(set.length == 2 * ipn - 1); // Fails
+}
+
+unittest
+{
+	import std.experimental.allocator.showcase;
+	auto allocator = mmapRegionList(1024);
+	auto set = HashSet!(ulong, typeof(&allocator))(0x1000, &allocator);
 }
