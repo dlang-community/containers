@@ -58,6 +58,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 		}
 		body
 		{
+			this.allocator = allocator;
 			initialize(bucketCount);
 		}
 	}
@@ -745,4 +746,5 @@ unittest
 	import std.experimental.allocator.showcase;
 	auto allocator = mmapRegionList(1024);
 	auto set = HashSet!(ulong, typeof(&allocator))(0x1000, &allocator);
+	set.insert(124);
 }
