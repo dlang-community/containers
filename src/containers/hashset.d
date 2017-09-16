@@ -10,6 +10,7 @@ module containers.hashset;
 private import containers.internal.hash : generateHash;
 private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
+private import std.traits : isBasicType;
 
 /**
  * Hash Set.
@@ -21,7 +22,8 @@ private import std.experimental.allocator.mallocator : Mallocator;
  *         GC-allocated memory.
  */
 struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
-	bool supportGC = shouldAddGCRange!T)
+	bool supportGC = shouldAddGCRange!T,
+	bool storeHash = !isBasicType!T)
 {
 	this(this) @disable;
 
@@ -196,13 +198,12 @@ private:
 	import containers.internal.element_type : ContainerElementType;
 	import containers.internal.mixins : AllocatorState;
 	import containers.unrolledlist : UnrolledList;
-	import std.traits : isBasicType, isPointer;
+	import std.traits : isPointer;
 
 	alias LengthType = ubyte;
 	alias N = FatNodeInfo!(ItemNode.sizeof, 1, 64, LengthType.sizeof);
 	enum ITEMS_PER_NODE = N[0];
 	static assert(LengthType.max > ITEMS_PER_NODE);
-	enum bool storeHash = !isBasicType!T;
 	enum bool useGC = supportGC && shouldAddGCRange!T;
 
 	void initialize(size_t bucketCount)
