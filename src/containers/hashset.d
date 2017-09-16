@@ -107,7 +107,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	 */
 	bool remove(T value)
 	{
-		hash_t hash = hashFunction(value);
+		Hash hash = hashFunction(value);
 		size_t index = hashToIndex(hash);
 		static if (storeHash)
 			immutable bool removed = buckets[index].remove(ItemNode(hash, value));
@@ -133,7 +133,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	{
 		if (buckets.length == 0 || _length == 0)
 			return null;
-		hash_t hash = hashFunction(value);
+		Hash hash = hashFunction(value);
 		size_t index = hashToIndex(hash);
 		return buckets[index].get(value, hash);
 	}
@@ -148,7 +148,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	{
 		if (buckets.length == 0)
 			initialize(4);
-		hash_t hash = hashFunction(value);
+		Hash hash = hashFunction(value);
 		size_t index = hashToIndex(hash);
 		static if (storeHash)
 			auto r = buckets[index].insert(ItemNode(hash, value));
@@ -205,6 +205,7 @@ private:
 	enum ITEMS_PER_NODE = N[0];
 	static assert(LengthType.max > ITEMS_PER_NODE);
 	enum bool useGC = supportGC && shouldAddGCRange!T;
+	alias Hash = typeof({ T v = void; return hashFunction(v); }());
 
 	void initialize(size_t bucketCount)
 	{
@@ -320,13 +321,13 @@ private:
 				{
 					static if (storeHash)
 					{
-						immutable size_t hash = node.items[i].hash;
+						immutable Hash hash = node.items[i].hash;
 						immutable size_t index = hashToIndex(hash);
 						buckets[index].insert(ItemNode(hash, node.items[i].value));
 					}
 					else
 					{
-						immutable size_t hash = hashFunction(node.items[i].value);
+						immutable Hash hash = hashFunction(node.items[i].value);
 						immutable size_t index = hashToIndex(hash);
 						buckets[index].insert(ItemNode(node.items[i].value));
 					}
@@ -338,7 +339,7 @@ private:
 		allocator.dispose(oldBuckets);
 	}
 
-	size_t hashToIndex(hash_t hash) const pure nothrow @safe
+	size_t hashToIndex(Hash hash) const pure nothrow @safe
 	in
 	{
 		assert (buckets.length > 0);
@@ -511,7 +512,7 @@ private:
 			return false;
 		}
 
-		inout(T)* get(T value, size_t hash) inout
+		inout(T)* get(T value, Hash hash) inout
 		{
 			for (BucketNode* current = cast(BucketNode*) root; current !is null; current = current.next)
 			{
@@ -556,12 +557,12 @@ private:
 		}
 
 		static if (storeHash)
-			hash_t hash;
+			Hash hash;
 		ContainerStorageType!T value;
 
 		static if (storeHash)
 		{
-			this(Z)(hash_t nh, Z nv)
+			this(Z)(Hash nh, Z nv)
 			{
 				this.hash = nh;
 				this.value = nv;
