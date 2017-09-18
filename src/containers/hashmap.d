@@ -10,6 +10,7 @@ module containers.hashmap;
 private import containers.internal.hash : generateHash;
 private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
+private import std.traits : isBasicType;
 
 /**
  * Associative array / hash map.
@@ -22,7 +23,8 @@ private import std.experimental.allocator.mallocator : Mallocator;
  *         GC-allocated memory.
  */
 struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K,
-	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V)
+	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V,
+	bool storeHash = !isBasicType!K)
 {
 	this(this) @disable;
 
@@ -102,7 +104,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 		if (buckets.length == 0)
 			throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
-		size_t hash = hashFunction(key);
+		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (r; buckets[index].range)
 		{
@@ -135,7 +137,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 		if (_length == 0)
 			return defaultValue;
-		size_t hash = hashFunction(key);
+		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (r; buckets[index].range)
 		{
@@ -154,6 +156,54 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	}
 
 	/**
+	 * If the given key does not exist in the HashMap, adds it with
+	 * the value `defaultValue`.
+	 *
+	 * Params:
+	 *     key = the key to look up
+	 *     value = the default value
+	 *
+	 * Returns: pointer to the value stored in the HashMap with the
+	 * given key. The pointer is guaranteed to be valid only until
+	 * the next HashMap modification.
+	 */
+	auto getOrAdd(this This)(K key, lazy V defaultValue = V.init)
+	{
+		alias CET = ContainerElementType!(This, V);
+
+		if (buckets.length == 0)
+			initialize();
+		Hash hash = hashFunction(key);
+		size_t index = hashToIndex(hash);
+		foreach (ref item; buckets[index].range)
+		{
+			static if (storeHash)
+			{
+				if (item.hash == hash && item.key == key)
+					return cast(CET*)&item.value;
+			}
+			else
+			{
+				if (item.key == key)
+					return cast(CET*)&item.value;
+			}
+		}
+		Node* n;
+		static if (storeHash)
+			n = buckets[index].put(Node(hash, key, defaultValue));
+		else
+			n = buckets[index].put(Node(key, defaultValue));
+		_length++;
+		if (shouldRehash)
+		{
+			rehash();
+			return key in this;
+		}
+		else
+			return &n.value;
+	}
+
+	/**
 	 * Supports $(B aa[key] = value;) syntax.
 	 */
 	void opIndexAssign(V value, K key)
@@ -163,27 +213,30 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 	/**
 	 * Supports $(B key in aa) syntax.
+	 *
+	 * Returns: pointer to the value corresponding to the given key,
+	 * or null if the key is not present in the HashMap.
 	 */
-	bool opBinaryRight(string op)(K key) const nothrow if (op == "in")
+	inout(V)* opBinaryRight(string op)(K key) inout nothrow if (op == "in")
 	{
 		if (_length == 0)
-			return false;
-		size_t hash = hashFunction(key);
+			return null;
+		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (ref node; buckets[index].range)
 		{
 			static if (storeHash)
 			{
 				if (node.hash == hash && node == key)
-					return true;
+					return &(cast(inout)node).value;
 			}
 			else
 			{
 				if (node == key)
-					return true;
+					return &(cast(inout)node).value;
 			}
 		}
-		return false;
+		return null;
 	}
 
 	/**
@@ -194,7 +247,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	{
 		if (buckets.length == 0)
 			return false;
-		size_t hash = hashFunction(key);
+		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		static if (storeHash)
 			bool removed = buckets[index].remove(Node(hash, key));
@@ -298,15 +351,14 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 private:
 
 	import std.experimental.allocator : make;
-	import std.traits : isBasicType;
 	import containers.unrolledlist : UnrolledList;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.internal.mixins : AllocatorState;
 	import core.memory : GC;
 
-	enum bool storeHash = !isBasicType!K;
 	enum bool useGC = supportGC && (shouldAddGCRange!K || shouldAddGCRange!V);
+	alias Hash = typeof({ K k = void; return hashFunction(k); }());
 
 	template isOpApplyDelegate(D, KT, VT)
 	{
@@ -335,11 +387,11 @@ private:
 		}
 	}
 
-	void insert(K key, V value)
+	Node* insert(K key, V value)
 	{
 		if (buckets.length == 0)
 			initialize();
-		size_t hash = hashFunction(key);
+		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
 		foreach (ref item; buckets[index].range)
 		{
@@ -348,7 +400,7 @@ private:
 				if (item.hash == hash && item.key == key)
 				{
 					item.value = value;
-					return;
+					return &item;
 				}
 			}
 			else
@@ -356,17 +408,19 @@ private:
 				if (item.key == key)
 				{
 					item.value = value;
-					return;
+					return &item;
 				}
 			}
 		}
+		Node* n;
 		static if (storeHash)
-			buckets[index].put(Node(hash, key, value));
+			n = buckets[index].put(Node(hash, key, value));
 		else
-			buckets[index].put(Node(key, value));
+			n = buckets[index].put(Node(key, value));
 		_length++;
 		if (shouldRehash)
 			rehash();
+		return n;
 	}
 
 	/**
@@ -412,7 +466,7 @@ private:
 				}
 				else
 				{
-					size_t hash = hashFunction(node.key);
+					Hash hash = hashFunction(node.key);
 					size_t index = hashToIndex(hash);
 					buckets[index].put(Node(node.key, node.value));
 				}
@@ -424,7 +478,7 @@ private:
 		allocator.deallocate(cast(void[]) oldBuckets);
 	}
 
-	size_t hashToIndex(size_t hash) const pure nothrow @safe @nogc
+	size_t hashToIndex(Hash hash) const pure nothrow @safe @nogc
 	in
 	{
 		assert (buckets.length > 0);
@@ -435,7 +489,7 @@ private:
 	}
 	body
 	{
-		return hash & (buckets.length - 1);
+		return cast(size_t)hash & (buckets.length - 1);
 	}
 
 	size_t hashIndex(K key) const
@@ -464,7 +518,7 @@ private:
 		}
 
 		static if (storeHash)
-			size_t hash;
+			Hash hash;
 		ContainerStorageType!K key;
 		ContainerStorageType!V value;
 	}
@@ -509,6 +563,8 @@ unittest
 	assert (hm3.get(100, 20) == 20);
 	hm3[100] = 1;
 	assert (hm3.get(100, 20) == 1);
+	auto pValue = 100 in hm3;
+	assert(*pValue == 1);
 }
 
 unittest
@@ -560,4 +616,13 @@ unittest
 
 	foreach (const(string) key, ref int value; map)
 		assert(value == 1);
+}
+
+unittest
+{
+	HashMap!(int, int) map;
+	auto p = map.getOrAdd(1, 1);
+	assert(*p == 1);
+	*p = 2;
+	assert(map[1] == 2);
 }

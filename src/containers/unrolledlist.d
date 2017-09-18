@@ -82,14 +82,18 @@ struct UnrolledList(T, Allocator = Mallocator,
 
 	/**
 	 * Inserts the given item into the end of the list.
+	 *
+	 * Returns a pointer to the inserted item.
 	 */
-	void insertBack(T item)
+	T* insertBack(T item)
 	{
+		ContainerStorageType!T* result;
 		if (_back is null)
 		{
 			assert (_front is null);
 			_back = allocateNode(item);
 			_front = _back;
+			result = &_back.items[0];
 		}
 		else
 		{
@@ -101,15 +105,18 @@ struct UnrolledList(T, Allocator = Mallocator,
 				_back.next = n;
 				_back = n;
 				index = 0;
+				result = &n.items[0];
 			}
 			else
 			{
 				_back.items[index] = item;
 				_back.markUsed(index);
+				result = &_back.items[index];
 			}
 		}
 		_length++;
 		assert (_back.registry <= fullBitPattern);
+		return cast(T*)result;
 	}
 
 	/**
@@ -561,8 +568,8 @@ unittest
 	assert (l.length == 0, format("%d", l.length));
 	assert (l.empty);
 
-	l.insert(1);
-	l.insert(2);
+	assert(*l.insert(1) == 1);
+	assert(*l.insert(2) == 2);
 	assert (l.remove(1));
 	assert (!l.remove(1));
 	assert (!l.empty);
