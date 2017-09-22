@@ -5,12 +5,16 @@ SRC:=$(shell find ../src/ -name "*.d") $(shell find ../experimental_allocator -n
 FLAGS:=-unittest -main -g -cov -I../src/ -debug -wi
 FLAGS32:=$(FLAGS) -m32
 
-all: test test_32 compile_test compile_test_32 external_allocator_test external_allocator_test_32
+all: all_32 all_64
+
+all_64: test compile_test external_allocator_test
 	./tests
-	./tests_32
 	./compile_test
-	./compile_test_32
 	./external_allocator_test
+
+all_32: test_32 compile_test_32 external_allocator_test_32
+	./tests_32
+	./compile_test_32
 	./external_allocator_test_32
 
 test: $(SRC)
