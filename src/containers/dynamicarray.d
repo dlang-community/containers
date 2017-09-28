@@ -139,6 +139,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	typeof(this) opBinary(string op)(ref typeof(this) other) if (op == "~")
 	{
 		typeof(this) ret;
+		ret.reserve(l + other.l);
 		foreach (value; arr[0 .. l])
 			ret.insert(value);
 		foreach (value; other.arr[0 .. other.l])
@@ -150,11 +151,50 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	typeof(this) opBinary(string op)(T[] values) if (op == "~")
 	{
 		typeof(this) ret;
+		ret.reserve(l + values.length);
 		foreach (value; arr[0 .. l])
 			ret.insert(value);
 		foreach (value; values)
 			ret.insert(value);
 		return ret;
+	}
+
+	/**
+	 * Ensures sufficient capacity to accommodate `n` elements.
+	 */
+	void reserve(size_t n)
+	{
+		if (arr.length >= n)
+			return;
+		if (arr.ptr is null)
+		{
+			size_t c = 4;
+			if (c < n)
+				c = n;
+			arr = cast(typeof(arr)) allocator.allocate(T.sizeof * c);
+			static if (useGC)
+			{
+				import core.memory: GC;
+				GC.addRange(arr.ptr, arr.length * T.sizeof);
+			}
+		}
+		else
+		{
+			size_t c = arr.length > 512 ? arr.length + 1024 : arr.length << 1;
+			if (c < n)
+				c = n;
+			static if (useGC)
+				void* oldPtr = arr.ptr;
+			void[] a = cast(void[]) arr;
+			allocator.reallocate(a, c * T.sizeof);
+			arr = cast(typeof(arr)) a;
+			static if (useGC)
+			{
+				import core.memory: GC;
+				GC.removeRange(oldPtr);
+				GC.addRange(arr.ptr, arr.length * T.sizeof);
+			}
+		}
 	}
 
 	/**
@@ -399,4 +439,19 @@ unittest
 		arr3.removeBack();
 	assert(arr3.empty);
 
+}
+
+@system unittest
+{
+    DynamicArray!int a;
+    a.reserve(1000);
+    assert(a.length == 0);
+    assert(a.empty);
+    assert(a.arr.length >= 1000);
+    int* p = a[].ptr;
+    foreach (i; 0 .. 1000)
+    {
+        a.insert(i);
+    }
+    assert(p is a[].ptr);
 }
