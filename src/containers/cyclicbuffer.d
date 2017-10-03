@@ -13,7 +13,7 @@ private import std.range.primitives : empty, front, back, popFront, popBack;
 private import containers.internal.node : shouldAddGCRange;
 
 /**
- * Array that provides constant time (amortized) appending and popping
+ * An array that provides constant time (amortized) appending and popping
  * at either end, as well as random access to the elements.
  *
  * Params:
@@ -210,7 +210,7 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			.destroy(storage[pos]);
 	}
 
-	/// Accesses to the item at the start of the buffer.
+	/// Accesses the item at the start of the buffer.
 	auto ref front(this This)() nothrow pure @property @safe
 	{
 		version (assert) if (empty) onRangeError();
@@ -218,7 +218,7 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		return cast(ET) storage[start];
 	}
 
-	/// Accesses to the item at the end of the buffer.
+	/// Accesses the item at the end of the buffer.
 	auto ref back(this This)() nothrow pure @property @safe
 	{
 		version (assert) if (empty) onRangeError();
@@ -433,6 +433,8 @@ private:
 	ContainerStorageType!T[] storage;
 	size_t start, end, _length;
 }
+
+version (EmsiContainersUnittest):
 
 version (unittest) private
 {

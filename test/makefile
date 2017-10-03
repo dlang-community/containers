@@ -2,7 +2,7 @@
 
 DC?=dmd
 SRC:=$(shell find ../src/ -name "*.d") $(shell find ../experimental_allocator -name "*.d")
-FLAGS:=-unittest -main -g -cov -I../src/ -debug -wi
+FLAGS:=-unittest -version=EmsiContainersUnittest -main -g -cov -I../src/ -debug -wi
 FLAGS32:=$(FLAGS) -m32
 
 all: all_32 all_64
@@ -34,17 +34,18 @@ external_allocator_test_32: external_allocator_test.d $(SRC)
 
 looptest: looptest.d
 	$(DC) looptest.d -inline -O -release \
-		../src/memory/allocators.d \
 		../src/containers/ttree.d \
 		../src/containers/internal/node.d \
 		-I../src/ \
 
 clean:
-	rm -f tests
+	rm -f tests tests_32
+	rm -f compile_test compile_test_32
+	rm -f external_allocator_test external_allocator_test_32
 	rm -f *.o
 	rm -f *.dot
 	rm -f *.png
-	rm -f ..*.lst
+	rm -f *.lst .*.lst
 	rm -f looptest
 
 graphs: clean

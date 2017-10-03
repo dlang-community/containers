@@ -169,6 +169,8 @@ private:
 	Node[] nodes;
 }
 
+version (EmsiContainersUnittest):
+
 ///
 unittest
 {

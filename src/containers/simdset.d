@@ -217,6 +217,8 @@ private:
 	size_t _length;
 }
 
+version (EmsiContainersUnittest):
+
 ///
 version (D_InlineAsm_X86_64) unittest
 {

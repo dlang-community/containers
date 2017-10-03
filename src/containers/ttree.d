@@ -884,6 +884,8 @@ private:
 	Node* root = null;
 }
 
+version (EmsiContainersUnittest):
+
 unittest
 {
 	import core.memory : GC;

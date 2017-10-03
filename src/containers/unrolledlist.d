@@ -548,6 +548,8 @@ private:
 	}
 }
 
+version (EmsiContainersUnittest):
+
 unittest
 {
 	import std.algorithm : equal;
