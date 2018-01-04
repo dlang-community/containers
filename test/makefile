@@ -1,7 +1,7 @@
 .PHONY: test graphs clean
 
 DC?=dmd
-SRC:=$(shell find ../src/ -name "*.d") $(shell find ../experimental_allocator -name "*.d")
+SRC:=$(shell find ../src/ -name "*.d")
 FLAGS:=-unittest -main -g -cov -I../src/ -debug -wi
 FLAGS32:=$(FLAGS) -m32
 

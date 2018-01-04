@@ -508,7 +508,10 @@ private:
 		size_t nextAvailableIndex() const nothrow pure @safe @nogc
 		{
 			import containers.internal.backwards : bsf;
-			return bsf(~registry);
+			static if (BookkeepingType.sizeof < uint.sizeof)
+				return bsf(~(cast(uint) registry));
+			else
+				return bsf(~registry);
 		}
 
 		void markUsed(size_t index) nothrow pure @safe @nogc
