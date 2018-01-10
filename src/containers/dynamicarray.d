@@ -119,6 +119,19 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 				GC.addRange(arr.ptr, arr.length * T.sizeof);
 			}
 		}
+		import std.traits: hasElaborateAssign, hasElaborateDestructor;
+		static if (is(T == struct) && (hasElaborateAssign!T || hasElaborateDestructor!T))
+		{
+			// If a destructor is run before blit or copying involves
+			// more than just a blit, ensure that arr[l] is in a valid
+			// state before assigning to it.
+			import core.stdc.string : memcpy, memset;
+			const init = typeid(T).initializer();
+			if (init.ptr is null) // null pointer means initialize to 0s
+				(() @trusted => memset(arr.ptr + l, 0, T.sizeof))();
+			else
+				(() @trusted => memcpy(arr.ptr + l, init.ptr, T.sizeof))();
+		}
 		arr[l++] = value;
 	}
 
@@ -454,4 +467,25 @@ unittest
         a.insert(i);
     }
     assert(p is a[].ptr);
+}
+
+unittest
+{
+	// Ensure that Array.insert doesn't call the destructor for
+	// a struct whose state is uninitialized memory.
+	static struct S
+	{
+		int* a;
+		~this() @nogc nothrow
+		{
+			if (a !is null)
+				++(*a);
+		}
+	}
+	int a = 0;
+	DynamicArray!S arr;
+	// This next line may segfault if destructors are called
+	// on structs in invalid states.
+	arr.insert(S(&a));
+	assert(a == 1);
 }
