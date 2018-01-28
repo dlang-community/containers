@@ -1,4 +1,4 @@
-Containers [![CI status](https://travis-ci.org/economicmodeling/containers.svg?branch=master)](https://travis-ci.org/economicmodeling/containers/)
+Containers [![CI status](https://travis-ci.org/dlang-community/containers.svg?branch=master)](https://travis-ci.org/dlang-community/containers/)
 ==========
 
 Containers backed by std.experimental.allocator
@@ -7,7 +7,7 @@ Containers backed by std.experimental.allocator
 Run `git submodule update --init --recursive` after cloning this repository.
 
 # Documentation
-Documentation is available at http://economicmodeling.github.io/containers/index.html
+Documentation is available at http://dlang-community.github.io/containers/index.html
 
 # Insertion Speed Benchmark
 ![Benchmark](times.png)
