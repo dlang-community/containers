@@ -56,8 +56,9 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		{
 			static if (is(T == class) || is(T == interface))
 				destroy(item);
-			else
-				typeid(T).destroy(&item);
+			else static if (is(T == struct) || is(T == union))
+				static if (__traits(hasMember, T, "__xdtor"))
+					item.__xdtor();
 		}
 		static if (useGC)
 		{
@@ -489,3 +490,14 @@ unittest
 	arr.insert(S(&a));
 	assert(a == 1);
 }
+
+@nogc unittest
+{
+    struct HStorage
+    {
+	    import containers.dynamicarray: DynamicArray;
+	    DynamicArray!int storage;
+    }
+	auto hs = HStorage();
+}
+
