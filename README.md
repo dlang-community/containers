@@ -9,6 +9,25 @@ Run `git submodule update --init --recursive` after cloning this repository.
 # Documentation
 Documentation is available at http://dlang-community.github.io/containers/index.html
 
+# Example
+
+```d
+/+dub.sdl:
+dependency "emsi_containers" version="~>0.6"
++/
+import std.stdio;
+void main(string[] args)
+{
+    import containers;
+    DynamicArray!int arr;
+    arr ~= 1;
+    foreach (e; arr)
+        e.writeln;
+}
+```
+
+[![Open on run.dlang.io](https://img.shields.io/badge/run.dlang.io-open-blue.svg)](https://run.dlang.io/is/8GYopZ)
+
 # Insertion Speed Benchmark
 ![Benchmark](times.png)
 
