@@ -8,7 +8,7 @@
 module containers.dynamicarray;
 
 private import containers.internal.node : shouldAddGCRange;
-private import std.experimental.allocator.mallocator : Mallocator;
+private import stdx.allocator.mallocator : Mallocator;
 
 /**
  * Array that is able to grow itself when items are appended to it. Uses
@@ -24,7 +24,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 {
 	this(this) @disable;
 
-	private import std.experimental.allocator.common : stateSize;
+	private import stdx.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{
@@ -47,7 +47,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 
 	~this()
 	{
-		import std.experimental.allocator.mallocator : Mallocator;
+		import stdx.allocator.mallocator : Mallocator;
 		import containers.internal.node : shouldAddGCRange;
 
 		if (arr is null)
@@ -95,7 +95,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	 */
 	void insert(T value)
 	{
-		import std.experimental.allocator.mallocator : Mallocator;
+		import stdx.allocator.mallocator : Mallocator;
 		import containers.internal.node : shouldAddGCRange;
 
 		if (arr.length == 0)

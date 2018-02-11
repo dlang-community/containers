@@ -8,8 +8,8 @@ module containers.openhashset;
 
 private import containers.internal.hash : generateHash;
 private import containers.internal.node : shouldAddGCRange;
-private import std.experimental.allocator.mallocator : Mallocator;
-private import std.experimental.allocator.common : stateSize;
+private import stdx.allocator.mallocator : Mallocator;
+private import stdx.allocator.common : stateSize;
 
 /**
  * Simple open-addressed hash set. Use this instead of HashSet when the size and
