@@ -224,9 +224,10 @@ private void testContainerDoubleRef(alias Container)()
 private void checkSliceFunctionality(Type, Container)(ref Container container)
 {
 	import std.array : front;
+	import std.traits : Unqual;
 
 	auto r = container[];
-	static assert(is(typeof(r.front()) == Type));
+	static assert(is(Unqual!(typeof(r.front())) == Unqual!Type));
 	static assert(is(typeof(container.length) == size_t));
 	assert(container.length == 0);
 }
