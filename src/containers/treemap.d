@@ -8,7 +8,7 @@
 module containers.treemap;
 
 private import containers.internal.node : shouldAddGCRange;
-private import std.experimental.allocator.mallocator : Mallocator;
+private import stdx.allocator.mallocator : Mallocator;
 
 /**
  * A key→value mapping where the keys are guaranteed to be sorted.
@@ -25,7 +25,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 {
 	this(this) @disable;
 
-	private import std.experimental.allocator.common : stateSize;
+	private import stdx.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{
@@ -153,10 +153,10 @@ unittest
 
 unittest
 {
-	import std.experimental.allocator.building_blocks.free_list : FreeList;
-	import std.experimental.allocator.building_blocks.allocator_list : AllocatorList;
-	import std.experimental.allocator.building_blocks.region : Region;
-	import std.experimental.allocator.building_blocks.stats_collector : StatsCollector;
+	import stdx.allocator.building_blocks.free_list : FreeList;
+	import stdx.allocator.building_blocks.allocator_list : AllocatorList;
+	import stdx.allocator.building_blocks.region : Region;
+	import stdx.allocator.building_blocks.stats_collector : StatsCollector;
 	import std.stdio : stdout;
 	import std.algorithm.iteration : walkLength;
 

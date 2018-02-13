@@ -8,7 +8,7 @@
 module containers.ttree;
 
 private import containers.internal.node : shouldAddGCRange;
-private import std.experimental.allocator.mallocator : Mallocator;
+private import stdx.allocator.mallocator : Mallocator;
 
 /**
  * Implements a binary search tree with multiple items per tree node.
@@ -382,7 +382,7 @@ private:
 	import containers.internal.node : FatNodeInfo, fullBits, shouldAddGCRange, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
 	import std.algorithm : sort;
-	import std.experimental.allocator.common : stateSize;
+	import stdx.allocator.common : stateSize;
 	import std.functional: binaryFun;
 	import std.traits: isPointer, PointerTarget;
 
@@ -413,7 +413,7 @@ private:
 	body
 	{
 		import core.memory : GC;
-		import std.experimental.allocator : make;
+		import stdx.allocator : make;
 
 		static if (stateSize!Allocator == 0)
 			Node* n = make!Node(Allocator.instance);
@@ -434,7 +434,7 @@ private:
 	}
 	body
 	{
-		import std.experimental.allocator : dispose;
+		import stdx.allocator : dispose;
 		import core.memory : GC;
 
 		if (n.left !is null)
@@ -1148,10 +1148,10 @@ unittest
 	}
 
 	{
-		import std.experimental.allocator.building_blocks.free_list : FreeList;
-		import std.experimental.allocator.building_blocks.allocator_list : AllocatorList;
-		import std.experimental.allocator.building_blocks.region : Region;
-		import std.experimental.allocator.building_blocks.stats_collector : StatsCollector;
+		import stdx.allocator.building_blocks.free_list : FreeList;
+		import stdx.allocator.building_blocks.allocator_list : AllocatorList;
+		import stdx.allocator.building_blocks.region : Region;
+		import stdx.allocator.building_blocks.stats_collector : StatsCollector;
 		import std.stdio : stdout;
 
 		StatsCollector!(FreeList!(AllocatorList!(a => Region!(Mallocator)(1024 * 1024)),

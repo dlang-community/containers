@@ -1,8 +1,9 @@
 .PHONY: test graphs clean
 
 DC?=dmd
-SRC:=$(shell find ../src/ -name "*.d")
-FLAGS:=-unittest -main -g -cov -I../src/ -debug -wi
+SRC:=$(shell find ../src/ -name "*.d") \
+	$(shell find ../stdx-allocator/source -name "*.d")
+FLAGS:=-unittest -main -g -cov -I../src/ -I../stdx-allocator/source -debug -wi
 FLAGS32:=$(FLAGS) -m32
 
 all: all_32 all_64

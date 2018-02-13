@@ -9,7 +9,7 @@ module containers.hashmap;
 
 private import containers.internal.hash : generateHash;
 private import containers.internal.node : shouldAddGCRange;
-private import std.experimental.allocator.mallocator : Mallocator;
+private import stdx.allocator.mallocator : Mallocator;
 private import std.traits : isBasicType;
 
 /**
@@ -28,7 +28,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 {
 	this(this) @disable;
 
-	private import std.experimental.allocator.common : stateSize;
+	private import stdx.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{
@@ -87,7 +87,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 	~this()
 	{
-		import std.experimental.allocator : dispose;
+		import stdx.allocator : dispose;
 		static if (useGC)
 			GC.removeRange(buckets.ptr);
 		allocator.dispose(buckets);
@@ -350,7 +350,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 private:
 
-	import std.experimental.allocator : make;
+	import stdx.allocator : make;
 	import containers.unrolledlist : UnrolledList;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
@@ -436,7 +436,7 @@ private:
 	 */
 	void rehash() @trusted
 	{
-//		import std.experimental.allocator : make, dispose;
+//		import stdx.allocator : make, dispose;
 		import std.conv : emplace;
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
