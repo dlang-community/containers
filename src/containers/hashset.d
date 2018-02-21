@@ -135,7 +135,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 		if (buckets.length == 0 || _length == 0)
 			return null;
 		Hash hash = hashFunction(value);
-		size_t index = hashToIndex(hash);
+		immutable size_t index = hashToIndex(hash);
 		return buckets[index].get(value, hash);
 	}
 
@@ -150,7 +150,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 		if (buckets.length == 0)
 			initialize(4);
 		Hash hash = hashFunction(value);
-		size_t index = hashToIndex(hash);
+		immutable size_t index = hashToIndex(hash);
 		static if (storeHash)
 			auto r = buckets[index].insert(ItemNode(hash, value));
 		else
@@ -370,6 +370,7 @@ private:
 
 		~this()
 		{
+			import core.memory : GC;
 			import stdx.allocator : dispose;
 
 			BucketNode* current = root;
@@ -377,7 +378,11 @@ private:
 			while (true)
 			{
 				if (previous !is null)
+				{
+					static if (useGC)
+						GC.removeRange(previous);
 					allocator.dispose(previous);
+				}
 				previous = current;
 				if (current is null)
 					break;
@@ -464,6 +469,7 @@ private:
 
 		bool insert(ItemNode n)
 		{
+			import core.memory : GC;
 			import stdx.allocator : make;
 
 			BucketNode* hasSpace = null;
@@ -479,6 +485,8 @@ private:
 			else
 			{
 				BucketNode* newNode = make!BucketNode(allocator);
+				static if (useGC)
+					GC.addRange(newNode, BucketNode.sizeof);
 				newNode.insert(n);
 				newNode.next = root;
 				root = newNode;
@@ -488,6 +496,7 @@ private:
 
 		bool remove(ItemNode n)
 		{
+			import core.memory : GC;
 			import stdx.allocator : dispose;
 
 			BucketNode* current = root;
@@ -503,6 +512,8 @@ private:
 							previous.next = current.next;
 						else
 							root = current.next;
+						static if (useGC)
+							GC.removeRange(current);
 						allocator.dispose(current);
 					}
 					return true;
