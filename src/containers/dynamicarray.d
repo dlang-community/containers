@@ -28,10 +28,10 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 
 	static if (is(typeof((T[] a, const T[] b) => a[0 .. b.length] = b[0 .. $])))
 	{
-		/// Either const(T) or T.
+		/// Either `const(T)` or `T`.
 		alias AppendT = const(T);
 
-		/// Either const(typeof(this)) or typeof(this).
+		/// Either `const(typeof(this))` or `typeof(this)`.
 		alias AppendTypeOfThis = const(typeof(this));
 	}
 	else
@@ -156,15 +156,16 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/**
 	 * ~= operator overload
 	 */
-	void opOpAssign(string op)(T value) if (op == "~")
+	scope ref typeof(this) opOpAssign(string op)(T value) if (op == "~")
 	{
 		insert(value);
+		return this;
 	}
 
 	/**
 	* ~= operator overload for an array of items
 	*/
-	void opOpAssign(string op, bool checkForOverlap = true)(AppendT[] rhs)
+	scope ref typeof(this) opOpAssign(string op, bool checkForOverlap = true)(AppendT[] rhs)
 		if (op == "~" && !is(T == AppendT[]))
 	{
 		// Disabling checkForOverlap when this function is called from opBinary!"~"
@@ -175,7 +176,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		{
 			// Special case where rhs is a slice of this array.
 			this = this ~ rhs;
-			return;
+			return this;
 		}
 		reserve(l + rhs.length);
 		import std.traits: hasElaborateAssign, hasElaborateDestructor;
@@ -210,13 +211,14 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			arr[l .. l + rhs.length] = rhs[0 .. rhs.length];
 			l += rhs.length;
 		}
+		return this;
 	}
 
 	/// ditto
-	void opOpAssign(string op)(ref AppendTypeOfThis rhs)
+	scope ref typeof(this) opOpAssign(string op)(ref AppendTypeOfThis rhs)
 		if (op == "~")
 	{
-		this ~= rhs.arr[0 .. rhs.l];
+		return this ~= rhs.arr[0 .. rhs.l];
 	}
 
 	/**
