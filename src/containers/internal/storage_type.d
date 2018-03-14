@@ -46,9 +46,8 @@ module containers.internal.storage_type;
 template ContainerStorageType(T)
 {
 	import std.traits : hasElaborateCopyConstructor, hasElaborateDestructor,
-		hasElaborateAssign;
-	import std.typecons : isBasicType, isDynamicArray, isPointer, Rebindable,
-		Unqual;
+		hasElaborateAssign, isBasicType, isDynamicArray, isPointer, Unqual;
+	import std.typecons : Rebindable;
 	static if (is (T == const) || is (T == immutable))
 	{
 		static if (isBasicType!T || isDynamicArray!T || isPointer!T)
