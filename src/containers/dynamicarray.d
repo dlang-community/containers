@@ -52,13 +52,14 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 
 		if (arr is null)
 			return;
-		foreach (ref item; arr[0 .. l])
+
+		static if ((is(T == struct) || is(T == union))
+			&& __traits(hasMember, T, "__xdtor"))
 		{
-			static if (is(T == class) || is(T == interface))
-				destroy(item);
-			else static if (is(T == struct) || is(T == union))
-				static if (__traits(hasMember, T, "__xdtor"))
-					item.__xdtor();
+			foreach (ref item; arr[0 .. l])
+			{
+				item.__xdtor();
+			}
 		}
 		static if (useGC)
 		{
@@ -218,11 +219,6 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	{
 		if (i < this.l)
 		{
-			static if (is(T == class) || is(T == interface))
-				destroy(arr[i]);
-			else
-				typeid(T).destroy(&arr[i]);
-
 			auto next = i + 1;
 			while (next < this.l)
 			{
@@ -231,6 +227,11 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			}
 
 			--l;
+			static if ((is(T == struct) || is(T == union))
+				&& __traits(hasMember, T, "__xdtor"))
+			{
+				arr[l].__xdtor();
+			}
 		}
 		else
 		{
@@ -365,7 +366,7 @@ unittest
 		DynamicArray!(Cls) arr;
 		arr.insert(new Cls( & a));
 	}
-	assert(a == 1);
+	assert(a == 0); // Destructor not called.
 }
 
 unittest
@@ -417,7 +418,7 @@ unittest
 	arr.insert(new Cls(&a));
 
 	arr.remove(0);
-	assert(a == 1);
+	assert(a == 0); // Destructor not called.
 }
 
 unittest
