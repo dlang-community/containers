@@ -97,6 +97,18 @@ private void testContainerDoubleVal(alias Container)()
 		checkIndexFunctionality!(int, immutable int)(mim);
 		checkIndexFunctionality!(const int, immutable int)(mic);
 		checkIndexFunctionality!(immutable int, immutable int)(mii);
+
+		checkSliceFunctionality!(int)(mmm);
+		checkSliceFunctionality!(const int)(mmc);
+		checkSliceFunctionality!(immutable int)(mmi);
+
+		checkSliceFunctionality!(int)(mcm);
+		checkSliceFunctionality!(const int)(mcc);
+		checkSliceFunctionality!(immutable int)(mci);
+
+		checkSliceFunctionality!(int)(mim);
+		checkSliceFunctionality!(const int)(mic);
+		checkSliceFunctionality!(immutable int)(mii);
 	}
 
 	{
@@ -123,6 +135,18 @@ private void testContainerDoubleVal(alias Container)()
 		checkIndexFunctionality!(int, immutable int)(cim);
 		checkIndexFunctionality!(const int, immutable int)(cic);
 		checkIndexFunctionality!(immutable int, immutable int)(cii);
+
+		checkSliceFunctionality!(int)(cmm);
+		checkSliceFunctionality!(const int)(cmc);
+		checkSliceFunctionality!(immutable int)(cmi);
+
+		checkSliceFunctionality!(int)(ccm);
+		checkSliceFunctionality!(const int)(ccc);
+		checkSliceFunctionality!(immutable int)(cci);
+
+		checkSliceFunctionality!(int)(cim);
+		checkSliceFunctionality!(const int)(cic);
+		checkSliceFunctionality!(immutable int)(cii);
 	}
 
 	{
@@ -149,6 +173,18 @@ private void testContainerDoubleVal(alias Container)()
 		checkIndexFunctionality!(int, immutable int)(iim);
 		checkIndexFunctionality!(const int, immutable int)(iic);
 		checkIndexFunctionality!(immutable int, immutable int)(iii);
+
+		checkSliceFunctionality!(int)(imm);
+		checkSliceFunctionality!(const int)(imc);
+		checkSliceFunctionality!(immutable int)(imi);
+
+		checkSliceFunctionality!(int)(icm);
+		checkSliceFunctionality!(const int)(icc);
+		checkSliceFunctionality!(immutable int)(ici);
+
+		checkSliceFunctionality!(int)(iim);
+		checkSliceFunctionality!(const int)(iic);
+		checkSliceFunctionality!(immutable int)(iii);
 	}
 }
 
@@ -178,6 +214,18 @@ private void testContainerDoubleRef(alias Container)()
 		checkIndexFunctionality!(int*, immutable int)(mim);
 		checkIndexFunctionality!(const int*, immutable int)(mic);
 		checkIndexFunctionality!(immutable int*, immutable int)(mii);
+
+		checkSliceFunctionality!(int*)(mmm);
+		checkSliceFunctionality!(const int*)(mmc);
+		checkSliceFunctionality!(immutable int*)(mmi);
+
+		checkSliceFunctionality!(int*)(mcm);
+		checkSliceFunctionality!(const int*)(mcc);
+		checkSliceFunctionality!(immutable int*)(mci);
+
+		checkSliceFunctionality!(int*)(mim);
+		checkSliceFunctionality!(const int*)(mic);
+		checkSliceFunctionality!(immutable int*)(mii);
 	}
 
 	{
@@ -204,6 +252,18 @@ private void testContainerDoubleRef(alias Container)()
 		checkIndexFunctionality!(const(int)*, immutable int)(cim);
 		checkIndexFunctionality!(const int*, immutable int)(cic);
 		checkIndexFunctionality!(immutable int*, immutable int)(cii);
+
+		checkSliceFunctionality!(const(int)*)(cmm);
+		checkSliceFunctionality!(const int*)(cmc);
+		checkSliceFunctionality!(immutable int*)(cmi);
+
+		checkSliceFunctionality!(const(int)*)(ccm);
+		checkSliceFunctionality!(const int*)(ccc);
+		checkSliceFunctionality!(immutable int*)(cci);
+
+		checkSliceFunctionality!(const(int)*)(cim);
+		checkSliceFunctionality!(const int*)(cic);
+		checkSliceFunctionality!(immutable int*)(cii);
 	}
 
 	{
@@ -218,17 +278,25 @@ private void testContainerDoubleRef(alias Container)()
 		checkIndexFunctionality!(immutable int*, const int)(ici);
 
 		checkIndexFunctionality!(immutable int*, immutable int)(iii);
+
+		checkSliceFunctionality!(immutable int*)(imi);
+
+		checkSliceFunctionality!(immutable int*)(ici);
+
+		checkSliceFunctionality!(immutable int*)(iii);
 	}
 }
 
 private void checkSliceFunctionality(Type, Container)(ref Container container)
 {
 	import std.array : front;
-
-	auto r = container[];
-	static assert(is(typeof(r.front()) == Type));
-	static assert(is(typeof(container.length) == size_t));
-	assert(container.length == 0);
+	static if (__traits(hasMember, Container, "opSlice"))
+	{
+		auto r = container[];
+		static assert(is(typeof(r.front()) == Type));
+		static assert(is(typeof(container.length) == size_t));
+		assert(container.length == 0);
+	}
 }
 
 private void checkIndexFunctionality(Type, KeyType, Container)(ref Container container)

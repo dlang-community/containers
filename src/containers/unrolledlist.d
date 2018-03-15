@@ -50,9 +50,12 @@ struct UnrolledList(T, Allocator = Mallocator,
 		}
 	}
 
-	~this()
+	~this() nothrow
 	{
-		clear();
+		try
+			clear();
+		catch (Throwable)
+			assert (false);
 	}
 
 	/**
@@ -360,11 +363,13 @@ struct UnrolledList(T, Allocator = Mallocator,
 
 			this.current = current;
 			this.length = l;
-			if (current !is null)
+			if (current !is null && l > 0)
 			{
 				index = bsf(current.registry);
 				assert (index < nodeCapacity);
 			}
+			else
+				current = null;
 		}
 
 		ref ET front() const @property @trusted @nogc

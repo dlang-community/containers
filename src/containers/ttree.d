@@ -399,7 +399,8 @@ private:
 
 	// If we're storing a struct that defines opCmp, don't compare pointers as
 	// that is almost certainly not what the user intended.
-	static if (is(typeof(less) == string ) && less == "a < b" && isPointer!T && __traits(hasMember, PointerTarget!T, "opCmp"))
+	static if (is(typeof(less) == string ) && less == "a < b"
+			&& isPointer!T && __traits(hasMember, PointerTarget!T, "opCmp"))
 		alias _less = binaryFun!"a.opCmp(*b) < 0";
 	else
 		alias _less = binaryFun!less;
@@ -532,7 +533,7 @@ private:
 		bool insert(T value, ref Node* root, AllocatorType allocator)
 		in
 		{
-			static if (isPointer!T || is (T == class) || is (T == interface)) 
+			static if (isPointer!T || is (T == class) || is (T == interface))
 				assert (value !is null);
 		}
 		body

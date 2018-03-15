@@ -6,10 +6,29 @@
  */
 module containers.internal.hash;
 
-hash_t generateHash(T)(T value) nothrow @trusted
+static if (hash_t.sizeof == 4)
 {
-	import std.functional : unaryFun;
-	hash_t h = typeid(T).getHash(&value);
-	h ^= (h >>> 20) ^ (h >>> 12);
-	return h ^ (h >>> 7) ^ (h >>> 4);
+	hash_t generateHash(T)(T value) nothrow @trusted
+	{
+		return typeid(T).getHash(&value);
+	}
+}
+else
+{
+	hash_t generateHash(T)(T value) nothrow @trusted if (!is(T == string))
+	{
+		return typeid(T).getHash(&value);
+	}
+
+	hash_t generateHash(T)(T value) pure nothrow @nogc @trusted if (is(T == string))
+	{
+		immutable ulong fullIterCount = value.length >>> 3;
+		immutable ulong remainderStart = fullIterCount << 3;
+		ulong h;
+		foreach (c; (cast(ulong*) value.ptr)[0 .. fullIterCount])
+			h = (h ^ c) ^ (h >>> 4);
+		foreach (c; value[remainderStart .. $])
+			h += (h << 7) + c;
+		return h;
+	}
 }
