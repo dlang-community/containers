@@ -87,10 +87,8 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 	~this() nothrow
 	{
-		try
-			clear();
-		catch (Throwable)
-			assert(false);
+		scope (failure) assert(false);
+		clear();
 	}
 
 	/**
@@ -98,7 +96,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 */
 	void clear()
 	{
-		import std.experimental.allocator : dispose;
+		import stdx.allocator : dispose;
 
 		static if (useGC)
 			GC.removeRange(buckets.ptr);
