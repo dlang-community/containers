@@ -26,6 +26,20 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 
 	private import stdx.allocator.common : stateSize;
 
+	static if (is(typeof((T[] a, const T[] b) => a[0 .. b.length] = b[0 .. $])))
+	{
+		/// Either `const(T)` or `T`.
+		alias AppendT = const(T);
+
+		/// Either `const(typeof(this))` or `typeof(this)`.
+		alias AppendTypeOfThis = const(typeof(this));
+	}
+	else
+	{
+		alias AppendT = T;
+		alias AppendTypeOfThis = typeof(this);
+	}
+
 	static if (stateSize!Allocator != 0)
 	{
 		/// No default construction if an allocator must be provided.
@@ -124,7 +138,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		import std.traits: hasElaborateAssign, hasElaborateDestructor;
 		static if (is(T == struct) && (hasElaborateAssign!T || hasElaborateDestructor!T))
 		{
-			// If a destructor is run before blit or copying involves
+			// If a destructor is run before blit or assignment involves
 			// more than just a blit, ensure that arr[l] is in a valid
 			// state before assigning to it.
 			import core.stdc.string : memcpy, memset;
@@ -143,34 +157,90 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/**
 	 * ~= operator overload
 	 */
-	void opOpAssign(string op)(T value) if (op == "~")
+	scope ref typeof(this) opOpAssign(string op)(T value) if (op == "~")
 	{
 		insert(value);
+		return this;
+	}
+
+	/**
+	* ~= operator overload for an array of items
+	*/
+	scope ref typeof(this) opOpAssign(string op, bool checkForOverlap = true)(AppendT[] rhs)
+		if (op == "~" && !is(T == AppendT[]))
+	{
+		// Disabling checkForOverlap when this function is called from opBinary!"~"
+		// is not just for efficiency, but to avoid circular function calls that
+		// would prevent inference of @nogc, etc.
+		static if (checkForOverlap)
+		if ((() @trusted => arr.ptr <= rhs.ptr && arr.ptr + arr.length > rhs.ptr)())
+		{
+			// Special case where rhs is a slice of this array.
+			this = this ~ rhs;
+			return this;
+		}
+		reserve(l + rhs.length);
+		import std.traits: hasElaborateAssign, hasElaborateDestructor;
+		static if (is(T == struct) && (hasElaborateAssign!T || hasElaborateDestructor!T))
+		{
+			// If a destructor is run before blit or assignment involves
+			// more than just a blit, ensure that arr[l] is in a valid
+			// state before assigning to it.
+			import core.stdc.string : memcpy, memset;
+			const init = typeid(T).initializer();
+			if (init.ptr is null) // null pointer means initialize to 0s
+			{
+				foreach (ref value; rhs)
+				{
+					// We could call memset just once for the entire range
+					// but this way has better memory locality.
+					(() @trusted => memset(arr.ptr + l, 0, T.sizeof))();
+					arr[l++] = value;
+				}
+			}
+			else
+			{
+				foreach (ref value; rhs)
+				{
+					(() @trusted => memcpy(arr.ptr + l, init.ptr, T.sizeof))();
+					arr[l++] = value;
+				}
+			}
+		}
+		else
+		{
+			arr[l .. l + rhs.length] = rhs[0 .. rhs.length];
+			l += rhs.length;
+		}
+		return this;
+	}
+
+	/// ditto
+	scope ref typeof(this) opOpAssign(string op)(ref AppendTypeOfThis rhs)
+		if (op == "~")
+	{
+		return this ~= rhs.arr[0 .. rhs.l];
 	}
 
 	/**
 	 * ~ operator overload
 	 */
-	typeof(this) opBinary(string op)(ref typeof(this) other) if (op == "~")
+	typeof(this) opBinary(string op)(ref AppendTypeOfThis other) if (op == "~")
 	{
 		typeof(this) ret;
 		ret.reserve(l + other.l);
-		foreach (value; arr[0 .. l])
-			ret.insert(value);
-		foreach (value; other.arr[0 .. other.l])
-			ret.insert(value);
+		ret.opOpAssign!("~", false)(arr[0 .. l]);
+		ret.opOpAssign!("~", false)(other.arr[0 .. other.l]);
 		return ret;
 	}
 
 	/// ditto
-	typeof(this) opBinary(string op)(T[] values) if (op == "~")
+	typeof(this) opBinary(string op)(AppendT[] values) if (op == "~")
 	{
 		typeof(this) ret;
 		ret.reserve(l + values.length);
-		foreach (value; arr[0 .. l])
-			ret.insert(value);
-		foreach (value; values)
-			ret.insert(value);
+		ret.opOpAssign!("~", false)(arr[0 .. l]);
+		ret.opOpAssign!("~", false)(values);
 		return ret;
 	}
 
@@ -502,3 +572,13 @@ unittest
 	auto hs = HStorage();
 }
 
+@nogc unittest
+{
+	DynamicArray!char a;
+	const DynamicArray!char b = a ~ "def";
+	a ~= "abc";
+	a ~= b;
+	assert(a[] == "abcdef");
+	a ~= a;
+	assert(a[] == "abcdefabcdef");
+}
