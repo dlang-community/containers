@@ -85,7 +85,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 		}
 	}
 
-	~this()
+	~this() nothrow
 	{
 		static if (useGC)
 			GC.removeRange(nodes.ptr);

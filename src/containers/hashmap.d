@@ -10,7 +10,7 @@ module containers.hashmap;
 private import containers.internal.hash : generateHash;
 private import containers.internal.node : shouldAddGCRange;
 private import stdx.allocator.mallocator : Mallocator;
-private import std.traits : isBasicType;
+private import std.traits : isBasicType, Unqual;
 
 /**
  * Associative array / hash map.
@@ -37,7 +37,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		/**
 		 * Use the given `allocator` for allocations.
 		 */
-		this(Allocator allocator)
+		this(Allocator allocator) pure nothrow @nogc @safe
 		in
 		{
 			assert(allocator !is null, "Allocator must not be null");
@@ -85,12 +85,24 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		}
 	}
 
-	~this()
+	~this() nothrow
+	{
+		scope (failure) assert(false);
+		clear();
+	}
+
+	/**
+	 * Removes all items from the map
+	 */
+	void clear()
 	{
 		import stdx.allocator : dispose;
+
 		static if (useGC)
 			GC.removeRange(buckets.ptr);
 		allocator.dispose(buckets);
+		buckets = null;
+		_length = 0;
 	}
 
 	/**
@@ -206,7 +218,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	/**
 	 * Supports $(B aa[key] = value;) syntax.
 	 */
-	void opIndexAssign(V value, K key)
+	void opIndexAssign(V value, const K key)
 	{
 		insert(key, value);
 	}
@@ -217,7 +229,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 * Returns: pointer to the value corresponding to the given key,
 	 * or null if the key is not present in the HashMap.
 	 */
-	inout(V)* opBinaryRight(string op)(K key) inout nothrow if (op == "in")
+	inout(V)* opBinaryRight(string op)(K key) inout nothrow @trusted if (op == "in")
 	{
 		if (_length == 0)
 			return null;
@@ -275,6 +287,14 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	}
 
 	/**
+	 * Returns: a range of the keys in this map.
+	 */
+	auto byKey(this This)() inout @trusted
+	{
+		return Slice!(This, IterType.key)(cast(Unqual!(This)*) &this);
+	}
+
+	/**
 	 * Returns: a GC-allocated array filled with the keys contained in this map.
 	 */
 	K[] keys() const @property
@@ -294,6 +314,16 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		return app.data;
 	}
 
+
+	/**
+	 * Returns: a range of the values in this map.
+	 */
+	auto byValue(this This)() inout @trusted
+	{
+		return Slice!(This, IterType.value)(cast(Unqual!(This)*) &this);
+	}
+	alias opSlice = byValue;
+
 	/**
 	 * Returns: a GC-allocated array containing the values contained in this map.
 	 */
@@ -309,20 +339,29 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		foreach (ref const bucket; buckets)
 		{
 			foreach (item; bucket.range)
-				app.put(item.value);
+				app.put(cast(ContainerElementType!(This, V)) item.value);
 		}
 		return app.data;
 	}
 
 	/**
+	 * Returns: a range of the kev/value pairs in this map. The element type of
+	 *     this range is a struct with `key` and `value` fields.
+	 */
+	auto byKeyValue(this This)() inout @trusted
+	{
+		return Slice!(This, IterType.both)(cast(Unqual!(This)*) &this);
+	}
+
+	/**
 	 * Support for $(D foreach(key, value; aa) { ... }) syntax;
 	 */
-	int opApply(D)(D del) if(isOpApplyDelegate!(D, const(K), V))
+	int opApply(D)(D del) //if(isOpApplyDelegate!(D, const(K), V))
 	{
 		int result = 0;
 		foreach (ref bucket; buckets)
 		{
-			foreach (ref node; bucket.range)
+			foreach (ref node; bucket[])
 			{
 				result = del(node.key, node.value);
 				if (result != 0)
@@ -338,7 +377,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		int result = 0;
 		foreach (const ref bucket; buckets)
 		{
-			foreach (const ref node; bucket.range)
+			foreach (const ref node; bucket[])
 			{
 				result = del(node.key, node.value);
 				if (result != 0)
@@ -350,7 +389,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 private:
 
-	import stdx.allocator : make;
+	import stdx.allocator : make, makeArray;
 	import containers.unrolledlist : UnrolledList;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
@@ -359,6 +398,93 @@ private:
 
 	enum bool useGC = supportGC && (shouldAddGCRange!K || shouldAddGCRange!V);
 	alias Hash = typeof({ K k = void; return hashFunction(k); }());
+
+	enum IterType: ubyte
+	{
+		key, value, both
+	}
+
+	static struct Slice(MapType, IterType Type)
+	{
+		static if (Type == IterType.both)
+		{
+			struct FrontType
+			{
+				ContainerElementType!(MapType, K) key;
+				ContainerElementType!(MapType, V) value;
+			}
+		}
+		else static if (Type == IterType.value)
+			alias FrontType = ContainerElementType!(MapType, V);
+		else static if (Type == IterType.key)
+			alias FrontType = ContainerElementType!(MapType, K);
+		else
+			static assert(false);
+
+		Unqual!(MapType)* hm;
+		size_t bucketIndex;
+		typeof(hm.buckets[0].opSlice()) bucketRange;
+		bool _empty;
+
+		this(Unqual!(MapType)* hm)
+		{
+			this.hm = hm;
+			this.bucketIndex = 0;
+			bucketRange = typeof(bucketRange).init;
+			this._empty = false;
+
+			while (true)
+			{
+				if (bucketIndex >= hm.buckets.length)
+				{
+					_empty = true;
+					break;
+				}
+				bucketRange = hm.buckets[bucketIndex][];
+				if (bucketRange.empty)
+					bucketIndex++;
+				else
+					break;
+			}
+		}
+
+		FrontType front()
+		{
+			static if (Type == IterType.both)
+				return FrontType(cast(ContainerElementType!(MapType, K)) bucketRange.front.key,
+					cast(ContainerElementType!(MapType, V)) bucketRange.front.value);
+			else static if (Type == IterType.value)
+				return cast(ContainerElementType!(MapType, V)) bucketRange.front.value;
+			else static if (Type == IterType.key)
+				return cast(ContainerElementType!(MapType, K)) bucketRange.front.key;
+			else
+				static assert(false);
+		}
+
+		bool empty() const pure nothrow @nogc @property
+		{
+			return _empty;
+		}
+
+		void popFront() pure nothrow @nogc
+		{
+			bucketRange.popFront();
+			if (bucketRange.empty)
+			{
+				while (bucketRange.empty)
+				{
+					bucketIndex++;
+					if (bucketIndex >= hm.buckets.length)
+					{
+						_empty = true;
+						break;
+					}
+					else
+						bucketRange = hm.buckets[bucketIndex][];
+				}
+			}
+		}
+	}
 
 	template isOpApplyDelegate(D, KT, VT)
 	{
@@ -374,8 +500,9 @@ private:
 	void initialize(size_t bucketCount = 4)
 	{
 		import std.conv : emplace;
+		assert((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
 
-		buckets = (cast(Bucket*) allocator.allocate(bucketCount * Bucket.sizeof))[0 .. bucketCount];
+		buckets = makeArray!Bucket(allocator, bucketCount);
 		static if (useGC)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		foreach (ref bucket; buckets)
@@ -387,7 +514,7 @@ private:
 		}
 	}
 
-	Node* insert(K key, V value)
+	Node* insert(const K key, V value)
 	{
 		if (buckets.length == 0)
 			initialize();
@@ -436,7 +563,6 @@ private:
 	 */
 	void rehash() @trusted
 	{
-//		import stdx.allocator : make, dispose;
 		import std.conv : emplace;
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
@@ -533,6 +659,8 @@ private:
 unittest
 {
 	import std.uuid : randomUUID;
+	import std.algorithm.iteration : walkLength;
+
 	auto hm = HashMap!(string, int)(16);
 	assert (hm.length == 0);
 	assert (!hm.remove("abc"));
@@ -554,6 +682,12 @@ unittest
 	assert (hm.length == 1001);
 	assert (hm.keys().length == hm.length);
 	assert (hm.values().length == hm.length);
+	() @nogc {
+		assert (hm.byKey().walkLength == hm.length);
+		assert (hm.byValue().walkLength == hm.length);
+		assert (hm[].walkLength == hm.length);
+		assert (hm.byKeyValue().walkLength == hm.length);
+	}();
 	foreach (const ref string k, ref int v; hm) {}
 
 	auto hm2 = HashMap!(char, char)(4);

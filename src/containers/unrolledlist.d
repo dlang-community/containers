@@ -50,8 +50,9 @@ struct UnrolledList(T, Allocator = Mallocator,
 		}
 	}
 
-	~this()
+	~this() nothrow
 	{
+		scope (failure) assert(false);
 		clear();
 	}
 
@@ -60,14 +61,8 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 */
 	void clear()
 	{
-		Node* prev = null;
+		Node* prev;
 		Node* cur = _front;
-		debug (EMSI_CONTAINERS)
-		{
-			ulong nodeCount = 0;
-			for (Node* c = _front; c !is null; c = c.next)
-				++nodeCount;
-		}
 		while (cur !is null)
 		{
 			prev = cur;
@@ -360,11 +355,13 @@ struct UnrolledList(T, Allocator = Mallocator,
 
 			this.current = current;
 			this.length = l;
-			if (current !is null)
+			if (current !is null && l > 0)
 			{
 				index = bsf(current.registry);
 				assert (index < nodeCapacity);
 			}
+			else
+				current = null;
 		}
 
 		ref ET front() const @property @trusted @nogc
