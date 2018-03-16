@@ -108,7 +108,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/**
 	 * Inserts the given value into the end of the array.
 	 */
-	void insert(T value)
+	void insertBack(T value)
 	{
 		import stdx.allocator.mallocator : Mallocator;
 		import containers.internal.node : shouldAddGCRange;
@@ -152,7 +152,13 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	}
 
 	/// ditto
-	alias put = insert;
+	alias insert = insertBack;
+
+	/// ditto
+	alias insertAnywhere = insertBack;
+
+	/// ditto
+	alias put = insertBack;
 
 	/**
 	 * ~= operator overload

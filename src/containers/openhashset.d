@@ -167,6 +167,12 @@ struct OpenHashSet(T, Allocator = Mallocator,
 	}
 
 	/// ditto
+	alias put = insert;
+
+	/// ditto
+	alias insertAnywhere = insert;
+
+	/// ditto
 	bool opOpAssign(string op)(T item) if (op == "~")
 	{
 		return insert(item);
@@ -196,13 +202,10 @@ struct OpenHashSet(T, Allocator = Mallocator,
 	 * Returns:
 	 *     A range over the set.
 	 */
-	auto range(this This)() nothrow pure @nogc @safe
+	auto opSlice(this This)() nothrow pure @nogc @safe
 	{
 		return Range!(This)(nodes);
 	}
-
-	/// ditto
-	alias opSlice = range;
 
 private:
 
@@ -383,5 +386,5 @@ unittest
     auto f = new Foo;
     hs.insert(f);
     assert(f in hs);
-    auto r = hs.range();
+    auto r = hs[];
 }

@@ -41,28 +41,77 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 		}
 	}
 
+    void clear()
+    {
+        tree.clear();
+    }
+
 	/**
-	 * Inserts the given key-value pair.
+	 * Inserts or overwrites the given key-value pair.
 	 */
-	void insert(V value, K key)
+	void insert(K key, V value) @safe
 	{
 		auto tme = TreeMapElement(key, value);
-		tree.insert(tme);
+		tree.insert(tme, true);
 	}
 
 	/// Supports $(B treeMap[key] = value;) syntax.
-	alias opIndexAssign = insert;
+	void opIndexAssign(V value, K key)
+    {
+        insert(key, value);
+    }
 
-	/// Supports $(B treeMap[key]) syntax.
-	auto opIndex(this This)(K key) const
+	/**
+	 * Supports $(B treeMap[key]) syntax.
+	 *
+	 * Throws: RangeError if the key does not exist.
+	 */
+	auto opIndex(this This)(K key) inout
 	{
 		alias CET = ContainerElementType!(This, V);
 		auto tme = TreeMapElement(key);
 		return cast(CET) tree.equalRange(tme).front.value;
 	}
 
+    /**
+     * Returns: the value associated with the given key, or the given `defaultValue`.
+     */
+    auto get(this This)(K key, lazy V defaultValue) inout @trusted
+    {
+        alias CET = ContainerElementType!(This, V);
+		auto tme = TreeMapElement(key);
+        auto er = tree.equalRange(tme);
+        if (er.empty)
+            return cast(CET) defaultValue;
+        else
+            return cast(CET) er.front.value;
+    }
+
+    /**
+	 * If the given key does not exist in the TreeMap, adds it with
+	 * the value `defaultValue`.
+	 *
+	 * Params:
+	 *     key = the key to look up
+	 *     value = the default value
+	 */
+    auto getOrAdd(this This)(K key, lazy V value) @safe
+    {
+        alias CET = ContainerElementType!(This, V);
+		auto tme = TreeMapElement(key);
+        auto er = tree.equalRange(tme);
+        if (er.empty)
+        {
+            insert(value, key);
+            return value;
+        }
+        else
+            return er.front.value;
+    }
+
 	/**
 	 * Removes the key→value mapping for the given key.
+     *
 	 * Params: key = the key to remove
 	 * Returns: true if the key existed in the map
 	 */
@@ -72,48 +121,83 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 		return tree.remove(tme);
 	}
 
-	/// Returns: true if the mapping contains the given key
-	bool containsKey(K key)
+	/**
+	 * Returns: true if the mapping contains the given key
+	 */
+	bool containsKey(K key) inout pure nothrow @nogc @safe
 	{
 		auto tme = TreeMapElement(key);
 		return tree.contains(tme);
 	}
 
-	/// Returns: true if the mapping is empty
+	/**
+	 * Returns: true if the mapping is empty
+	 */
 	bool empty() const pure nothrow @property @safe @nogc
 	{
 		return tree.empty;
 	}
 
-	/// Returns: the number of key→value pairs in the map
-	size_t length() const pure nothrow @property @safe @nogc
+	/**
+	 * Returns: the number of key→value pairs in the map
+	 */
+	size_t length() inout pure nothrow @property @safe @nogc
 	{
 		return tree.length;
 	}
 
-	auto keys() const pure nothrow @property @safe @nogc
+	/**
+	 * Returns: a GC-allocated array of the keys in the map
+	 */
+	auto keys(this This)() inout pure @property @trusted
 	{
-		import std.algorithm.iteration : map;
-		return tree[].map!(a => a.key);
+		import std.array : array;
+
+		return byKey!(This)().array();
 	}
 
-	auto values() const pure nothrow @property @safe @nogc
+	/**
+	 * Returns: a range of the keys in the map
+	 */
+	auto byKey(this This)() inout pure @trusted
 	{
 		import std.algorithm.iteration : map;
-		return tree[].map!(a => a.value);
+		alias CETK = ContainerElementType!(This, K);
+
+		return tree[].map!(a => cast(CETK) a.key);
 	}
 
-	/// Supports $(B foreach(k, v; treeMap)) syntax.
-	int opApply(this This)(int delegate(ref K, ref V) loopBody)
+	/**
+	 * Returns: a GC-allocated array of the values in the map
+	 */
+	auto values(this This)() inout pure @property @trusted
 	{
-		int result;
-		foreach (ref tme; tree[])
-		{
-			result = loopBody(tme.key, tme.value);
-			if (result)
-				break;
-		}
-		return result;
+		import std.array : array;
+
+		return byValue!(This)().array();
+	}
+
+	/**
+	 * Returns: a range of the values in the map
+	 */
+	auto byValue(this This)() inout pure @trusted
+	{
+		import std.algorithm.iteration : map;
+		alias CETV = ContainerElementType!(This, V);
+
+		return tree[].map!(a => cast(CETV) a.value);
+	}
+
+	/// ditto
+	alias opSlice = byValue;
+
+	/**
+	 * Returns: a range of the kev/value pairs in this map. The element type of
+	 *     this range is a struct with `key` and `value` fields.
+	 */
+	auto byKeyValue() inout pure @safe
+	{
+		return tree[];
 	}
 
 private:
@@ -136,19 +220,21 @@ private:
 	}
 
 	alias TreeType = TTree!(TreeMapElement, Allocator, false, "a.opCmp(b) > 0", useGC, cacheLineSize);
-	static if (stateSize!Allocator == 0)
-		TreeType tree = void;
-	else
-		TreeType tree;
+    TreeType tree;
 }
 
-unittest
+@system unittest
 {
 	TreeMap!(string, string) tm;
 	tm["test1"] = "hello";
 	tm["test2"] = "world";
+    assert(tm.get("test1", "something") == "hello");
 	tm.remove("test1");
 	tm.remove("test2");
+    assert(tm.length == 0);
+    assert(tm.empty);
+    assert(tm.get("test4", "something") == "something");
+    assert(tm.get("test4", "something") == "something");
 }
 
 unittest

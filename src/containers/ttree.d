@@ -15,9 +15,10 @@ private import stdx.allocator.mallocator : Mallocator;
  *
  * T-tree Nodes are (by default) sized to fit within a 64-byte
  * cache line. The number of items stored per node can be read from the
- * nodeCapacity field. Each node has 0, 1, or 2 children. Each node has between
- * 1 and $(B nodeCapacity) items, or it has $(B nodeCapacity) items and 0 or
+ * `nodeCapacity` field. Each node has 0, 1, or 2 children. Each node has between
+ * 1 and `nodeCapacity` items, or it has `nodeCapacity` items and 0 or
  * more children.
+ *
  * Params:
  *     T = the element type
  *     Allocator = the allocator to use. Defaults to `Mallocator`.
@@ -54,22 +55,25 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		private alias AllocatorType = Allocator;
 	}
 	else
-		alias AllocatorType = void*;
+		private alias AllocatorType = void*;
 
-	~this()
+	~this() @trusted
 	{
-		if (root is null)
+        scope(failure) assert(false);
+        clear();
+	}
+
+    void clear()
+    {
+        if (root is null)
 			return;
 		deallocateNode(root, allocator);
-	}
+    }
 
 	debug(EMSI_CONTAINERS) invariant()
 	{
 		assert (root is null || _length != 0);
 	}
-
-
-	alias Value = ContainerStorageType!T;
 
 	/// $(B tree ~= item) operator overload.
 	void opOpAssign(string op)(T value) if (op == "~")
@@ -80,13 +84,12 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Inserts the given value into the tree.
 	 *
-	 * This is not a stable insert. You
-	 * will get strange results if you insert into a tree while iterating over
-	 * it.
+	 * This is not a stable insert. You will get strange results if you insert
+     * into a tree while iterating over it.
 	 *
-	 * Returns: true if any values were added.
+	 * Returns: the number of values added.
 	 */
-	bool insert(T value)
+	size_t insert(T value, bool overwrite = false) @safe
 	{
 		if (root is null)
 		{
@@ -94,33 +97,37 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 			++_length;
 			return true;
 		}
-		immutable bool r = root.insert(cast(Value) value, root, allocator);
+		immutable bool r = root.insert(cast(Value) value, root, allocator, overwrite);
 		if (r)
 			++_length;
-		return r;
+		return r ? 1 : 0;
 	}
 
 	/// ditto
-	bool insert(R)(R r) if (isInputRange!R && is(ElementType!R == T))
+	size_t insert(R)(R r, bool overwrite = false) if (isInputRange!R && is(ElementType!R == T))
 	{
-		bool retVal = false;
+		size_t retVal;
 		while (!r.empty)
 		{
-			retVal = insert(r.front()) || retVal;
+			retVal += insert(r.front(), overwrite);
 			r.popFront();
 		}
 		return retVal;
 	}
 
 	/// ditto
-	bool insert(T[] values)
+	size_t insert(T[] values, bool overwrite = false)
 	{
-		bool retVal = false;
+		size_t retVal;
 		foreach (ref v; values)
-			retVal = insert(v) || retVal;
+			retVal += insert(v, overwrite);
 		return retVal;
 	}
 
+    /// ditto
+	alias insertAnywhere = insert;
+
+    /// ditto
 	alias put = insert;
 
 	/**
@@ -152,7 +159,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: the number of elements in the tree.
 	 */
-	size_t length() const nothrow pure @property
+	size_t length() const nothrow pure @nogc @safe @property
 	{
 		return _length;
 	}
@@ -160,26 +167,25 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: true if the tree is empty.
 	 */
-	bool empty() const nothrow pure @property
+	bool empty() const nothrow pure @nogc @safe @property
 	{
 		return _length == 0;
 	}
 
 	/**
 	 * Returns: a range over the tree. Do not insert into the tree while
-	 * iterating because you may iterate over the same value multiple times.
+	 * iterating because you may iterate over the same value multiple times or
+     * skip some values entirely.
 	 */
-	auto range(this This)()
+	auto opSlice(this This)() inout @trusted
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.all, T.init);
 	}
 
-	alias opSlice = range;
-
 	/**
 	 * Returns: a range of elements which are less than value.
 	 */
-	auto lowerBound(this This)(inout T value)
+	auto lowerBound(this This)(inout T value) inout @trusted
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.lower, value);
 	}
@@ -188,7 +194,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	 * Returns: a range of elements which are equivalent (though not necessarily
 	 * equal) to value.
 	 */
-	auto equalRange(this This)(inout T value)
+	auto equalRange(this This)(inout T value) inout @trusted
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.equal, value);
 	}
@@ -196,7 +202,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: a range of elements which are greater than value.
 	 */
-	auto upperBound(this This)(inout T value)
+	auto upperBound(this This)(inout T value) inout @trusted
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.upper, value);
 	}
@@ -212,17 +218,16 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		 * Standard range operations
 		 */
 		ET front() const @property
-		in
 		{
-			assert (!empty);
-		}
-		body
-		{
+            import std.exception : enforce;
+            import core.exception : RangeError;
+
+            enforce!RangeError(!empty, "Attempted to get the front of an empty range");
 			return cast(typeof(return)) current.values[index];
 		}
 
 		/// ditto
-		bool empty() const nothrow pure @property
+		bool empty() const nothrow pure @nogc @safe @property
 		{
 			return current is null;
 		}
@@ -252,7 +257,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 		alias ET = ContainerElementType!(ThisT, T);
 
-		void currentToLeftmost()
+		void currentToLeftmost() @nogc
 		{
 			if (current is null)
 				return;
@@ -332,7 +337,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 			}
 		}
 
-		void _popFront()
+		void _popFront() @nogc
 		in
 		{
 			assert (!empty);
@@ -377,7 +382,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 private:
 
-	private import std.range : ElementType, isInputRange;
+	import std.range : ElementType, isInputRange;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.internal.node : FatNodeInfo, fullBits, shouldAddGCRange, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
@@ -387,6 +392,7 @@ private:
 	import std.traits: isPointer, PointerTarget;
 
 	alias N = FatNodeInfo!(T.sizeof, 3, cacheLineSize, ulong.sizeof);
+    alias Value = ContainerStorageType!T;
 	enum size_t nodeCapacity = N[0];
 	alias BookkeepingType = N[1];
 	enum HEIGHT_BIT_OFFSET = 48UL;
@@ -405,7 +411,7 @@ private:
 	else
 		alias _less = binaryFun!less;
 
-	static Node* allocateNode(Value value, Node* parent, AllocatorType allocator)
+	static Node* allocateNode(Value value, Node* parent, AllocatorType allocator) @trusted
 	out (result)
 	{
 		assert (result.left is null);
@@ -490,7 +496,7 @@ private:
 			return (registry & fullBitPattern) == 0;
 		}
 
-		bool contains(Value value) const
+		bool contains(Value value) const @trusted
 		{
 			import std.range : assumeSorted;
 			size_t i = nextAvailableIndex();
@@ -530,7 +536,7 @@ private:
 			return 0;
 		}
 
-		bool insert(T value, ref Node* root, AllocatorType allocator)
+		bool insert(T value, ref Node* root, AllocatorType allocator, bool overwrite) @trusted
 		in
 		{
 			static if (isPointer!T || is (T == class) || is (T == interface))
@@ -545,9 +551,15 @@ private:
 				immutable size_t index = nextAvailableIndex();
 				static if (!allowDuplicates)
 				{
-					if (!assumeSorted!_less(values[0 .. index]).equalRange(
-						cast(Value) value).empty)
+                    auto r = assumeSorted!_less(values[0 .. index]).trisect(
+						cast(Value) value);
+					if (!r[1].empty)
 					{
+                        if (overwrite)
+                        {
+                            values[r[0].length] = cast(Value) value;
+                            return true;
+                        }
 						return false;
 					}
 				}
@@ -564,7 +576,7 @@ private:
 					calcHeight();
 					return true;
 				}
-				immutable bool b = left.insert(value, root, allocator);
+				immutable bool b = left.insert(value, root, allocator, overwrite);
 				if (imbalanced() == -1)
 					rotateRight(root, allocator);
 				calcHeight();
@@ -578,7 +590,7 @@ private:
 					calcHeight();
 					return true;
 				}
-				immutable bool b = right.insert(value, root, allocator);
+				immutable bool b = right.insert(value, root, allocator, overwrite);
 				if (imbalanced() == 1)
 					rotateLeft(root, allocator);
 				calcHeight();
@@ -606,14 +618,14 @@ private:
 			if (right.height < left.height)
 			{
 				values[] = temp[0 .. $ - 1];
-				immutable bool b = right.insert(temp[$ - 1], root, allocator);
+				immutable bool b = right.insert(temp[$ - 1], root, allocator, overwrite);
 				if (imbalanced() == 1)
 					rotateLeft(root, allocator);
 				calcHeight();
 				return b;
 			}
 			values[] = temp[1 .. $];
-			immutable bool b = left.insert(temp[0], root, allocator);
+			immutable bool b = left.insert(temp[0], root, allocator, overwrite);
 			if (imbalanced() == -1)
 				rotateRight(root, allocator);
 			calcHeight();
@@ -748,9 +760,9 @@ private:
 			return r;
 		}
 
-		void rotateLeft(ref Node* root, AllocatorType allocator)
+		void rotateLeft(ref Node* root, AllocatorType allocator) @safe
 		{
-			Node* newRoot = void;
+			Node* newRoot;
 			if (right.left !is null && right.right is null)
 			{
 				newRoot = right.left;
@@ -776,9 +788,9 @@ private:
 			cleanup(newRoot, root, allocator);
 		}
 
-		void rotateRight(ref Node* root, AllocatorType allocator)
+		void rotateRight(ref Node* root, AllocatorType allocator) @safe
 		{
-			Node* newRoot = void;
+			Node* newRoot;
 			if (left.right !is null && left.left is null)
 			{
 				newRoot = left.right;
@@ -804,7 +816,7 @@ private:
 			cleanup(newRoot, root, allocator);
 		}
 
-		void cleanup(Node* newRoot, ref Node* root, AllocatorType allocator)
+		void cleanup(Node* newRoot, ref Node* root, AllocatorType allocator) @safe
 		{
 			if (newRoot.parent !is null)
 			{
@@ -831,19 +843,19 @@ private:
 			newRoot.calcHeight();
 		}
 
-		void fillFromChildren(ref Node* root, AllocatorType allocator)
+		void fillFromChildren(ref Node* root, AllocatorType allocator) @trusted
 		{
 			while (!isFull())
 			{
 				if (left !is null)
 				{
-					insert(left.removeLargest(allocator), root, allocator);
+					insert(left.removeLargest(allocator), root, allocator, false);
 					if (left.isEmpty())
 						deallocateNode(left, allocator);
 				}
 				else if (right !is null)
 				{
-					insert(right.removeSmallest(allocator), root, allocator);
+					insert(right.removeSmallest(allocator), root, allocator, false);
 					if (right.isEmpty())
 						deallocateNode(right, allocator);
 				}
@@ -1185,5 +1197,5 @@ unittest
     tt.insert(f);
     f = new Foo("bar");
     tt.insert(f);
-    auto r = tt.range();
+    auto r = tt[];
 }

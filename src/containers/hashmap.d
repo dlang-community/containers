@@ -118,7 +118,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 			throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
 		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
-		foreach (r; buckets[index].range)
+		foreach (r; buckets[index])
 		{
 			static if (storeHash)
 			{
@@ -132,6 +132,32 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 			}
 		}
 		throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
+	}
+
+	/**
+	 * Returns: `true` if there is an entry in this map for the given `key`,
+	 *     false otherwise.
+	 */
+	bool containsKey(this This)(K key) inout pure @nogc @safe
+	{
+		if (buckets.length == 0)
+			return false;
+		Hash hash = hashFunction(key);
+		size_t index = hashToIndex(hash);
+		foreach (r; buckets[index])
+		{
+			static if (storeHash)
+			{
+				if (r.hash == hash && r.key == key)
+					return true;
+			}
+			else
+			{
+				if (r.key == key)
+					return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -151,7 +177,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 			return defaultValue;
 		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
-		foreach (r; buckets[index].range)
+		foreach (r; buckets[index])
 		{
 			static if (storeHash)
 			{
@@ -174,12 +200,11 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 * Params:
 	 *     key = the key to look up
 	 *     value = the default value
-	 *
-	 * Returns: pointer to the value stored in the HashMap with the
-	 * given key. The pointer is guaranteed to be valid only until
-	 * the next HashMap modification.
+	 * Returns: a pointer to the value stored in the HashMap with the given key.
+	 *     The pointer is guaranteed to be valid only until the next HashMap
+	 *     modification.
 	 */
-	auto getOrAdd(this This)(K key, lazy V defaultValue = V.init)
+	auto getOrAdd(this This)(K key, lazy V defaultValue)
 	{
 		alias CET = ContainerElementType!(This, V);
 
@@ -187,7 +212,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 			initialize();
 		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
-		foreach (ref item; buckets[index].range)
+		foreach (ref item; buckets[index])
 		{
 			static if (storeHash)
 			{
@@ -235,7 +260,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 			return null;
 		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
-		foreach (ref node; buckets[index].range)
+		foreach (ref node; buckets[index])
 		{
 			static if (storeHash)
 			{
@@ -291,7 +316,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 */
 	auto byKey(this This)() inout @trusted
 	{
-		return Slice!(This, IterType.key)(cast(Unqual!(This)*) &this);
+		return MapRange!(This, IterType.key)(cast(Unqual!(This)*) &this);
 	}
 
 	/**
@@ -308,7 +333,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		auto app = appender!(K[])();
 		foreach (ref const bucket; buckets)
 		{
-			foreach (item; bucket.range)
+			foreach (item; bucket)
 				app.put(item.key);
 		}
 		return app.data;
@@ -320,8 +345,10 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 */
 	auto byValue(this This)() inout @trusted
 	{
-		return Slice!(This, IterType.value)(cast(Unqual!(This)*) &this);
+		return MapRange!(This, IterType.value)(cast(Unqual!(This)*) &this);
 	}
+
+	/// ditto
 	alias opSlice = byValue;
 
 	/**
@@ -338,7 +365,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		auto app = appender!(ContainerElementType!(This, V)[])();
 		foreach (ref const bucket; buckets)
 		{
-			foreach (item; bucket.range)
+			foreach (item; bucket)
 				app.put(cast(ContainerElementType!(This, V)) item.value);
 		}
 		return app.data;
@@ -350,41 +377,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 */
 	auto byKeyValue(this This)() inout @trusted
 	{
-		return Slice!(This, IterType.both)(cast(Unqual!(This)*) &this);
-	}
-
-	/**
-	 * Support for $(D foreach(key, value; aa) { ... }) syntax;
-	 */
-	int opApply(D)(D del) //if(isOpApplyDelegate!(D, const(K), V))
-	{
-		int result = 0;
-		foreach (ref bucket; buckets)
-		{
-			foreach (ref node; bucket[])
-			{
-				result = del(node.key, node.value);
-				if (result != 0)
-					return result;
-			}
-		}
-		return result;
-	}
-
-	///
-	int opApply(D)(D del) const if(isOpApplyDelegate!(D, const(K), const(V)))
-	{
-		int result = 0;
-		foreach (const ref bucket; buckets)
-		{
-			foreach (const ref node; bucket[])
-			{
-				result = del(node.key, node.value);
-				if (result != 0)
-					return result;
-			}
-		}
-		return result;
+		return MapRange!(This, IterType.both)(cast(Unqual!(This)*) &this);
 	}
 
 private:
@@ -404,9 +397,9 @@ private:
 		key, value, both
 	}
 
-	static struct Slice(MapType, IterType Type)
+	static struct MapRange(MapType, IterType Type)
 	{
-		static if (Type == IterType.both)
+        static if (Type == IterType.both)
 		{
 			struct FrontType
 			{
@@ -420,33 +413,6 @@ private:
 			alias FrontType = ContainerElementType!(MapType, K);
 		else
 			static assert(false);
-
-		Unqual!(MapType)* hm;
-		size_t bucketIndex;
-		typeof(hm.buckets[0].opSlice()) bucketRange;
-		bool _empty;
-
-		this(Unqual!(MapType)* hm)
-		{
-			this.hm = hm;
-			this.bucketIndex = 0;
-			bucketRange = typeof(bucketRange).init;
-			this._empty = false;
-
-			while (true)
-			{
-				if (bucketIndex >= hm.buckets.length)
-				{
-					_empty = true;
-					break;
-				}
-				bucketRange = hm.buckets[bucketIndex][];
-				if (bucketRange.empty)
-					bucketIndex++;
-				else
-					break;
-			}
-		}
 
 		FrontType front()
 		{
@@ -484,6 +450,35 @@ private:
 				}
 			}
 		}
+
+	private:
+
+		this(Unqual!(MapType)* hm)
+		{
+			this.hm = hm;
+			this.bucketIndex = 0;
+			bucketRange = typeof(bucketRange).init;
+			this._empty = false;
+
+			while (true)
+			{
+				if (bucketIndex >= hm.buckets.length)
+				{
+					_empty = true;
+					break;
+				}
+				bucketRange = hm.buckets[bucketIndex][];
+				if (bucketRange.empty)
+					bucketIndex++;
+				else
+					break;
+			}
+		}
+
+		Unqual!(MapType)* hm;
+		size_t bucketIndex;
+		typeof(hm.buckets[0].opSlice()) bucketRange;
+		bool _empty;
 	}
 
 	template isOpApplyDelegate(D, KT, VT)
@@ -520,7 +515,7 @@ private:
 			initialize();
 		Hash hash = hashFunction(key);
 		size_t index = hashToIndex(hash);
-		foreach (ref item; buckets[index].range)
+		foreach (ref item; buckets[index])
 		{
 			static if (storeHash)
 			{
@@ -541,9 +536,9 @@ private:
 		}
 		Node* n;
 		static if (storeHash)
-			n = buckets[index].put(Node(hash, key, value));
+			n = buckets[index].insertAnywhere(Node(hash, key, value));
 		else
-			n = buckets[index].put(Node(key, value));
+			n = buckets[index].insertAnywhere(Node(key, value));
 		_length++;
 		if (shouldRehash)
 			rehash();
@@ -583,7 +578,7 @@ private:
 
 		foreach (ref bucket; oldBuckets)
 		{
-			foreach (node; bucket.range)
+			foreach (node; bucket)
 			{
 				static if (storeHash)
 				{
@@ -688,7 +683,7 @@ unittest
 		assert (hm[].walkLength == hm.length);
 		assert (hm.byKeyValue().walkLength == hm.length);
 	}();
-	foreach (const ref string k, ref int v; hm) {}
+	foreach (v; hm) {}
 
 	auto hm2 = HashMap!(char, char)(4);
 	hm2['a'] = 'a';
@@ -710,10 +705,10 @@ unittest
 
 	void someFunc(ref in HashMap!(string,Foo) map) @safe
 	{
-		foreach (const ref string k, const ref Foo v; map)
+		foreach (kv; map.byKeyValue())
 		{
-			assert (k == "foo");
-			assert (v.name == "Foo");
+			assert (kv.key == "foo");
+			assert (kv.value.name == "Foo");
 		}
 	}
 
@@ -733,22 +728,12 @@ unittest
 
 	foreach (key; map.keys())
 		map[key] = 1;
+	foreach (key; map.byKey())
+		map[key] = 1;
 
-	foreach (const(string) key, ref int value; map)
+	foreach (value; map.byValue())
 		assert(value == 1);
-}
-
-// Issue #55
-unittest
-{
-	HashMap!(string, int) map;
-	map.insert("foo", 0);
-	map.insert("bar", 0);
-
-	foreach (const(string) key, ref int value; map)
-		value = 1;
-
-	foreach (const(string) key, ref int value; map)
+	foreach (value; map.values())
 		assert(value == 1);
 }
 

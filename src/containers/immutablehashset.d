@@ -144,12 +144,12 @@ struct ImmutableHashSet(T, alias hashFunction)
 	/**
 	 * The number of items in the set.
 	 */
-	size_t length;
+	immutable size_t length;
 
 	/**
 	 * True if the set is empty.
 	 */
-	bool empty;
+	immutable bool empty;
 
 private:
 

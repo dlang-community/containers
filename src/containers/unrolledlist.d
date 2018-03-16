@@ -124,7 +124,14 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 
 	/// ditto
+	T* opOpAssign(string op)(T item) if (op == "~")
+	{
+		return insertBack(item);
+	}
+
+	/// ditto
 	alias put = insertBack;
+
 	/// ditto
 	alias insert = insertBack;
 
@@ -195,7 +202,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		import containers.internal.backwards : popcnt;
 		if (_front is null)
 			return false;
-		bool retVal = false;
+		bool retVal;
 		loop: for (Node* n = _front; n !is null; n = n.next)
 		{
 			foreach (i; 0 .. nodeCapacity)
@@ -350,13 +357,10 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 
 	/// Returns: a range over the list
-	auto range(this This)() const nothrow pure @nogc @trusted @property
+	auto opSlice(this This)() const nothrow pure @nogc @trusted
 	{
 		return Range!(This)(_front, _length);
 	}
-
-	/// ditto
-	alias opSlice = range;
 
 	static struct Range(ThisT)
 	{
