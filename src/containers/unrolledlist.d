@@ -78,7 +78,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	/**
 	 * Inserts the given item into the end of the list.
 	 *
-	 * Returns a pointer to the inserted item.
+	 * Returns: a pointer to the inserted item.
 	 */
 	T* insertBack(T item)
 	{
@@ -111,7 +111,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		}
 		_length++;
 		assert (_back.registry <= fullBitPattern);
-		return cast(T*)result;
+		return cast(T*) result;
 	}
 
 	/**
@@ -132,17 +132,22 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 * Inserts the given item in the frontmost available cell, which may put the
 	 * item anywhere in the list as removal may leave gaps in list nodes. Use
 	 * this only if the order of elements is not important.
+	 *
+	 * Returns: a pointer to the inserted item.
 	 */
-	void insertAnywhere(T item)
+	T* insertAnywhere(T item) @trusted
 	{
 		Node* n = _front;
-		while (_front !is null)
+		while (n !is null)
 		{
 			size_t i = n.nextAvailableIndex();
 			if (i >= nodeCapacity)
 			{
 				if (n.next is null)
+				{
+					assert (n is _back);
 					break;
+				}
 				n = n.next;
 				continue;
 			}
@@ -150,14 +155,23 @@ struct UnrolledList(T, Allocator = Mallocator,
 			n.markUsed(i);
 			_length++;
 			assert (n.registry <= fullBitPattern);
-			return;
+			return cast(T*) &n.items[i];
 		}
-		assert (n is _back);
 		n = allocateNode(item);
-		_back.next = n;
-		_back = n;
+		n.items[0] = item;
+		n.markUsed(0);
 		_length++;
+		auto retVal = cast(T*) &n.items[0];
+		if (_front is null)
+		{
+			assert(_back is null);
+			_front = n;
+		}
+		else
+			_back.next = n;
+		_back = n;
 		assert (_back.registry <= fullBitPattern);
+		return retVal;
 	}
 
 	/// Returns: the length of the list
