@@ -46,10 +46,10 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 		}
 	}
 
-    void clear()
-    {
-        tree.clear();
-    }
+	void clear()
+	{
+		tree.clear();
+	}
 
 	/**
 	 * Inserts or overwrites the given key-value pair.
@@ -66,9 +66,9 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 
 	/// Supports $(B treeMap[key] = value;) syntax.
 	void opIndexAssign(V value, const K key)
-    {
-        insert(key, value);
-    }
+	{
+		insert(key, value);
+	}
 
 	/**
 	 * Supports $(B treeMap[key]) syntax.
@@ -82,21 +82,21 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 		return cast(CET) tree.equalRange(tme).front.value;
 	}
 
-    /**
-     * Returns: the value associated with the given key, or the given `defaultValue`.
-     */
-    auto get(this This)(K key, lazy V defaultValue) inout @trusted
-    {
-        alias CET = ContainerElementType!(This, V);
+	/**
+	 * Returns: the value associated with the given key, or the given `defaultValue`.
+	 */
+	auto get(this This)(K key, lazy V defaultValue) inout @trusted
+	{
+		alias CET = ContainerElementType!(This, V);
 		auto tme = TreeMapElement(key);
-        auto er = tree.equalRange(tme);
-        if (er.empty)
-            return cast(CET) defaultValue;
-        else
-            return cast(CET) er.front.value;
-    }
+		auto er = tree.equalRange(tme);
+		if (er.empty)
+			return cast(CET) defaultValue;
+		else
+			return cast(CET) er.front.value;
+	}
 
-    /**
+	/**
 	 * If the given key does not exist in the TreeMap, adds it with
 	 * the value `defaultValue`.
 	 *
@@ -104,23 +104,23 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	 *     key = the key to look up
 	 *     value = the default value
 	 */
-    auto getOrAdd(this This)(K key, lazy V value) @safe
-    {
-        alias CET = ContainerElementType!(This, V);
+	auto getOrAdd(this This)(K key, lazy V value) @safe
+	{
+		alias CET = ContainerElementType!(This, V);
 		auto tme = TreeMapElement(key);
-        auto er = tree.equalRange(tme);
-        if (er.empty)
-        {
-            insert(value, key);
-            return value;
-        }
-        else
-            return er.front.value;
-    }
+		auto er = tree.equalRange(tme);
+		if (er.empty)
+		{
+			insert(value, key);
+			return value;
+		}
+		else
+			return er.front.value;
+	}
 
 	/**
 	 * Removes the key→value mapping for the given key.
-     *
+	 *
 	 * Params: key = the key to remove
 	 * Returns: true if the key existed in the map
 	 */
@@ -238,7 +238,7 @@ private:
 	}
 
 	alias TreeType = TTree!(TreeMapElement, Allocator, false, "a.opCmp(b) > 0", useGC, cacheLineSize);
-    TreeType tree;
+	TreeType tree;
 }
 
 @system unittest
@@ -246,13 +246,13 @@ private:
 	TreeMap!(string, string) tm;
 	tm["test1"] = "hello";
 	tm["test2"] = "world";
-    assert(tm.get("test1", "something") == "hello");
+	assert(tm.get("test1", "something") == "hello");
 	tm.remove("test1");
 	tm.remove("test2");
-    assert(tm.length == 0);
-    assert(tm.empty);
-    assert(tm.get("test4", "something") == "something");
-    assert(tm.get("test4", "something") == "something");
+	assert(tm.length == 0);
+	assert(tm.empty);
+	assert(tm.get("test4", "something") == "something");
+	assert(tm.get("test4", "something") == "something");
 }
 
 unittest
@@ -291,14 +291,14 @@ unittest
 
 unittest
 {
-    static class Foo
-    {
-        string name;
-    }
+	static class Foo
+	{
+		string name;
+	}
 
-    TreeMap!(string, Foo) tm;
-    auto f = new Foo;
-    tm["foo"] = f;
+	TreeMap!(string, Foo) tm;
+	auto f = new Foo;
+	tm["foo"] = f;
 }
 
 
