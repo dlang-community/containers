@@ -33,6 +33,10 @@ private import stdx.allocator.mallocator : Mallocator;
 struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	alias less = "a < b", bool supportGC = shouldAddGCRange!T, size_t cacheLineSize = 64)
 {
+	/**
+	 * T-Trees are not copyable due to the way they manage memory and interact
+	 * with allocators.
+	 */
 	this(this) @disable;
 
 	static if (stateSize!Allocator != 0)
@@ -60,13 +64,16 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 	~this() @trusted
 	{
-        scope(failure) assert(false);
-        clear();
+		scope(failure) assert(false);
+		clear();
 	}
 
-    void clear()
-    {
-        if (root is null)
+	/**
+	 * Removes all elements from the tree.
+	 */
+	void clear()
+	{
+		if (root is null)
 			return;
 		static if (stateSize!Allocator > 0)
 			deallocateNode(root, allocator);
@@ -79,18 +86,30 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		assert (root is null || _length != 0);
 	}
 
-	/// $(B tree ~= item) operator overload.
+	/**
+	 * $(B tree ~= item) operator overload.
+	 */
 	void opOpAssign(string op)(T value) if (op == "~")
 	{
 		insert(value);
 	}
 
 	/**
-	 * Inserts the given value into the tree.
+	 * Inserts the given value(s) into the tree.
 	 *
 	 * This is not a stable insert. You will get strange results if you insert
-     * into a tree while iterating over it.
+	 * into a tree while iterating over it.
 	 *
+	 * Params:
+	 *     value = the value to insert
+	 *     overwrite = if `true` the given `value` will replace the first item
+	 *         in the tree that is equivalent (That is greater-than and less-than
+	 *         are both false) to `value`. This is useful in cases where opCmp
+	 *         and opEquals for `T` type have different meanings. For example,
+	 *         if the element type is a circle that has a position and a color,
+	 *         the circle could implement `opCmp` to sort by color, and calling
+	 *         `insert` with `overwrite` set to `true` would allow you to update
+	 *         the position of the circle with a certain color in the tree.
 	 * Returns: the number of values added.
 	 */
 	size_t insert(T value, bool overwrite = false) @safe
@@ -134,10 +153,10 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		return retVal;
 	}
 
-    /// ditto
+	/// ditto
 	alias insertAnywhere = insert;
 
-    /// ditto
+	/// ditto
 	alias put = insert;
 
 	/**
@@ -171,7 +190,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: true if the tree _conains the given value
 	 */
-	bool contains(T value) const
+	bool contains(T value) const @nogc @safe
 	{
 		return root !is null && root.contains(value);
 	}
@@ -179,7 +198,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: the number of elements in the tree.
 	 */
-	size_t length() const nothrow pure @nogc @safe @property
+	size_t length() const pure nothrow @nogc @safe @property
 	{
 		return _length;
 	}
@@ -187,15 +206,15 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: true if the tree is empty.
 	 */
-	bool empty() const nothrow pure @nogc @safe @property
+	bool empty() const pure nothrow @nogc @safe @property
 	{
 		return _length == 0;
 	}
 
 	/**
 	 * Returns: a range over the tree. Do not insert into the tree while
-	 * iterating because you may iterate over the same value multiple times or
-     * skip some values entirely.
+	 *     iterating because you may iterate over the same value multiple times
+	 *     or skip some values entirely.
 	 */
 	auto opSlice(this This)() inout @trusted @nogc
 	{
@@ -212,7 +231,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 	/**
 	 * Returns: a range of elements which are equivalent (though not necessarily
-	 * equal) to value.
+	 *     equal) to value.
 	 */
 	auto equalRange(this This)(inout T value) inout @trusted
 	{
@@ -225,6 +244,36 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	auto upperBound(this This)(inout T value) inout @trusted
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.upper, value);
+	}
+
+	/**
+	 * Returns: the first element in the tree.
+	 */
+	inout(T) front(this This)() inout pure @trusted @property
+	{
+		import std.exception : enforce;
+
+		alias CET = ContainerElementType!(This, T);
+		enforce(!empty(), "Attepted to get the front of an empty tree.");
+		inout(Node)* current = root;
+		while (current.left !is null)
+			current = current.left;
+		return cast(CET) current.values[0];
+	}
+
+	/**
+	 * Returns: the last element in the tree.
+	 */
+	inout(T) back(this This)() inout pure @trusted @property
+	{
+		import std.exception : enforce;
+
+		alias CET = ContainerElementType!(This, T);
+		enforce(!empty(), "Attepted to get the back of an empty tree.");
+		inout(Node)* current = root;
+		while (current.right !is null)
+			current = current.right;
+		return cast(CET) current.values[current.nextAvailableIndex - 1];
 	}
 
 	/**
@@ -243,7 +292,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		}
 
 		/// ditto
-		bool empty() const nothrow pure @nogc @safe @property
+		bool empty() const pure nothrow @nogc @safe @property
 		{
 			return current is null;
 		}
@@ -423,16 +472,17 @@ private:
 	import std.traits: isPointer, PointerTarget;
 
 	alias N = FatNodeInfo!(T.sizeof, 3, cacheLineSize, ulong.sizeof);
-    alias Value = ContainerStorageType!T;
+	alias Value = ContainerStorageType!T;
 	enum size_t nodeCapacity = N[0];
 	alias BookkeepingType = N[1];
 	enum HEIGHT_BIT_OFFSET = 48UL;
-	static assert (nodeCapacity <= HEIGHT_BIT_OFFSET, "cannot fit height info and registry in ulong");
 	enum fullBitPattern = fullBits!(ulong, nodeCapacity);
-
 	enum RangeType : ubyte { all, lower, equal, upper }
-
 	enum bool useGC = supportGC && shouldAddGCRange!T;
+
+	static assert (nodeCapacity <= HEIGHT_BIT_OFFSET, "cannot fit height info and registry in ulong");
+	static assert (nodeCapacity <= (typeof(Node.registry).sizeof * 8));
+	static assert (Node.sizeof <= cacheLineSize);
 
 	// If we're storing a struct that defines opCmp, don't compare pointers as
 	// that is almost certainly not what the user intended.
@@ -504,11 +554,9 @@ private:
 		n = null;
 	}
 
-	static assert (nodeCapacity <= (typeof(Node.registry).sizeof * 8));
-	static assert (Node.sizeof <= cacheLineSize);
 	static struct Node
 	{
-		private size_t nextAvailableIndex() const nothrow pure @nogc @safe
+		private size_t nextAvailableIndex() const pure nothrow @nogc @safe
 		{
 			import containers.internal.backwards : bsf;
 
@@ -556,7 +604,7 @@ private:
 				return !assumeSorted!_less(values[0 .. i]).equalRange(value).empty;
 		}
 
-		ulong calcHeight() nothrow pure @nogc @safe
+		ulong calcHeight() pure nothrow @nogc @safe
 		{
 			immutable ulong l = left !is null ? left.height() : 0;
 			immutable ulong r = right !is null ? right.height() : 0;
@@ -567,12 +615,12 @@ private:
 			return h;
 		}
 
-		ulong height() const nothrow pure @nogc @safe
+		ulong height() const pure nothrow @nogc @safe
 		{
 			return registry >>> HEIGHT_BIT_OFFSET;
 		}
 
-		int imbalanced() const nothrow pure @nogc @safe
+		int imbalanced() const pure nothrow @nogc @safe
 		{
 			if (right !is null
 					&& ((left is null && right.height() > 1)
@@ -608,11 +656,11 @@ private:
 							cast(Value) value);
 					if (!r[1].empty)
 					{
-                        if (overwrite)
-                        {
-                            values[r[0].length] = cast(Value) value;
-                            return true;
-                        }
+						if (overwrite)
+						{
+							values[r[0].length] = cast(Value) value;
+							return true;
+						}
 						return false;
 					}
 				}
@@ -957,16 +1005,15 @@ private:
 			}
 		}
 
+		Value[nodeCapacity] values;
 		Node* left;
 		Node* right;
 		Node* parent;
-
-		Value[nodeCapacity] values;
 		ulong registry = 1UL << HEIGHT_BIT_OFFSET;
 	}
 
-	size_t _length = 0;
-	Node* root = null;
+	size_t _length;
+	Node* root;
 }
 
 unittest
@@ -983,9 +1030,11 @@ unittest
 		assert (kt.empty);
 		foreach (i; 0 .. 200)
 			assert (kt.insert(i));
-		assert (!kt.empty);
-		assert (kt.length == 200);
-		assert (kt.contains(30));
+		assert(kt.front == 0);
+		assert(kt.back == 199);
+		assert(!kt.empty);
+		assert(kt.length == 200);
+		assert(kt.contains(30));
 	}
 
 	{
@@ -1254,20 +1303,20 @@ unittest
 
 unittest
 {
-    static class Foo
-    {
-        string name;
+	static class Foo
+	{
+		string name;
 
-        this(string s)
-        {
-            this.name = s;
-        }
-    }
+		this(string s)
+		{
+			this.name = s;
+		}
+	}
 
-    TTree!(Foo, Mallocator, false, "a.name < b.name") tt;
-    auto f = new Foo("foo");
-    tt.insert(f);
-    f = new Foo("bar");
-    tt.insert(f);
-    auto r = tt[];
+	TTree!(Foo, Mallocator, false, "a.name < b.name") tt;
+	auto f = new Foo("foo");
+	tt.insert(f);
+	f = new Foo("bar");
+	tt.insert(f);
+	auto r = tt[];
 }
