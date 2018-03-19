@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>put</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+containers.<a href="containers/ttree.TTree.html">ttree</a>.<a href="containers/ttree.TTree.html">TTree</a>.put</div>
+<pre><code>alias put = insert</code></pre>
+<div class="section">
+Inserts the given value(s) into the tree.
+</div>
+<div class="section">
+This is not a stable insert. You will get strange results if you insert
+into a tree while iterating over it.
+</div>
+<div class="section">
+<h3>Parameters</h3>
+<table class="params">
+<tr class="param"><td class="paramName">value</td><td class="paramDoc">the value to insert</td></tr>
+<tr class="param"><td class="paramName">overwrite</td><td class="paramDoc">if <pre style="display:inline;" class="d_inline_code"><font color=blue>true</font></pre> the given <pre style="display:inline;" class="d_inline_code">value</pre> will replace the first item
+        in the tree that is equivalent (That is greater-than and less-than
+        are both false) to <pre style="display:inline;" class="d_inline_code">value</pre>. This is useful in cases where opCmp
+        and opEquals for <pre style="display:inline;" class="d_inline_code">T</pre> type have different meanings. For example,
+        if the element type is a circle that has a position and a color,
+        the circle could implement <pre style="display:inline;" class="d_inline_code">opCmp</pre> to sort by color, and calling
+        <pre style="display:inline;" class="d_inline_code">insert</pre> with <pre style="display:inline;" class="d_inline_code">overwrite</pre> set to <pre style="display:inline;" class="d_inline_code"><font color=blue>true</font></pre> would allow you to update
+        the position of the circle with a certain color in the tree.</td></tr>
+</table></div>
+<div class="section">
+<h3>Returns</h3>
+the number of values added.
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

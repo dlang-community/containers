@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>remove</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+containers.<a href="containers/ttree.TTree.html">ttree</a>.<a href="containers/ttree.TTree.html">TTree</a>.remove</div>
+<pre><code>public bool remove(T value, void delegate(T) cleanup = null)
+</code></pre><div class="section">
+Removes a value from the tree.
+</div>
+<div class="section">
+<h3>Parameters</h3>
+<table class="params">
+<tr class="param"><td class="paramName">value</td><td class="paramDoc">a value equal to the one to be removed</td></tr>
+<tr class="param"><td class="paramName">cleanup</td><td class="paramDoc">a function that should be run on the removed item</td></tr>
+</table></div>
+<div class="section">
+<h3>Retuns</h3>
+true if any value was removed
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>front</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+containers.<a href="containers/unrolledlist.UnrolledList.html">unrolledlist</a>.<a href="containers/unrolledlist.UnrolledList.html">UnrolledList</a>.front</div>
+<pre><code>public ref inout(T) front() inout nothrow @property
+</code></pre><div class="section">
+Time complexity is O(1)
+</div>
+<div class="section"><h3>Contracts</h3><pre><code>in
+{
+    assert (!empty);
+    assert (_front.registry != 0);
+}</code></pre></div>
+<div class="section">
+<h3>Returns</h3>
+the item at the front of the list
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

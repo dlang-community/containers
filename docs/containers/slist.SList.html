@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>SList</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+containers.<a href="containers/slist.html">slist</a>.SList</div>
+<pre><code>public struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
+</code></pre><div class="section">
+Single-linked allocator-backed list.
+</div>
+<div class="section">
+<h3>Parameters</h3>
+<table class="params">
+<tr class="param"><td class="paramName">T</td><td class="paramDoc">the element type</td></tr>
+<tr class="param"><td class="paramName">Allocator</td><td class="paramDoc">the allocator to use. Defaults to <pre style="display:inline;" class="d_inline_code">Mallocator</pre>.</td></tr>
+<tr class="param"><td class="paramName">supportGC</td><td class="paramDoc">true if the container should support holding references to
+        GC-allocated memory.</td></tr>
+</table></div>
+<div class="section">
+<h3>Aliases</h3>
+<table>
+<tr><td><a href="containers/slist.SList.insert.html">insert</a></td><td><pre><code>insertFront</code></pre></td><td>Inserts an item at the front of the list.</td></tr><tr><td><a href="containers/slist.SList.insertAnywhere.html">insertAnywhere</a></td><td><pre><code>insertFront</code></pre></td><td>Inserts an item at the front of the list.</td></tr><tr><td><a href="containers/slist.SList.put.html">put</a></td><td><pre><code>insertFront</code></pre></td><td>Inserts an item at the front of the list.</td></tr></table>
+<h3>Functions</h3>
+<table>
+<tr><td><a href="containers/slist.SList.this.html">this</a></td><td></td><td>No default construction if an allocator must be provided.</td></tr><tr><td><a href="containers/slist.SList.this.html">this</a></td><td></td><td>Use the given <pre style="display:inline;" class="d_inline_code">allocator</pre> for allocations.</td></tr><tr><td><a href="containers/slist.SList.front.html">front</a></td><td></td><td>Returns: the most recently inserted item</td></tr><tr><td><a href="containers/slist.SList.back.html">back</a></td><td></td><td>Returns: the least recently inserted item.</td></tr><tr><td><a href="containers/slist.SList.moveFront.html">moveFront</a></td><td></td><td>Removes the first item in the list.</td></tr><tr><td><a href="containers/slist.SList.popFront.html">popFront</a></td><td></td><td>Removes the first item in the list.</td></tr><tr><td><a href="containers/slist.SList.empty.html">empty</a></td><td></td><td>Returns: true if this list is empty</td></tr><tr><td><a href="containers/slist.SList.length.html">length</a></td><td></td><td>Returns: the number of items in the list</td></tr><tr><td><a href="containers/slist.SList.insertFront.html">insertFront</a></td><td></td><td>Inserts an item at the front of the list.</td></tr><tr><td><a href="containers/slist.SList.opOpAssign.html">opOpAssign</a></td><td></td><td>Supports <pre style="display:inline;" class="d_inline_code">list ~= item</pre> syntax</td></tr><tr><td><a href="containers/slist.SList.remove.html">remove</a></td><td></td><td>Removes the first instance of value found in the list.</td></tr><tr><td><a href="containers/slist.SList.opSlice.html">opSlice</a></td><td></td><td>Forward range interface</td></tr><tr><td><a href="containers/slist.SList.clear.html">clear</a></td><td></td><td>Removes all elements from the range</td></tr></table>
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css"/><script src="../highlight.pack.js"></script>
+<title>opOpAssign</title>
+<base href="../"/>
+<script src="search.js"></script>
+</head>
+<body><div class="breadcrumbs">
+<table id="results"></table>
+<input type="search" id="search" placeholder="Search" onkeyup="searchSubmit(this.value, event)"/>
+containers.<a href="containers/dynamicarray.DynamicArray.html">dynamicarray</a>.<a href="containers/dynamicarray.DynamicArray.html">DynamicArray</a>.opOpAssign</div>
+<pre><code>public scope ref typeof(this) opOpAssign(string op)(T value) 
+if(op == "~")
+</code></pre><div class="section">
+~= operator overload
+</div>
+<hr/><pre><code>public scope ref typeof(this) opOpAssign(string op, bool checkForOverlap = true)(AppendT[] rhs) 
+if(op == "~" && !is(T == AppendT[]))
+</code></pre><div class="section">
+~= operator overload for an array of items
+</div>
+<hr/><pre><code>public scope ref typeof(this) opOpAssign(string op)(ref AppendTypeOfThis rhs) 
+if(op == "~")
+</code></pre><div class="section">
+~= operator overload for an array of items
+</div>
+
+<script>hljs.initHighlightingOnLoad();</script>
+</body>
+</html>
