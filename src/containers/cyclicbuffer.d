@@ -184,6 +184,12 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/// ditto
 	alias insert = insertBack;
 
+	/// ditto
+	alias insertAnywhere = insertBack;
+
+	/// ditto
+	alias put = insertBack;
+
 	/**
 	 * Removes the item at the start of the buffer.
 	 */
@@ -197,6 +203,9 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			.destroy(storage[pos]);
 	}
 
+	/// ditto
+	alias popFront = removeFront;
+
 	/**
 	 * Removes the item at the end of the buffer.
 	 */
@@ -209,6 +218,9 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		static if (hasElaborateDestructor!T)
 			.destroy(storage[pos]);
 	}
+
+	/// ditto
+	alias popBack = removeBack;
 
 	/// Accesses to the item at the start of the buffer.
 	auto ref front(this This)() nothrow pure @property @safe
