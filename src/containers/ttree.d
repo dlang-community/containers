@@ -25,9 +25,9 @@ private import stdx.allocator.mallocator : Mallocator;
  *     Allocator = the allocator to use. Defaults to `Mallocator`.
  *     allowDuplicates = if true, duplicate values will be allowed in the tree
  *     less = the comparitor function to use
- *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
  *     supportGC = true if the container should support holding references to
  *         GC-allocated memory.
+ *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
  * See_also: $(LINK http://en.wikipedia.org/wiki/T-tree)
  */
 struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
