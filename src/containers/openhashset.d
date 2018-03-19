@@ -207,6 +207,8 @@ struct OpenHashSet(T, Allocator = Mallocator,
 		return Range!(This)(nodes);
 	}
 
+	mixin AllocatorState!Allocator;
+
 private:
 
 	import containers.internal.storage_type : ContainerStorageType;
@@ -281,10 +283,7 @@ private:
 		_length = 0;
 	}
 
-	/**
-	 * Returns:
-	 *     size_t.max if the item was not found
-	 */
+	// Returns: size_t.max if the item was not found
 	static size_t toIndex(const Node[] n, T item, size_t hash)
 	{
 		immutable size_t bucketMask = (n.length - 1);
@@ -301,9 +300,8 @@ private:
 
 	Node[] nodes;
 	size_t _length;
-	mixin AllocatorState!Allocator;
 
-	struct Node
+	static struct Node
 	{
 		ContainerStorageType!T data;
 		bool used;
