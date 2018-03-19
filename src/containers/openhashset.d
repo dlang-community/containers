@@ -141,7 +141,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 	}
 
 	/**
-	 * Inserts the gien item into the set.
+	 * Inserts the given item into the set.
 	 *
 	 * Returns:
 	 *     $(B true) if the item was inserted, false if it was already present.
