@@ -8,6 +8,7 @@
 module containers.ttree;
 
 private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.mixins : AllocatorState;
 private import stdx.allocator.mallocator : Mallocator;
 
 /**
@@ -67,8 +68,11 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
     {
         if (root is null)
 			return;
-		deallocateNode(root, allocator);
-    }
+		static if (stateSize!Allocator > 0)
+			deallocateNode(root, allocator);
+		else
+			deallocateNode(root, null);
+	}
 
 	debug(EMSI_CONTAINERS) invariant()
 	{
@@ -93,11 +97,17 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	{
 		if (root is null)
 		{
-			root = allocateNode(cast(Value) value, null, allocator);
+			static if (stateSize!Allocator > 0)
+				root = allocateNode(cast(Value) value, null, allocator);
+			else
+				root = allocateNode(cast(Value) value, null, null);
 			++_length;
 			return true;
 		}
-		immutable bool r = root.insert(cast(Value) value, root, allocator, overwrite);
+		static if (stateSize!Allocator > 0)
+			immutable bool r = root.insert(cast(Value) value, root, allocator, overwrite);
+		else
+			immutable bool r = root.insert(cast(Value) value, root, null, overwrite);
 		if (r)
 			++_length;
 		return r ? 1 : 0;
@@ -140,11 +150,21 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	 */
 	bool remove(T value, void delegate(T) cleanup = null)
 	{
-		bool removed = root !is null && root.remove(cast(Value) value, root, allocator, cleanup);
+		static if (stateSize!Allocator > 0)
+			immutable bool removed = root !is null && root.remove(cast(Value) value, root, allocator, cleanup);
+		else
+			immutable bool removed = root !is null && root.remove(cast(Value) value, root, null, cleanup);
 		if (removed)
+		{
 			--_length;
-		if (_length == 0)
-			deallocateNode(root, allocator);
+			if (_length == 0)
+			{
+				static if (stateSize!Allocator > 0)
+					deallocateNode(root, allocator);
+				else
+					deallocateNode(root, null);
+			}
+		}
 		return removed;
 	}
 
@@ -177,7 +197,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	 * iterating because you may iterate over the same value multiple times or
      * skip some values entirely.
 	 */
-	auto opSlice(this This)() inout @trusted
+	auto opSlice(this This)() inout @trusted @nogc
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.all, T.init);
 	}
@@ -217,12 +237,8 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		/**
 		 * Standard range operations
 		 */
-		ET front() const @property
+		ET front() const @property @nogc
 		{
-            import std.exception : enforce;
-            import core.exception : RangeError;
-
-            enforce!RangeError(!empty, "Attempted to get the front of an empty range");
 			return cast(typeof(return)) current.values[index];
 		}
 
@@ -251,6 +267,19 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 					current = null;
 				break;
 			}
+		}
+
+	package(containers):
+
+		// The TreeMap container needs to be able to modify part of the tree
+		// in-place. The reason that this works is that the value part of the
+		// key-value struct contained in a TTree used by a TreeMap is not used
+		// when comparing nodes. Normal users of the containers library cannot
+		// get a reference to the elements because modifying them will violate
+		// the ordering invariant of the tree.
+		T* _containersFront() const @property @nogc @trusted
+		{
+			return cast(T*) &current.values[index];
 		}
 
 	private:
@@ -307,7 +336,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 			}
 		}
 
-		this(inout(Node)* n, RangeType type, inout T val)
+		this(inout(Node)* n, RangeType type, inout T val) @nogc
 		{
 			current = n;
 			this.type = type;
@@ -380,6 +409,8 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		const T val;
 	}
 
+	mixin AllocatorState!Allocator;
+
 private:
 
 	import std.range : ElementType, isInputRange;
@@ -405,9 +436,24 @@ private:
 
 	// If we're storing a struct that defines opCmp, don't compare pointers as
 	// that is almost certainly not what the user intended.
-	static if (is(typeof(less) == string ) && less == "a < b"
-			&& isPointer!T && __traits(hasMember, PointerTarget!T, "opCmp"))
-		alias _less = binaryFun!"a.opCmp(*b) < 0";
+	static if (is(typeof(less) == string ))
+	{
+
+		static if (less == "a < b" && isPointer!T
+				&& __traits(hasMember, PointerTarget!T, "opCmp"))
+		{
+			enum _lessStr = "a.opCmp(*b) < 0";
+			static bool _less(TT)(const TT a, const TT b)
+			{
+				return a.opCmp(*b) < 0;
+			}
+		}
+		else
+		{
+			enum _lessStr = less;
+			alias _less = binaryFun!less;
+		}
+	}
 	else
 		alias _less = binaryFun!less;
 
@@ -504,7 +550,10 @@ private:
 				return left !is null && left.contains(value);
 			if (_less(values[i - 1], value))
 				return right !is null && right.contains(value);
-			return !assumeSorted!_less(values[0 .. i]).equalRange(value).empty;
+			static if (is(typeof(_lessStr)))
+				return !assumeSorted!_lessStr(values[0 .. i]).equalRange(value).empty;
+			else
+				return !assumeSorted!_less(values[0 .. i]).equalRange(value).empty;
 		}
 
 		ulong calcHeight() nothrow pure @nogc @safe
@@ -551,8 +600,12 @@ private:
 				immutable size_t index = nextAvailableIndex();
 				static if (!allowDuplicates)
 				{
-                    auto r = assumeSorted!_less(values[0 .. index]).trisect(
-						cast(Value) value);
+					static if (is(typeof(_lessStr)))
+						auto r = assumeSorted!_lessStr(values[0 .. index]).trisect(
+							cast(Value) value);
+					else
+						auto r = assumeSorted!_less(values[0 .. index]).trisect(
+							cast(Value) value);
 					if (!r[1].empty)
 					{
                         if (overwrite)
@@ -565,7 +618,10 @@ private:
 				}
 				values[index] = cast(Value) value;
 				markUsed(index);
-				sort!_less(values[0 .. index + 1]);
+				static if (is(typeof(_lessStr)))
+					sort!_lessStr(values[0 .. index + 1]);
+				else
+					sort!_less(values[0 .. index + 1]);
 				return true;
 			}
 			if (_less(value, values[0]))
@@ -597,12 +653,26 @@ private:
 				return b;
 			}
 			static if (!allowDuplicates)
-				if (!assumeSorted!_less(values[]).equalRange(cast(Value) value).empty)
-					return false;
+			{
+				static if (is(typeof(_lessStr)))
+				{
+					if (!assumeSorted!_lessStr(values[]).equalRange(cast(Value) value).empty)
+						return false;
+				}
+				else
+				{
+					if (!assumeSorted!_less(values[]).equalRange(cast(Value) value).empty)
+						return false;
+				}
+			}
+
 			Value[nodeCapacity + 1] temp = void;
 			temp[0 .. $ - 1] = values[];
 			temp[$ - 1] = cast(Value) value;
-			sort!_less(temp[]);
+			static if (is(typeof(_lessStr)))
+				sort!_lessStr(temp[]);
+			else
+				sort!_less(temp[]);
 			if (right is null)
 			{
 				values[] = temp[0 .. $ - 1];
@@ -652,7 +722,10 @@ private:
 				return r;
 			}
 			size_t i = nextAvailableIndex();
-			auto sv = assumeSorted!_less(values[0 .. i]);
+			static if (is(typeof(_lessStr)))
+				auto sv = assumeSorted!_lessStr(values[0 .. i]);
+			else
+				auto sv = assumeSorted!_less(values[0 .. i]);
 			auto tri = sv.trisect(value);
 			if (tri[1].length == 0)
 				return false;
@@ -892,7 +965,6 @@ private:
 		ulong registry = 1UL << HEIGHT_BIT_OFFSET;
 	}
 
-	AllocatorType allocator;
 	size_t _length = 0;
 	Node* root = null;
 }
@@ -1017,7 +1089,7 @@ unittest
 		static struct S
 		{
 			string x;
-			int opCmp (ref const S other) const
+			int opCmp (ref const S other) const @nogc
 			{
 				if (x < other.x)
 					return -1;
@@ -1039,7 +1111,7 @@ unittest
 	{
 		static struct TestStruct
 		{
-			int opCmp(ref const TestStruct other) const
+			int opCmp(ref const TestStruct other) const @nogc
 			{
 				return x < other.x ? -1 : (x > other.x ? 1 : 0);
 			}
@@ -1107,7 +1179,7 @@ unittest
 			ulong a;
 			ulong b;
 
-			int opCmp(ref const ABC other) const
+			int opCmp(ref const ABC other) const @nogc
 			{
 				if (this.a < other.a)
 					return -1;

@@ -27,6 +27,11 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 
 	private import stdx.allocator.common : stateSize;
 
+	auto allocator()
+	{
+		return tree.allocator;
+	}
+
 	static if (stateSize!Allocator != 0)
 	{
 		/// No default construction if an allocator must be provided.
@@ -49,14 +54,18 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Inserts or overwrites the given key-value pair.
 	 */
-	void insert(K key, V value) @safe
+	void insert(const K key, V value) @safe
 	{
 		auto tme = TreeMapElement(key, value);
-		tree.insert(tme, true);
+		auto r = tree.equalRange(tme);
+		if (r.empty)
+			tree.insert(tme, true);
+		else
+			r._containersFront().value = value;
 	}
 
 	/// Supports $(B treeMap[key] = value;) syntax.
-	void opIndexAssign(V value, K key)
+	void opIndexAssign(V value, const K key)
     {
         insert(key, value);
     }
@@ -159,7 +168,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Returns: a range of the keys in the map
 	 */
-	auto byKey(this This)() inout pure @trusted
+	auto byKey(this This)() inout pure @trusted @nogc
 	{
 		import std.algorithm.iteration : map;
 		alias CETK = ContainerElementType!(This, K);
@@ -180,7 +189,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Returns: a range of the values in the map
 	 */
-	auto byValue(this This)() inout pure @trusted
+	auto byValue(this This)() inout pure @trusted @nogc
 	{
 		import std.algorithm.iteration : map;
 		alias CETV = ContainerElementType!(This, V);
@@ -195,9 +204,18 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	 * Returns: a range of the kev/value pairs in this map. The element type of
 	 *     this range is a struct with `key` and `value` fields.
 	 */
-	auto byKeyValue() inout pure @safe
+	auto byKeyValue(this This)() inout pure @trusted
 	{
-		return tree[];
+		import std.algorithm.iteration : map;
+		alias CETV = ContainerElementType!(This, V);
+
+		struct KeyValue
+		{
+			const K key;
+			CETV value;
+		}
+
+		return tree[].map!(n => KeyValue(n.key, cast(CETV) n.value));
 	}
 
 private:
@@ -282,3 +300,123 @@ unittest
     auto f = new Foo;
     tm["foo"] = f;
 }
+
+
+unittest
+{
+	import std.uuid : randomUUID;
+	import std.algorithm.iteration : walkLength;
+
+	auto hm = TreeMap!(string, int)();
+	assert (hm.length == 0);
+	assert (!hm.remove("abc"));
+	hm["answer"] = 42;
+	assert (hm.length == 1);
+	assert (hm.containsKey("answer"));
+	hm.remove("answer");
+	assert (hm.length == 0);
+	hm["one"] = 1;
+	hm["one"] = 1;
+	assert (hm.length == 1);
+	assert (hm["one"] == 1);
+	hm["one"] = 2;
+	assert(hm["one"] == 2);
+	foreach (i; 0 .. 1000)
+	{
+		hm[randomUUID().toString] = i;
+	}
+	assert (hm.length == 1001);
+	assert (hm.keys().length == hm.length);
+	assert (hm.values().length == hm.length);
+	() @nogc {
+		assert (hm.byKey().walkLength == hm.length);
+		assert (hm.byValue().walkLength == hm.length);
+		assert (hm[].walkLength == hm.length);
+		assert (hm.byKeyValue().walkLength == hm.length);
+	}();
+	foreach (v; hm) {}
+
+	auto hm2 = TreeMap!(char, char)();
+	hm2['a'] = 'a';
+
+	TreeMap!(int, int) hm3;
+	assert (hm3.get(100, 20) == 20);
+	hm3[100] = 1;
+	assert (hm3.get(100, 20) == 1);
+	auto pValue = hm3.containsKey(100);
+	assert(pValue == 1);
+}
+
+unittest
+{
+	static class Foo
+	{
+		string name;
+	}
+
+	void someFunc(ref in TreeMap!(string,Foo) map) @safe
+	{
+		foreach (kv; map.byKeyValue())
+		{
+			assert (kv.key == "foo");
+			assert (kv.value.name == "Foo");
+		}
+	}
+
+	auto hm = TreeMap!(string, Foo)();
+	auto f = new Foo;
+	f.name = "Foo";
+	hm.insert("foo", f);
+	assert(hm.containsKey("foo"));
+}
+
+// Issue #54
+unittest
+{
+	TreeMap!(string, int) map;
+	map.insert("foo", 0);
+	map.insert("bar", 0);
+
+	foreach (key; map.keys())
+		map[key] = 1;
+	foreach (key; map.byKey())
+		map[key] = 1;
+
+	foreach (value; map.byValue())
+		assert(value == 1);
+	foreach (value; map.values())
+		assert(value == 1);
+}
+
+unittest
+{
+	TreeMap!(int, int) map;
+	auto p = map.getOrAdd(1, 1);
+	assert(p == 1);
+}
+
+unittest
+{
+	import std.uuid : randomUUID;
+	import std.algorithm.iteration : walkLength;
+	import std.stdio;
+
+	auto hm = TreeMap!(string, int)();
+	foreach (i; 0 .. 1_000_000)
+	{
+		auto str = randomUUID().toString;
+		//writeln("Inserting ", str);
+		hm[str] = i;
+		//if (i > 0 && i % 100 == 0)
+			//writeln(i);
+	}
+	//writeln(hm.buckets.length);
+
+	import std.algorithm.sorting:sort;
+	//ulong[ulong] counts;
+	//foreach (i, ref bucket; hm.buckets[])
+		//counts[bucket.length]++;
+	//foreach (k; counts.keys.sort())
+		//writeln(k, "=>", counts[k]);
+}
+

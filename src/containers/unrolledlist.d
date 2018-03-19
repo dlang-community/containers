@@ -283,7 +283,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 * Time complexity is O(1)
 	 * Returns: the item at the front of the list
 	 */
-	ref inout(T) front() inout @property
+	ref inout(T) front() inout nothrow @property
 	in
 	{
 		assert (!empty);
@@ -294,7 +294,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		import containers.internal.backwards : bsf;
 		import std.string: format;
 		size_t index = bsf(_front.registry);
-		assert (index < nodeCapacity, format("%d", index));
+		//assert (index < nodeCapacity, format("%d", index));
 		return *(cast(typeof(return)*) &_front.items[index]);
 	}
 
@@ -304,7 +304,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 * related to the cache line size.
 	 * Returns: the item at the back of the list
 	 */
-	ref inout(T) back() inout @property
+	ref inout(T) back() inout nothrow @property
 	in
 	{
 		assert (!empty);
@@ -359,21 +359,20 @@ struct UnrolledList(T, Allocator = Mallocator,
 	/// Returns: a range over the list
 	auto opSlice(this This)() const nothrow pure @nogc @trusted
 	{
-		return Range!(This)(_front, _length);
+		return Range!(This)(_front);
 	}
 
 	static struct Range(ThisT)
 	{
 		@disable this();
 
-		this(inout(Node)* current, size_t l)
+		this(inout(Node)* current)
 		{
 			import containers.internal.backwards : bsf;
 			import std.format:format;
 
 			this.current = current;
-			this.length = l;
-			if (current !is null && l > 0)
+			if (current !is null)
 			{
 				index = bsf(current.registry);
 				assert (index < nodeCapacity);
@@ -382,27 +381,27 @@ struct UnrolledList(T, Allocator = Mallocator,
 				current = null;
 		}
 
-		ref ET front() const @property @trusted @nogc
+		ref ET front() const nothrow @property @trusted @nogc
 		{
 			return *(cast(ET*) &current.items[index]);
 			//return cast(T) current.items[index];
 		}
 
-		void popFront() nothrow pure @safe
+		void popFront() nothrow pure @safe @nogc
 		{
 			index++;
 			while (true)
 			{
-				if (current is null)
-					return;
+
 				if (index >= nodeCapacity)
 				{
 					current = current.next;
+					if (current is null)
+						return;
 					index = 0;
 				}
 				else
 				{
-
 					if (current.isFree(index))
 						index++;
 					else
@@ -426,7 +425,6 @@ struct UnrolledList(T, Allocator = Mallocator,
 		alias ET = ContainerElementType!(ThisT, T);
 		const(Node)* current;
 		size_t index;
-		size_t length;
 	}
 
 private:
@@ -436,7 +434,7 @@ private:
 		fullBits, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
-	private import containers.internal.mixins : AllocatorState;
+	import containers.internal.mixins : AllocatorState;
 
 	alias N = FatNodeInfo!(T.sizeof, 2, cacheLineSize);
 	enum size_t nodeCapacity = N[0];

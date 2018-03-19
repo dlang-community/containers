@@ -23,8 +23,7 @@ private import std.traits : isBasicType, Unqual;
  *         GC-allocated memory.
  */
 struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K,
-	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V,
-	bool storeHash = !isBasicType!K)
+	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V)
 {
 	this(this) @disable;
 
@@ -111,27 +110,13 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	auto opIndex(this This)(K key)
 	{
 		import std.conv : text;
+		import std.exception : enforce;
 
 		alias CET = ContainerElementType!(This, V);
-
-		if (buckets.length == 0)
-			throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
-		Hash hash = hashFunction(key);
-		size_t index = hashToIndex(hash);
-		foreach (r; buckets[index])
-		{
-			static if (storeHash)
-			{
-				if (r.hash == hash && r == key)
-					return cast(CET) r.value;
-			}
-			else
-			{
-				if (r == key)
-					return cast(CET) r.value;
-			}
-		}
-		throw new Exception("'" ~ text(key) ~ "' not found in HashMap");
+		size_t i;
+		auto n = find(key, i);
+		enforce(n !is null, "'" ~ text(key) ~ "' not found in HashMap");
+		return cast(CET) n.value;
 	}
 
 	/**
@@ -140,24 +125,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 */
 	bool containsKey(this This)(K key) inout pure @nogc @safe
 	{
-		if (buckets.length == 0)
-			return false;
-		Hash hash = hashFunction(key);
-		size_t index = hashToIndex(hash);
-		foreach (r; buckets[index])
-		{
-			static if (storeHash)
-			{
-				if (r.hash == hash && r.key == key)
-					return true;
-			}
-			else
-			{
-				if (r.key == key)
-					return true;
-			}
-		}
-		return false;
+		return find(key) !is null;
 	}
 
 	/**
@@ -173,24 +141,11 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	{
 		alias CET = ContainerElementType!(This, V);
 
-		if (_length == 0)
+		size_t i;
+		Node* n = find(key, i);
+		if (n is null)
 			return defaultValue;
-		Hash hash = hashFunction(key);
-		size_t index = hashToIndex(hash);
-		foreach (r; buckets[index])
-		{
-			static if (storeHash)
-			{
-				if (r.hash == hash && r == key)
-					return cast(CET) r.value;
-			}
-			else
-			{
-				if (r == key)
-					return cast(CET) r.value;
-			}
-		}
-		return defaultValue;
+		return cast(CET) n.value;
 	}
 
 	/**
@@ -208,36 +163,12 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	{
 		alias CET = ContainerElementType!(This, V);
 
-		if (buckets.length == 0)
-			initialize();
 		Hash hash = hashFunction(key);
-		size_t index = hashToIndex(hash);
-		foreach (ref item; buckets[index])
-		{
-			static if (storeHash)
-			{
-				if (item.hash == hash && item.key == key)
-					return cast(CET*)&item.value;
-			}
-			else
-			{
-				if (item.key == key)
-					return cast(CET*)&item.value;
-			}
-		}
-		Node* n;
-		static if (storeHash)
-			n = buckets[index].put(Node(hash, key, defaultValue));
+		Node* n = find(key, hash);
+		if (n is null)
+			return cast(CET*) &insert(key, defaultValue).value;
 		else
-			n = buckets[index].put(Node(key, defaultValue));
-		_length++;
-		if (shouldRehash)
-		{
-			rehash();
-			return key in this;
-		}
-		else
-			return &n.value;
+			return cast(CET*) &n.value;
 	}
 
 	/**
@@ -254,26 +185,13 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 * Returns: pointer to the value corresponding to the given key,
 	 * or null if the key is not present in the HashMap.
 	 */
-	inout(V)* opBinaryRight(string op)(K key) inout nothrow @trusted if (op == "in")
+	inout(V)* opBinaryRight(string op)(const K key) inout nothrow @trusted if (op == "in")
 	{
-		if (_length == 0)
+		size_t i;
+		auto n = find(key, i);
+		if (n is null)
 			return null;
-		Hash hash = hashFunction(key);
-		size_t index = hashToIndex(hash);
-		foreach (ref node; buckets[index])
-		{
-			static if (storeHash)
-			{
-				if (node.hash == hash && node == key)
-					return &(cast(inout)node).value;
-			}
-			else
-			{
-				if (node == key)
-					return &(cast(inout)node).value;
-			}
-		}
-		return null;
+		return &(cast(inout) n).value;
 	}
 
 	/**
@@ -282,14 +200,11 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 */
 	bool remove(K key)
 	{
-		if (buckets.length == 0)
+		size_t i;
+		Node* n = find(key, i);
+		if (n is null)
 			return false;
-		Hash hash = hashFunction(key);
-		size_t index = hashToIndex(hash);
-		static if (storeHash)
-			bool removed = buckets[index].remove(Node(hash, key));
-		else
-			bool removed = buckets[index].remove(Node(key));
+		immutable bool removed = buckets[i].remove(Node(n.hash, n.key));
 		if (removed)
 			_length--;
 		return removed;
@@ -380,6 +295,8 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		return MapRange!(This, IterType.both)(cast(Unqual!(This)*) &this);
 	}
 
+	mixin AllocatorState!Allocator;
+
 private:
 
 	import stdx.allocator : make, makeArray;
@@ -399,7 +316,7 @@ private:
 
 	static struct MapRange(MapType, IterType Type)
 	{
-        static if (Type == IterType.both)
+	static if (Type == IterType.both)
 		{
 			struct FrontType
 			{
@@ -481,17 +398,6 @@ private:
 		bool _empty;
 	}
 
-	template isOpApplyDelegate(D, KT, VT)
-	{
-		import std.traits : isDelegate, isImplicitlyConvertible, isIntegral, Parameters, ReturnType;
-
-		enum isOpApplyDelegate = isDelegate!D
-			&& isIntegral!(ReturnType!D)
-			&& Parameters!(D).length == 2
-			&& is(KT == Parameters!(D)[0])
-			&& isImplicitlyConvertible!(VT, Parameters!(D)[1]);
-	}
-
 	void initialize(size_t bucketCount = 4)
 	{
 		import std.conv : emplace;
@@ -511,36 +417,27 @@ private:
 
 	Node* insert(const K key, V value)
 	{
+		return insert(key, value, hashFunction(key));
+	}
+
+	Node* insert(const K key, V value, const Hash hash, const bool modifyLength = true)
+	{
 		if (buckets.length == 0)
 			initialize();
-		Hash hash = hashFunction(key);
-		size_t index = hashToIndex(hash);
+		immutable size_t index = hashToIndex(hash);
 		foreach (ref item; buckets[index])
 		{
-			static if (storeHash)
+			if (item.hash == hash && item.key == key)
 			{
-				if (item.hash == hash && item.key == key)
-				{
-					item.value = value;
-					return &item;
-				}
-			}
-			else
-			{
-				if (item.key == key)
-				{
-					item.value = value;
-					return &item;
-				}
+				item.value = value;
+				return &item;
 			}
 		}
 		Node* n;
-		static if (storeHash)
-			n = buckets[index].insertAnywhere(Node(hash, key, value));
-		else
-			n = buckets[index].insertAnywhere(Node(key, value));
-		_length++;
-		if (shouldRehash)
+		n = buckets[index].insertAnywhere(Node(hash, key, value));
+		if (modifyLength)
+			_length++;
+		if (shouldRehash())
 			rehash();
 		return n;
 	}
@@ -550,7 +447,9 @@ private:
 	 */
 	bool shouldRehash() const pure nothrow @safe @nogc
 	{
-		return cast(float) _length / cast(float) buckets.length > 0.75;
+		// We let this be greater than one because each bucket is an unrolled
+		// list that has more than one element per linked list node.
+		return (float(_length) / float(buckets.length)) > 1.33f;
 	}
 
 	/**
@@ -579,19 +478,7 @@ private:
 		foreach (ref bucket; oldBuckets)
 		{
 			foreach (node; bucket)
-			{
-				static if (storeHash)
-				{
-					size_t index = hashToIndex(node.hash);
-					buckets[index].put(Node(node.hash, node.key, node.value));
-				}
-				else
-				{
-					Hash hash = hashFunction(node.key);
-					size_t index = hashToIndex(hash);
-					buckets[index].put(Node(node.key, node.value));
-				}
-			}
+				insert(node.key, node.value, node.hash, false);
 			typeid(typeof(bucket)).destroy(&bucket);
 		}
 		static if (useGC)
@@ -613,14 +500,24 @@ private:
 		return cast(size_t)hash & (buckets.length - 1);
 	}
 
-	size_t hashIndex(K key) const
-	out (result)
+	inout(Node)* find(const K key, ref size_t index) inout
 	{
-		assert (result < buckets.length);
+		return find(key, index, hashFunction(key));
 	}
-	body
+
+	inout(Node)* find(const K key, ref size_t index, const Hash hash) inout
 	{
-		return hashToIndex(hashFunction(key));
+		import std.array : empty;
+
+		if (buckets.empty)
+			return null;
+		index = hashToIndex(hash);
+		foreach (ref r; buckets[index])
+		{
+			if (r.hash == hash && r == key)
+				return cast(inout(Node)*) &r;
+		}
+		return null;
 	}
 
 	struct Node
@@ -632,19 +529,14 @@ private:
 
 		bool opEquals(ref const Node n) const
 		{
-			static if (storeHash)
-				return this.hash == n.hash && this.key == n.key;
-			else
-				return this.key == n.key;
+			return this.hash == n.hash && this.key == n.key;
 		}
 
-		static if (storeHash)
-			Hash hash;
+		Hash hash;
 		ContainerStorageType!K key;
 		ContainerStorageType!V value;
 	}
 
-	mixin AllocatorState!Allocator;
 	alias Bucket = UnrolledList!(Node, Allocator, useGC);
 	Bucket[] buckets;
 	size_t _length;
@@ -744,4 +636,29 @@ unittest
 	assert(*p == 1);
 	*p = 2;
 	assert(map[1] == 2);
+}
+
+debug (EMSI_CONTAINERS) unittest
+{
+	import std.uuid : randomUUID;
+	import std.algorithm.iteration : walkLength;
+	import std.stdio;
+
+	auto hm = HashMap!(string, int)(16);
+	foreach (i; 0 .. 1_000_000)
+	{
+		auto str = randomUUID().toString;
+		//writeln("Inserting ", str);
+		hm[str] = i;
+		//if (i > 0 && i % 100 == 0)
+			//writeln(i);
+	}
+	writeln(hm.buckets.length);
+
+	import std.algorithm.sorting:sort;
+	ulong[ulong] counts;
+	foreach (i, ref bucket; hm.buckets[])
+		counts[bucket.length]++;
+	foreach (k; counts.keys.sort())
+		writeln(k, "=>", counts[k]);
 }
