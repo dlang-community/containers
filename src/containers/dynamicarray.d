@@ -317,7 +317,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	}
 
 	/**
-     * Removes the last element from the array.
+	 * Removes the last element from the array.
 	 */
 	void removeBack()
 	{
@@ -387,7 +387,7 @@ private:
 	size_t l;
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import std.algorithm : equal;
 	import std.range : iota;
@@ -417,7 +417,7 @@ unittest
 	assert(ints[0] == 1337);
 }
 
-version(unittest)
+version(emsi_containers_unittest)
 {
 	class Cls
 	{
@@ -435,7 +435,7 @@ version(unittest)
 	}
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	int a = 0;
 	{
@@ -445,7 +445,7 @@ unittest
 	assert(a == 0); // Destructor not called.
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import std.exception : assertThrown;
 	import core.exception : RangeError;
@@ -487,7 +487,7 @@ unittest
 	assert(two.length == 0);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	int a = 0;
 	DynamicArray!(Cls, Mallocator, true) arr;
@@ -497,7 +497,7 @@ unittest
 	assert(a == 0); // Destructor not called.
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	DynamicArray!(int*, Mallocator, true) arr;
 
@@ -512,7 +512,7 @@ unittest
 	assert (*slice[1] == 2);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import std.format : format;
 
@@ -532,22 +532,22 @@ unittest
 
 }
 
-@system unittest
+version(emsi_containers_unittest) @system unittest
 {
-    DynamicArray!int a;
-    a.reserve(1000);
-    assert(a.length == 0);
-    assert(a.empty);
-    assert(a.arr.length >= 1000);
-    int* p = a[].ptr;
-    foreach (i; 0 .. 1000)
-    {
-        a.insert(i);
-    }
-    assert(p is a[].ptr);
+	DynamicArray!int a;
+	a.reserve(1000);
+	assert(a.length == 0);
+	assert(a.empty);
+	assert(a.arr.length >= 1000);
+	int* p = a[].ptr;
+	foreach (i; 0 .. 1000)
+	{
+		a.insert(i);
+	}
+	assert(p is a[].ptr);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	// Ensure that Array.insert doesn't call the destructor for
 	// a struct whose state is uninitialized memory.
@@ -568,17 +568,17 @@ unittest
 	assert(a == 1);
 }
 
-@nogc unittest
+version(emsi_containers_unittest) @nogc unittest
 {
-    struct HStorage
-    {
-	    import containers.dynamicarray: DynamicArray;
-	    DynamicArray!int storage;
-    }
+	struct HStorage
+	{
+		import containers.dynamicarray: DynamicArray;
+		DynamicArray!int storage;
+	}
 	auto hs = HStorage();
 }
 
-@nogc unittest
+version(emsi_containers_unittest) @nogc unittest
 {
 	DynamicArray!char a;
 	const DynamicArray!char b = a ~ "def";

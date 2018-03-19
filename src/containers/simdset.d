@@ -244,7 +244,7 @@ private:
 }
 
 ///
-version (D_InlineAsm_X86_64) unittest
+version (D_InlineAsm_X86_64) version(emsi_containers_unittest) unittest
 {
 	import std.string : format;
 

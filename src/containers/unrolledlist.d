@@ -564,7 +564,7 @@ private:
 	}
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import std.algorithm : equal;
 	import std.range : iota;
@@ -624,7 +624,7 @@ unittest
 	assert (l3.empty);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	struct A { int a; int b; }
 	UnrolledList!(const(A)) objs;
@@ -633,7 +633,7 @@ unittest
 	static assert (is (typeof(objs[].front) == const));
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	static class A
 	{
@@ -652,7 +652,7 @@ unittest
 }
 
 // Issue #52
-unittest
+version(emsi_containers_unittest) unittest
 {
 	UnrolledList!int list;
 	list.insert(0);
@@ -669,7 +669,7 @@ unittest
 }
 
 // Issue #53
-unittest
+version(emsi_containers_unittest) unittest
 {
 	UnrolledList!int ints;
 	ints.insertBack(0);

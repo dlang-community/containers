@@ -601,7 +601,7 @@ private:
 }
 
 ///
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import std.algorithm : canFind;
 	import std.array : array;
@@ -679,7 +679,7 @@ unittest
 	assert(h in fred);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	static class Foo
 	{
@@ -704,7 +704,7 @@ unittest
 	auto r = hs[];
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	static class Foo
 	{
@@ -738,7 +738,7 @@ unittest
 	assert(fro.name == foo);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	hash_t maxCollision(ulong x)
 	{
@@ -758,7 +758,7 @@ unittest
 	assert(set.length == 2 * ipn - 1); // Fails
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import stdx.allocator.showcase;
 	auto allocator = mmapRegionList(1024);

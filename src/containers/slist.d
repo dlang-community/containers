@@ -297,7 +297,7 @@ private:
 	size_t _length;
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import std.string : format;
 	import std.algorithm : canFind;
@@ -316,14 +316,14 @@ unittest
 	assert (l.length == 2);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
-    static class Foo
-    {
-        string name;
-    }
+	static class Foo
+	{
+		string name;
+	}
 
-    SList!Foo hs;
-    auto f = new Foo;
-    hs.put(f);
+	SList!Foo hs;
+	auto f = new Foo;
+	hs.put(f);
 }

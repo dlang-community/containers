@@ -4,4 +4,9 @@ insert_final_newline = true
 indent_size = 4
 tab_width = 4
 trim_trailing_whitespace = true
+
+[*.d]
 indent_style = tab
+
+[*.json]
+indent_style = space

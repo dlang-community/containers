@@ -170,7 +170,7 @@ private:
 }
 
 ///
-unittest
+version(emsi_containers_unittest) unittest
 {
 	auto ihs1 = immutable ImmutableHashSet!(int, a => a)([1, 3, 5, 19, 31, 40, 17]);
 	assert (ihs1.contains(1));

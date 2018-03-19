@@ -588,7 +588,7 @@ unittest
 	assert(*pValue == 1);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	static class Foo
 	{
@@ -612,7 +612,7 @@ unittest
 }
 
 // Issue #54
-unittest
+version(emsi_containers_unittest) unittest
 {
 	HashMap!(string, int) map;
 	map.insert("foo", 0);
@@ -629,7 +629,7 @@ unittest
 		assert(value == 1);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	HashMap!(int, int) map;
 	auto p = map.getOrAdd(1, 1);
@@ -638,7 +638,7 @@ unittest
 	assert(map[1] == 2);
 }
 
-debug (EMSI_CONTAINERS) unittest
+debug (EMSI_CONTAINERS) version(emsi_containers_unittest) unittest
 {
 	import std.uuid : randomUUID;
 	import std.algorithm.iteration : walkLength;

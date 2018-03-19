@@ -446,7 +446,7 @@ private:
 	size_t start, end, _length;
 }
 
-version (unittest) private
+version(emsi_containers_unittest) private
 {
 	import std.algorithm.comparison : equal;
 	import stdx.allocator.gc_allocator : GCAllocator;
@@ -479,7 +479,7 @@ version (unittest) private
 	}
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	static void test(int size)
 	{
@@ -524,7 +524,7 @@ unittest
 		test(size);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	static void test(int prefix, int suffix, int newSize)
 	{
@@ -547,7 +547,7 @@ unittest
 		test(a, b, c);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	int a = 0;
 	{
@@ -572,7 +572,7 @@ unittest
 	assert(a == 21);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	int* a = new int;
 	CyclicBuffer!C b;
@@ -599,7 +599,7 @@ unittest
 	assert(*a == 0 || *a == 1);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	CyclicBuffer!int b;
 	b.insertFront(10);
@@ -620,7 +620,7 @@ unittest
 	assert(b[3] == 7);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import std.range : isInputRange, isForwardRange, isBidirectionalRange, isRandomAccessRange;
 	CyclicBuffer!int b;
@@ -630,13 +630,13 @@ unittest
 	static assert(isRandomAccessRange!(typeof(b[])));
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	CyclicBuffer!int b;
 	assert(b[].empty);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	FreeList!(Mallocator, 0, 64) alloc;
 	FreeList!(GCAllocator, 0, 64) alloc2;
@@ -645,7 +645,7 @@ unittest
 	auto b3 = CyclicBuffer!(int, GCAllocator)();
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	static void testConst(const ref CyclicBuffer!int b, int x)
 	{
@@ -676,7 +676,7 @@ unittest
 	assert(b[][0] == 5);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	int a = 0;
 	{
@@ -700,7 +700,7 @@ unittest
 	assert(a == 10);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	CyclicBuffer!int b;
 	foreach (i; 0 .. 4)
@@ -714,7 +714,7 @@ unittest
 	assert(equal(b[], [2, 3, 4, 5]));
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	CyclicBuffer!int b;
 	foreach (i; 0 .. 4)
@@ -730,7 +730,7 @@ unittest
 	assert(equal(b[], [3, 4, 5, 6]));
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	static void test(ref CyclicBuffer!int b)
 	{
@@ -784,7 +784,7 @@ unittest
 	}
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	CyclicBuffer!int b;
 	foreach (i; 0 .. 10)
@@ -794,7 +794,7 @@ unittest
 	assert(b.capacity >= 12);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	CyclicBuffer!int b;
 	foreach (i; 0 .. 6)
@@ -806,7 +806,7 @@ unittest
 	assert(equal(b[], [7, 6, 0, 1, 2, 3, 4, 5]));
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
     static class Foo
     {

@@ -309,7 +309,7 @@ private:
 	}
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import std.string : format;
 	import std.algorithm : equal, sort;
@@ -356,33 +356,33 @@ unittest
 	assert (ohs.remove(1));
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
-    static class Foo
-    {
-        string name;
+	static class Foo
+	{
+		string name;
 
-        override bool opEquals(Object other) const @safe pure nothrow @nogc
-        {
-            Foo f = cast(Foo)other;
-            return f !is null && f.name == this.name;
-        }
-    }
+		override bool opEquals(Object other) const @safe pure nothrow @nogc
+		{
+			Foo f = cast(Foo)other;
+			return f !is null && f.name == this.name;
+		}
+	}
 
-    hash_t stringToHash(string str) @safe pure nothrow @nogc
-    {
-        hash_t hash = 5381;
-        return hash;
-    }
+	hash_t stringToHash(string str) @safe pure nothrow @nogc
+	{
+		hash_t hash = 5381;
+		return hash;
+	}
 
-    hash_t FooToHash(Foo e) pure @safe nothrow @nogc
-    {
-        return stringToHash(e.name);
-    }
+	hash_t FooToHash(Foo e) pure @safe nothrow @nogc
+	{
+		return stringToHash(e.name);
+	}
 
-    OpenHashSet!(Foo, Mallocator, FooToHash) hs;
-    auto f = new Foo;
-    hs.insert(f);
-    assert(f in hs);
-    auto r = hs[];
+	OpenHashSet!(Foo, Mallocator, FooToHash) hs;
+	auto f = new Foo;
+	hs.insert(f);
+	assert(f in hs);
+	auto r = hs[];
 }

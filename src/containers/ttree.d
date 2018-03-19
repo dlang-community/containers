@@ -1016,7 +1016,7 @@ private:
 	Node* root;
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import core.memory : GC;
 	import std.algorithm : equal, sort, map, filter, each;
@@ -1301,7 +1301,7 @@ unittest
 	}
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	static class Foo
 	{
