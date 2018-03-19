@@ -105,9 +105,9 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	}
 
 	/**
-	 * Supports $(B aa[key]) syntax.
+	 * Supports `aa[key]` syntax.
 	 */
-	auto opIndex(this This)(K key)
+	ref opIndex(this This)(K key)
 	{
 		import std.conv : text;
 		import std.exception : enforce;
@@ -116,7 +116,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		size_t i;
 		auto n = find(key, i);
 		enforce(n !is null, "'" ~ text(key) ~ "' not found in HashMap");
-		return cast(CET) n.value;
+		return *cast(CET*) &n.value;
 	}
 
 	/**
@@ -661,4 +661,13 @@ debug (EMSI_CONTAINERS) version(emsi_containers_unittest) unittest
 		counts[bucket.length]++;
 	foreach (k; counts.keys.sort())
 		writeln(k, "=>", counts[k]);
+}
+
+// #74
+version(emsi_containers_unittest) unittest
+{
+	HashMap!(string, size_t) aa;
+	aa["b"] = 0;
+	++aa["b"];
+	assert(aa["b"] == 1);
 }
