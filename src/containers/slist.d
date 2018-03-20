@@ -83,6 +83,11 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	 * Returns: the least recently inserted item.
 	 */
 	auto back(this This)() inout @property
+	in
+	{
+		assert (!empty);
+	}
+	do
 	{
 		alias ET = ContainerElementType!(This, T);
 
