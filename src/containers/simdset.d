@@ -91,7 +91,7 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 		return retVal;
 	}
 
-    	/// ditto
+	/// ditto
 	bool opBinaryRight(string op)(T item) const pure nothrow @nogc @safe if (op == "in")
 	{
 		return contains(item);
@@ -124,8 +124,8 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 		return true;
 	}
 
-    /// ditto
-    bool opOpAssign(string op)(T item) if (op == "~")
+	/// ditto
+	bool opOpAssign(string op)(T item) if (op == "~")
 	{
 		return insert(item);
 	}
