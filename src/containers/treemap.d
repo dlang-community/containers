@@ -85,7 +85,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Returns: the value associated with the given key, or the given `defaultValue`.
 	 */
-	auto get(this This)(K key, lazy V defaultValue) inout @trusted
+	auto get(this This)(const K key, lazy V defaultValue) inout @trusted
 	{
 		alias CET = ContainerElementType!(This, V);
 		auto tme = TreeMapElement(key);
@@ -104,7 +104,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	 *     key = the key to look up
 	 *     value = the default value
 	 */
-	auto getOrAdd(this This)(K key, lazy V value) @safe
+	auto getOrAdd(this This)(const K key, lazy V value) @safe
 	{
 		alias CET = ContainerElementType!(This, V);
 		auto tme = TreeMapElement(key);
@@ -124,7 +124,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	 * Params: key = the key to remove
 	 * Returns: true if the key existed in the map
 	 */
-	bool remove(K key)
+	bool remove(const K key)
 	{
 		auto tme = TreeMapElement(key);
 		return tree.remove(tme);
@@ -133,7 +133,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Returns: true if the mapping contains the given key
 	 */
-	bool containsKey(K key) inout pure nothrow @nogc @safe
+	bool containsKey(const K key) inout pure nothrow @nogc @safe
 	{
 		auto tme = TreeMapElement(key);
 		return tree.contains(tme);
