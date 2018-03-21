@@ -142,7 +142,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		alias CET = ContainerElementType!(This, V);
 
 		size_t i;
-		Node* n = find(key, i);
+		auto n = find(key, i);
 		if (n is null)
 			return defaultValue;
 		return cast(CET) n.value;
@@ -164,7 +164,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		alias CET = ContainerElementType!(This, V);
 
 		Hash hash = hashFunction(key);
-		Node* n = find(key, hash);
+		auto n = find(key, hash);
 		if (n is null)
 			return cast(CET*) &insert(key, defaultValue).value;
 		else
@@ -201,7 +201,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	bool remove(K key)
 	{
 		size_t i;
-		Node* n = find(key, i);
+		auto n = find(key, i);
 		if (n is null)
 			return false;
 		immutable bool removed = buckets[i].remove(Node(n.hash, n.key));
