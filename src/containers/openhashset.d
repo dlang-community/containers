@@ -141,7 +141,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 	}
 
 	/**
-	 * Inserts the gien item into the set.
+	 * Inserts the given item into the set.
 	 *
 	 * Returns:
 	 *     $(B true) if the item was inserted, false if it was already present.
@@ -165,6 +165,12 @@ struct OpenHashSet(T, Allocator = Mallocator,
 		_length++;
 		return true;
 	}
+
+	/// ditto
+	alias put = insert;
+
+	/// ditto
+	alias insertAnywhere = insert;
 
 	/// ditto
 	bool opOpAssign(string op)(T item) if (op == "~")
@@ -196,13 +202,12 @@ struct OpenHashSet(T, Allocator = Mallocator,
 	 * Returns:
 	 *     A range over the set.
 	 */
-	auto range(this This)() nothrow pure @nogc @safe
+	auto opSlice(this This)() nothrow pure @nogc @safe
 	{
 		return Range!(This)(nodes);
 	}
 
-	/// ditto
-	alias opSlice = range;
+	mixin AllocatorState!Allocator;
 
 private:
 
@@ -278,10 +283,7 @@ private:
 		_length = 0;
 	}
 
-	/**
-	 * Returns:
-	 *     size_t.max if the item was not found
-	 */
+	// Returns: size_t.max if the item was not found
 	static size_t toIndex(const Node[] n, T item, size_t hash)
 	{
 		immutable size_t bucketMask = (n.length - 1);
@@ -298,9 +300,8 @@ private:
 
 	Node[] nodes;
 	size_t _length;
-	mixin AllocatorState!Allocator;
 
-	struct Node
+	static struct Node
 	{
 		ContainerStorageType!T data;
 		bool used;
@@ -308,7 +309,7 @@ private:
 	}
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import std.string : format;
 	import std.algorithm : equal, sort;
@@ -355,33 +356,33 @@ unittest
 	assert (ohs.remove(1));
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
-    static class Foo
-    {
-        string name;
+	static class Foo
+	{
+		string name;
 
-        override bool opEquals(Object other) const @safe pure nothrow @nogc
-        {
-            Foo f = cast(Foo)other;
-            return f !is null && f.name == this.name;
-        }
-    }
+		override bool opEquals(Object other) const @safe pure nothrow @nogc
+		{
+			Foo f = cast(Foo)other;
+			return f !is null && f.name == this.name;
+		}
+	}
 
-    hash_t stringToHash(string str) @safe pure nothrow @nogc
-    {
-        hash_t hash = 5381;
-        return hash;
-    }
+	hash_t stringToHash(string str) @safe pure nothrow @nogc
+	{
+		hash_t hash = 5381;
+		return hash;
+	}
 
-    hash_t FooToHash(Foo e) pure @safe nothrow @nogc
-    {
-        return stringToHash(e.name);
-    }
+	hash_t FooToHash(Foo e) pure @safe nothrow @nogc
+	{
+		return stringToHash(e.name);
+	}
 
-    OpenHashSet!(Foo, Mallocator, FooToHash) hs;
-    auto f = new Foo;
-    hs.insert(f);
-    assert(f in hs);
-    auto r = hs.range();
+	OpenHashSet!(Foo, Mallocator, FooToHash) hs;
+	auto f = new Foo;
+	hs.insert(f);
+	assert(f in hs);
+	auto r = hs[];
 }

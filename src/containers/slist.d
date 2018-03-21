@@ -64,28 +64,50 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	}
 
 	/**
+	 * Complexity: O(1)
 	 * Returns: the most recently inserted item
 	 */
-	auto front(this This)() @property
+	auto front(this This)() inout @property
 	in
 	{
 		assert (!empty);
 	}
-	body
+	do
 	{
 		alias ET = ContainerElementType!(This, T);
 		return cast(ET) _front.value;
 	}
 
 	/**
-	 * Removes and returns the first item in the list.
+	 * Complexity: O(length)
+	 * Returns: the least recently inserted item.
+	 */
+	auto back(this This)() inout @property
+	in
+	{
+		assert (!empty);
+	}
+	do
+	{
+		alias ET = ContainerElementType!(This, T);
+
+		auto n = _front;
+		for (; front.next !is null; n = n.next) {}
+		return cast(ET) n.value;
+	}
+
+	/**
+	 * Removes the first item in the list.
+	 *
+	 * Complexity: O(1)
+	 * Returns: the first item in the list.
 	 */
 	T moveFront()
 	in
 	{
 		assert (!empty);
 	}
-	body
+	do
 	{
 		Node* f = _front;
 		_front = f.next;
@@ -102,6 +124,8 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 
 	/**
 	 * Removes the first item in the list.
+	 *
+	 * Complexity: O(1)
 	 */
 	void popFront()
 	{
@@ -117,6 +141,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	}
 
 	/**
+	 * Complexity: O(1)
 	 * Returns: true if this list is empty
 	 */
 	bool empty() inout pure nothrow @property @safe @nogc
@@ -125,6 +150,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	}
 
 	/**
+	 * Complexity: O(1)
 	 * Returns: the number of items in the list
 	 */
 	size_t length() inout pure nothrow @property @safe @nogc
@@ -134,6 +160,8 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 
 	/**
 	 * Inserts an item at the front of the list.
+	 *
+	 * Complexity: O(1)
 	 * Params: t = the item to insert into the list
 	 */
 	void insertFront(T t) @trusted
@@ -151,9 +179,16 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	alias insert = insertFront;
 
 	/// ditto
+	alias insertAnywhere = insertFront;
+
+	/// ditto
 	alias put = insertFront;
 
-	/// Supports $(B list ~= item) syntax
+	/**
+	 * Supports `list ~= item` syntax
+	 *
+	 * Complexity: O(1)
+	 */
 	void opOpAssign(string op)(T t) if (op == "~")
 	{
 		put(t);
@@ -161,6 +196,8 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 
 	/**
 	 * Removes the first instance of value found in the list.
+	 *
+	 * Complexity: O(length)
 	 * Returns: true if a value was removed.
 	 */
 	bool remove(V)(V value) @trusted
@@ -193,16 +230,15 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	/**
 	 * Forward range interface
 	 */
-	auto range(this This)()
+	auto opSlice(this This)() inout
 	{
 		return Range!(This)(_front);
 	}
 
-	/// ditto
-	alias opSlice = range;
-
 	/**
 	 * Removes all elements from the range
+	 *
+	 * Complexity: O(length)
 	 */
 	void clear()
 	{
@@ -266,33 +302,33 @@ private:
 	size_t _length;
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import std.string : format;
 	import std.algorithm : canFind;
 	SList!int intList;
 	foreach (i; 0 .. 100)
 		intList.put(i);
-	assert (intList.length == 100, "%d".format(intList.length));
-	assert (intList.remove(10));
-	assert (!intList.remove(10));
-	assert (intList.length == 99);
-	assert (intList.range.canFind(9));
-	assert (!intList.range.canFind(10));
+	assert(intList.length == 100, "%d".format(intList.length));
+	assert(intList.remove(10));
+	assert(!intList.remove(10));
+	assert(intList.length == 99);
+	assert(intList[].canFind(9));
+	assert(!intList[].canFind(10));
 	SList!string l;
 	l ~= "abcde";
 	l ~= "fghij";
 	assert (l.length == 2);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
-    static class Foo
-    {
-        string name;
-    }
+	static class Foo
+	{
+		string name;
+	}
 
-    SList!Foo hs;
-    auto f = new Foo;
-    hs.put(f);
+	SList!Foo hs;
+	auto f = new Foo;
+	hs.put(f);
 }

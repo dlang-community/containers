@@ -8,6 +8,7 @@
 module containers.ttree;
 
 private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.mixins : AllocatorState;
 private import stdx.allocator.mallocator : Mallocator;
 
 /**
@@ -15,22 +16,27 @@ private import stdx.allocator.mallocator : Mallocator;
  *
  * T-tree Nodes are (by default) sized to fit within a 64-byte
  * cache line. The number of items stored per node can be read from the
- * nodeCapacity field. Each node has 0, 1, or 2 children. Each node has between
- * 1 and $(B nodeCapacity) items, or it has $(B nodeCapacity) items and 0 or
+ * `nodeCapacity` field. Each node has 0, 1, or 2 children. Each node has between
+ * 1 and `nodeCapacity` items, or it has `nodeCapacity` items and 0 or
  * more children.
+ *
  * Params:
  *     T = the element type
  *     Allocator = the allocator to use. Defaults to `Mallocator`.
  *     allowDuplicates = if true, duplicate values will be allowed in the tree
  *     less = the comparitor function to use
- *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
  *     supportGC = true if the container should support holding references to
  *         GC-allocated memory.
+ *     cacheLineSize = Nodes will be sized to fit within this number of bytes.
  * See_also: $(LINK http://en.wikipedia.org/wiki/T-tree)
  */
 struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	alias less = "a < b", bool supportGC = shouldAddGCRange!T, size_t cacheLineSize = 64)
 {
+	/**
+	 * T-Trees are not copyable due to the way they manage memory and interact
+	 * with allocators.
+	 */
 	this(this) @disable;
 
 	static if (stateSize!Allocator != 0)
@@ -54,13 +60,25 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		private alias AllocatorType = Allocator;
 	}
 	else
-		alias AllocatorType = void*;
+		private alias AllocatorType = void*;
 
-	~this()
+	~this() @trusted
+	{
+		scope(failure) assert(false);
+		clear();
+	}
+
+	/**
+	 * Removes all elements from the tree.
+	 */
+	void clear()
 	{
 		if (root is null)
 			return;
-		deallocateNode(root, allocator);
+		static if (stateSize!Allocator > 0)
+			deallocateNode(root, allocator);
+		else
+			deallocateNode(root, null);
 	}
 
 	debug(EMSI_CONTAINERS) invariant()
@@ -68,63 +86,85 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		assert (root is null || _length != 0);
 	}
 
-
-	alias Value = ContainerStorageType!T;
-
-	/// $(B tree ~= item) operator overload.
+	/**
+	 * $(B tree ~= item) operator overload.
+	 */
 	void opOpAssign(string op)(T value) if (op == "~")
 	{
 		insert(value);
 	}
 
 	/**
-	 * Inserts the given value into the tree.
+	 * Inserts the given value(s) into the tree.
 	 *
-	 * This is not a stable insert. You
-	 * will get strange results if you insert into a tree while iterating over
-	 * it.
+	 * This is not a stable insert. You will get strange results if you insert
+	 * into a tree while iterating over it.
 	 *
-	 * Returns: true if any values were added.
+	 * Params:
+	 *     value = the value to insert
+	 *     overwrite = if `true` the given `value` will replace the first item
+	 *         in the tree that is equivalent (That is greater-than and less-than
+	 *         are both false) to `value`. This is useful in cases where opCmp
+	 *         and opEquals for `T` type have different meanings. For example,
+	 *         if the element type is a circle that has a position and a color,
+	 *         the circle could implement `opCmp` to sort by color, and calling
+	 *         `insert` with `overwrite` set to `true` would allow you to update
+	 *         the position of the circle with a certain color in the tree.
+	 * Returns: the number of values added.
 	 */
-	bool insert(T value)
+	size_t insert(T value, bool overwrite = false) @safe
 	{
 		if (root is null)
 		{
-			root = allocateNode(cast(Value) value, null, allocator);
+			static if (stateSize!Allocator > 0)
+				root = allocateNode(cast(Value) value, null, allocator);
+			else
+				root = allocateNode(cast(Value) value, null, null);
 			++_length;
 			return true;
 		}
-		immutable bool r = root.insert(cast(Value) value, root, allocator);
+		static if (stateSize!Allocator > 0)
+			immutable bool r = root.insert(cast(Value) value, root, allocator, overwrite);
+		else
+			immutable bool r = root.insert(cast(Value) value, root, null, overwrite);
 		if (r)
 			++_length;
-		return r;
+		return r ? 1 : 0;
 	}
 
 	/// ditto
-	bool insert(R)(R r) if (isInputRange!R && is(ElementType!R == T))
+	size_t insert(R)(R r, bool overwrite = false) if (isInputRange!R && is(ElementType!R == T))
 	{
-		bool retVal = false;
+		size_t retVal;
 		while (!r.empty)
 		{
-			retVal = insert(r.front()) || retVal;
+			retVal += insert(r.front(), overwrite);
 			r.popFront();
 		}
 		return retVal;
 	}
 
 	/// ditto
-	bool insert(T[] values)
+	size_t insert(T[] values, bool overwrite = false)
 	{
-		bool retVal = false;
+		size_t retVal;
 		foreach (ref v; values)
-			retVal = insert(v) || retVal;
+			retVal += insert(v, overwrite);
 		return retVal;
 	}
 
+	/// ditto
+	alias insertAnywhere = insert;
+
+	/// ditto
 	alias put = insert;
 
 	/**
-	 * Removes a value from the tree.
+	 * Removes a single value from the tree, or does nothing.
+	 *
+	 * If `allowDuplicates` is true only a single element that is equivalent to
+	 * the given `value` will be removed. Which of these elements is removed is
+	 * not defined.
 	 *
 	 * Params:
 	 *     value = a value equal to the one to be removed
@@ -133,18 +173,28 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	 */
 	bool remove(T value, void delegate(T) cleanup = null)
 	{
-		bool removed = root !is null && root.remove(cast(Value) value, root, allocator, cleanup);
+		static if (stateSize!Allocator > 0)
+			immutable bool removed = root !is null && root.remove(cast(Value) value, root, allocator, cleanup);
+		else
+			immutable bool removed = root !is null && root.remove(cast(Value) value, root, null, cleanup);
 		if (removed)
+		{
 			--_length;
-		if (_length == 0)
-			deallocateNode(root, allocator);
+			if (_length == 0)
+			{
+				static if (stateSize!Allocator > 0)
+					deallocateNode(root, allocator);
+				else
+					deallocateNode(root, null);
+			}
+		}
 		return removed;
 	}
 
 	/**
 	 * Returns: true if the tree _conains the given value
 	 */
-	bool contains(T value) const
+	bool contains(T value) const @nogc @safe
 	{
 		return root !is null && root.contains(value);
 	}
@@ -152,7 +202,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: the number of elements in the tree.
 	 */
-	size_t length() const nothrow pure @property
+	size_t length() const pure nothrow @nogc @safe @property
 	{
 		return _length;
 	}
@@ -160,35 +210,34 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: true if the tree is empty.
 	 */
-	bool empty() const nothrow pure @property
+	bool empty() const pure nothrow @nogc @safe @property
 	{
 		return _length == 0;
 	}
 
 	/**
 	 * Returns: a range over the tree. Do not insert into the tree while
-	 * iterating because you may iterate over the same value multiple times.
+	 *     iterating because you may iterate over the same value multiple times
+	 *     or skip some values entirely.
 	 */
-	auto range(this This)()
+	auto opSlice(this This)() inout @trusted @nogc
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.all, T.init);
 	}
 
-	alias opSlice = range;
-
 	/**
 	 * Returns: a range of elements which are less than value.
 	 */
-	auto lowerBound(this This)(inout T value)
+	auto lowerBound(this This)(inout T value) inout @trusted
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.lower, value);
 	}
 
 	/**
 	 * Returns: a range of elements which are equivalent (though not necessarily
-	 * equal) to value.
+	 *     equal) to value.
 	 */
-	auto equalRange(this This)(inout T value)
+	auto equalRange(this This)(inout T value) inout @trusted
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.equal, value);
 	}
@@ -196,9 +245,39 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: a range of elements which are greater than value.
 	 */
-	auto upperBound(this This)(inout T value)
+	auto upperBound(this This)(inout T value) inout @trusted
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.upper, value);
+	}
+
+	/**
+	 * Returns: the first element in the tree.
+	 */
+	inout(T) front(this This)() inout pure @trusted @property
+	{
+		import std.exception : enforce;
+
+		alias CET = ContainerElementType!(This, T);
+		enforce(!empty(), "Attepted to get the front of an empty tree.");
+		inout(Node)* current = root;
+		while (current.left !is null)
+			current = current.left;
+		return cast(CET) current.values[0];
+	}
+
+	/**
+	 * Returns: the last element in the tree.
+	 */
+	inout(T) back(this This)() inout pure @trusted @property
+	{
+		import std.exception : enforce;
+
+		alias CET = ContainerElementType!(This, T);
+		enforce(!empty(), "Attepted to get the back of an empty tree.");
+		inout(Node)* current = root;
+		while (current.right !is null)
+			current = current.right;
+		return cast(CET) current.values[current.nextAvailableIndex - 1];
 	}
 
 	/**
@@ -211,18 +290,13 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		/**
 		 * Standard range operations
 		 */
-		ET front() const @property
-		in
-		{
-			assert (!empty);
-		}
-		body
+		ET front() const @property @nogc
 		{
 			return cast(typeof(return)) current.values[index];
 		}
 
 		/// ditto
-		bool empty() const nothrow pure @property
+		bool empty() const pure nothrow @nogc @safe @property
 		{
 			return current is null;
 		}
@@ -248,11 +322,24 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 			}
 		}
 
+	package(containers):
+
+		// The TreeMap container needs to be able to modify part of the tree
+		// in-place. The reason that this works is that the value part of the
+		// key-value struct contained in a TTree used by a TreeMap is not used
+		// when comparing nodes. Normal users of the containers library cannot
+		// get a reference to the elements because modifying them will violate
+		// the ordering invariant of the tree.
+		T* _containersFront() const @property @nogc @trusted
+		{
+			return cast(T*) &current.values[index];
+		}
+
 	private:
 
 		alias ET = ContainerElementType!(ThisT, T);
 
-		void currentToLeftmost()
+		void currentToLeftmost() @nogc
 		{
 			if (current is null)
 				return;
@@ -302,7 +389,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 			}
 		}
 
-		this(inout(Node)* n, RangeType type, inout T val)
+		this(inout(Node)* n, RangeType type, inout T val) @nogc
 		{
 			current = n;
 			this.type = type;
@@ -332,7 +419,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 			}
 		}
 
-		void _popFront()
+		void _popFront() @nogc
 		in
 		{
 			assert (!empty);
@@ -375,37 +462,62 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		const T val;
 	}
 
+	mixin AllocatorState!Allocator;
+
 private:
 
-	private import std.range : ElementType, isInputRange;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.internal.node : FatNodeInfo, fullBits, shouldAddGCRange, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
 	import std.algorithm : sort;
-	import stdx.allocator.common : stateSize;
 	import std.functional: binaryFun;
+	import std.range : ElementType, isInputRange;
 	import std.traits: isPointer, PointerTarget;
+	import stdx.allocator.common : stateSize;
 
 	alias N = FatNodeInfo!(T.sizeof, 3, cacheLineSize, ulong.sizeof);
+	alias Value = ContainerStorageType!T;
 	enum size_t nodeCapacity = N[0];
 	alias BookkeepingType = N[1];
 	enum HEIGHT_BIT_OFFSET = 48UL;
-	static assert (nodeCapacity <= HEIGHT_BIT_OFFSET, "cannot fit height info and registry in ulong");
 	enum fullBitPattern = fullBits!(ulong, nodeCapacity);
-
 	enum RangeType : ubyte { all, lower, equal, upper }
-
 	enum bool useGC = supportGC && shouldAddGCRange!T;
+
+	static assert (nodeCapacity <= HEIGHT_BIT_OFFSET, "cannot fit height info and registry in ulong");
+	static assert (nodeCapacity <= (typeof(Node.registry).sizeof * 8));
+	static assert (Node.sizeof <= cacheLineSize);
 
 	// If we're storing a struct that defines opCmp, don't compare pointers as
 	// that is almost certainly not what the user intended.
-	static if (is(typeof(less) == string ) && less == "a < b"
-			&& isPointer!T && __traits(hasMember, PointerTarget!T, "opCmp"))
-		alias _less = binaryFun!"a.opCmp(*b) < 0";
+	static if (is(typeof(less) == string ))
+	{
+		// Everything inside of this `static if` is dumb. `binaryFun` does not
+		// correctly infer nothrow and @nogc attributes, among other things, so
+		// we need to declare a function here that has its attributes properly
+		// inferred. It's not currently possible, however, to use this function
+		// with std.algorithm.sort because of symbol visibility issues. Because
+		// of this problem, keep a duplicate of the sorting predicate in string
+		// form in the `_lessStr` alias.
+		static if (less == "a < b" && isPointer!T
+				&& __traits(hasMember, PointerTarget!T, "opCmp"))
+		{
+			enum _lessStr = "a.opCmp(*b) < 0";
+			static bool _less(TT)(const TT a, const TT b)
+			{
+				return a.opCmp(*b) < 0;
+			}
+		}
+		else
+		{
+			enum _lessStr = less;
+			alias _less = binaryFun!less;
+		}
+	}
 	else
 		alias _less = binaryFun!less;
 
-	static Node* allocateNode(Value value, Node* parent, AllocatorType allocator)
+	static Node* allocateNode(Value value, Node* parent, AllocatorType allocator) @trusted
 	out (result)
 	{
 		assert (result.left is null);
@@ -452,11 +564,9 @@ private:
 		n = null;
 	}
 
-	static assert (nodeCapacity <= (typeof(Node.registry).sizeof * 8));
-	static assert (Node.sizeof <= cacheLineSize);
 	static struct Node
 	{
-		private size_t nextAvailableIndex() const nothrow pure @nogc @safe
+		private size_t nextAvailableIndex() const pure nothrow @nogc @safe
 		{
 			import containers.internal.backwards : bsf;
 
@@ -490,7 +600,7 @@ private:
 			return (registry & fullBitPattern) == 0;
 		}
 
-		bool contains(Value value) const
+		bool contains(Value value) const @trusted
 		{
 			import std.range : assumeSorted;
 			size_t i = nextAvailableIndex();
@@ -498,10 +608,13 @@ private:
 				return left !is null && left.contains(value);
 			if (_less(values[i - 1], value))
 				return right !is null && right.contains(value);
-			return !assumeSorted!_less(values[0 .. i]).equalRange(value).empty;
+			static if (is(typeof(_lessStr)))
+				return !assumeSorted!_lessStr(values[0 .. i]).equalRange(value).empty;
+			else
+				return !assumeSorted!_less(values[0 .. i]).equalRange(value).empty;
 		}
 
-		ulong calcHeight() nothrow pure @nogc @safe
+		ulong calcHeight() pure nothrow @nogc @safe
 		{
 			immutable ulong l = left !is null ? left.height() : 0;
 			immutable ulong r = right !is null ? right.height() : 0;
@@ -512,12 +625,12 @@ private:
 			return h;
 		}
 
-		ulong height() const nothrow pure @nogc @safe
+		ulong height() const pure nothrow @nogc @safe
 		{
 			return registry >>> HEIGHT_BIT_OFFSET;
 		}
 
-		int imbalanced() const nothrow pure @nogc @safe
+		int imbalanced() const pure nothrow @nogc @safe
 		{
 			if (right !is null
 					&& ((left is null && right.height() > 1)
@@ -530,7 +643,7 @@ private:
 			return 0;
 		}
 
-		bool insert(T value, ref Node* root, AllocatorType allocator)
+		bool insert(T value, ref Node* root, AllocatorType allocator, bool overwrite) @trusted
 		in
 		{
 			static if (isPointer!T || is (T == class) || is (T == interface))
@@ -545,15 +658,28 @@ private:
 				immutable size_t index = nextAvailableIndex();
 				static if (!allowDuplicates)
 				{
-					if (!assumeSorted!_less(values[0 .. index]).equalRange(
-						cast(Value) value).empty)
+					static if (is(typeof(_lessStr)))
+						auto r = assumeSorted!_lessStr(values[0 .. index]).trisect(
+							cast(Value) value);
+					else
+						auto r = assumeSorted!_less(values[0 .. index]).trisect(
+							cast(Value) value);
+					if (!r[1].empty)
 					{
+						if (overwrite)
+						{
+							values[r[0].length] = cast(Value) value;
+							return true;
+						}
 						return false;
 					}
 				}
 				values[index] = cast(Value) value;
 				markUsed(index);
-				sort!_less(values[0 .. index + 1]);
+				static if (is(typeof(_lessStr)))
+					sort!_lessStr(values[0 .. index + 1]);
+				else
+					sort!_less(values[0 .. index + 1]);
 				return true;
 			}
 			if (_less(value, values[0]))
@@ -564,7 +690,7 @@ private:
 					calcHeight();
 					return true;
 				}
-				immutable bool b = left.insert(value, root, allocator);
+				immutable bool b = left.insert(value, root, allocator, overwrite);
 				if (imbalanced() == -1)
 					rotateRight(root, allocator);
 				calcHeight();
@@ -578,19 +704,33 @@ private:
 					calcHeight();
 					return true;
 				}
-				immutable bool b = right.insert(value, root, allocator);
+				immutable bool b = right.insert(value, root, allocator, overwrite);
 				if (imbalanced() == 1)
 					rotateLeft(root, allocator);
 				calcHeight();
 				return b;
 			}
 			static if (!allowDuplicates)
-				if (!assumeSorted!_less(values[]).equalRange(cast(Value) value).empty)
-					return false;
+			{
+				static if (is(typeof(_lessStr)))
+				{
+					if (!assumeSorted!_lessStr(values[]).equalRange(cast(Value) value).empty)
+						return false;
+				}
+				else
+				{
+					if (!assumeSorted!_less(values[]).equalRange(cast(Value) value).empty)
+						return false;
+				}
+			}
+
 			Value[nodeCapacity + 1] temp = void;
 			temp[0 .. $ - 1] = values[];
 			temp[$ - 1] = cast(Value) value;
-			sort!_less(temp[]);
+			static if (is(typeof(_lessStr)))
+				sort!_lessStr(temp[]);
+			else
+				sort!_less(temp[]);
 			if (right is null)
 			{
 				values[] = temp[0 .. $ - 1];
@@ -606,14 +746,14 @@ private:
 			if (right.height < left.height)
 			{
 				values[] = temp[0 .. $ - 1];
-				immutable bool b = right.insert(temp[$ - 1], root, allocator);
+				immutable bool b = right.insert(temp[$ - 1], root, allocator, overwrite);
 				if (imbalanced() == 1)
 					rotateLeft(root, allocator);
 				calcHeight();
 				return b;
 			}
 			values[] = temp[1 .. $];
-			immutable bool b = left.insert(temp[0], root, allocator);
+			immutable bool b = left.insert(temp[0], root, allocator, overwrite);
 			if (imbalanced() == -1)
 				rotateRight(root, allocator);
 			calcHeight();
@@ -640,7 +780,10 @@ private:
 				return r;
 			}
 			size_t i = nextAvailableIndex();
-			auto sv = assumeSorted!_less(values[0 .. i]);
+			static if (is(typeof(_lessStr)))
+				auto sv = assumeSorted!_lessStr(values[0 .. i]);
+			else
+				auto sv = assumeSorted!_less(values[0 .. i]);
 			auto tri = sv.trisect(value);
 			if (tri[1].length == 0)
 				return false;
@@ -748,9 +891,9 @@ private:
 			return r;
 		}
 
-		void rotateLeft(ref Node* root, AllocatorType allocator)
+		void rotateLeft(ref Node* root, AllocatorType allocator) @safe
 		{
-			Node* newRoot = void;
+			Node* newRoot;
 			if (right.left !is null && right.right is null)
 			{
 				newRoot = right.left;
@@ -776,9 +919,9 @@ private:
 			cleanup(newRoot, root, allocator);
 		}
 
-		void rotateRight(ref Node* root, AllocatorType allocator)
+		void rotateRight(ref Node* root, AllocatorType allocator) @safe
 		{
-			Node* newRoot = void;
+			Node* newRoot;
 			if (left.right !is null && left.left is null)
 			{
 				newRoot = left.right;
@@ -804,7 +947,7 @@ private:
 			cleanup(newRoot, root, allocator);
 		}
 
-		void cleanup(Node* newRoot, ref Node* root, AllocatorType allocator)
+		void cleanup(Node* newRoot, ref Node* root, AllocatorType allocator) @safe
 		{
 			if (newRoot.parent !is null)
 			{
@@ -831,19 +974,19 @@ private:
 			newRoot.calcHeight();
 		}
 
-		void fillFromChildren(ref Node* root, AllocatorType allocator)
+		void fillFromChildren(ref Node* root, AllocatorType allocator) @trusted
 		{
 			while (!isFull())
 			{
 				if (left !is null)
 				{
-					insert(left.removeLargest(allocator), root, allocator);
+					insert(left.removeLargest(allocator), root, allocator, false);
 					if (left.isEmpty())
 						deallocateNode(left, allocator);
 				}
 				else if (right !is null)
 				{
-					insert(right.removeSmallest(allocator), root, allocator);
+					insert(right.removeSmallest(allocator), root, allocator, false);
 					if (right.isEmpty())
 						deallocateNode(right, allocator);
 				}
@@ -872,20 +1015,18 @@ private:
 			}
 		}
 
+		Value[nodeCapacity] values;
 		Node* left;
 		Node* right;
 		Node* parent;
-
-		Value[nodeCapacity] values;
 		ulong registry = 1UL << HEIGHT_BIT_OFFSET;
 	}
 
-	AllocatorType allocator;
-	size_t _length = 0;
-	Node* root = null;
+	size_t _length;
+	Node* root;
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import core.memory : GC;
 	import std.algorithm : equal, sort, map, filter, each;
@@ -899,9 +1040,11 @@ unittest
 		assert (kt.empty);
 		foreach (i; 0 .. 200)
 			assert (kt.insert(i));
-		assert (!kt.empty);
-		assert (kt.length == 200);
-		assert (kt.contains(30));
+		assert(kt.front == 0);
+		assert(kt.back == 199);
+		assert(!kt.empty);
+		assert(kt.length == 200);
+		assert(kt.contains(30));
 	}
 
 	{
@@ -1005,7 +1148,7 @@ unittest
 		static struct S
 		{
 			string x;
-			int opCmp (ref const S other) const
+			int opCmp (ref const S other) const @nogc
 			{
 				if (x < other.x)
 					return -1;
@@ -1027,7 +1170,7 @@ unittest
 	{
 		static struct TestStruct
 		{
-			int opCmp(ref const TestStruct other) const
+			int opCmp(ref const TestStruct other) const @nogc
 			{
 				return x < other.x ? -1 : (x > other.x ? 1 : 0);
 			}
@@ -1095,7 +1238,7 @@ unittest
 			ulong a;
 			ulong b;
 
-			int opCmp(ref const ABC other) const
+			int opCmp(ref const ABC other) const @nogc
 			{
 				if (this.a < other.a)
 					return -1;
@@ -1168,22 +1311,42 @@ unittest
 	}
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
-    static class Foo
-    {
-        string name;
+	static class Foo
+	{
+		string name;
 
-        this(string s)
-        {
-            this.name = s;
-        }
-    }
+		this(string s)
+		{
+			this.name = s;
+		}
+	}
 
-    TTree!(Foo, Mallocator, false, "a.name < b.name") tt;
-    auto f = new Foo("foo");
-    tt.insert(f);
-    f = new Foo("bar");
-    tt.insert(f);
-    auto r = tt.range();
+	TTree!(Foo, Mallocator, false, "a.name < b.name") tt;
+	auto f = new Foo("foo");
+	tt.insert(f);
+	f = new Foo("bar");
+	tt.insert(f);
+	auto r = tt[];
+}
+
+version(emsi_containers_unittest) unittest
+{
+	import std.range : walkLength;
+	import std.stdio;
+
+	TTree!(int, Mallocator, true) tt;
+	tt.insert(10);
+	tt.insert(11);
+	tt.insert(12);
+	writeln(tt[]);
+	assert(tt.length == 3);
+	tt.insert(11);
+	writeln(tt[]);
+	assert(tt.length == 4);
+	tt.remove(11);
+	writeln(tt[]);
+	assert(tt.length == 3);
+	assert(tt[].walkLength == tt.length);
 }

@@ -163,7 +163,16 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	}
 
 	/// ditto
+	bool opOpAssign(string op)(T item) if (op == "~")
+	{
+		return insert(item);
+	}
+
+	/// ditto
 	alias put = insert;
+
+	/// ditto
+	alias insertAnywhere = insert;
 
 	/**
 	 * Returns: true if the set has no items
@@ -184,13 +193,10 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	/**
 	 * Forward range interface
 	 */
-	auto range(this This)() nothrow @nogc @trusted @property
+	auto opSlice(this This)() nothrow @nogc @trusted
 	{
 		return Range!(This)(&this);
 	}
-
-	/// ditto
-	alias opSlice = range;
 
 private:
 
@@ -595,10 +601,11 @@ private:
 }
 
 ///
-unittest
+version(emsi_containers_unittest) unittest
 {
-	import std.array : array;
 	import std.algorithm : canFind;
+	import std.array : array;
+	import std.range : walkLength;
 	import std.uuid : randomUUID;
 
 	auto s = HashSet!string(16);
@@ -613,7 +620,7 @@ unittest
 	s.put("b");
 	s.put("c");
 	s.put("d");
-	string[] strings = s.range.array;
+	string[] strings = s[].array;
 	assert(strings.canFind("a"));
 	assert(strings.canFind("b"));
 	assert(strings.canFind("c"));
@@ -648,7 +655,6 @@ unittest
 	HashSet!int f;
 	foreach (i; 0 .. MAGICAL_NUMBER)
 		assert(f.insert(i));
-	import std.range:walkLength;
 	assert(f.length == f[].walkLength);
 	foreach (i; 0 .. MAGICAL_NUMBER)
 		assert(i in f);
@@ -673,7 +679,7 @@ unittest
 	assert(h in fred);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	static class Foo
 	{
@@ -695,10 +701,10 @@ unittest
 	auto f = new Foo;
 	hs.insert(f);
 	assert(f in hs);
-	auto r = hs.range();
+	auto r = hs[];
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	static class Foo
 	{
@@ -726,13 +732,13 @@ unittest
 	const(Foo) f = new const Foo(foo);
 	hs.insert(f);
 	assert(f in hs);
-	auto r = hs.range();
+	auto r = hs[];
 	assert(!r.empty);
 	auto fro = r.front;
 	assert(fro.name == foo);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	hash_t maxCollision(ulong x)
 	{
@@ -752,7 +758,7 @@ unittest
 	assert(set.length == 2 * ipn - 1); // Fails
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import stdx.allocator.showcase;
 	auto allocator = mmapRegionList(1024);

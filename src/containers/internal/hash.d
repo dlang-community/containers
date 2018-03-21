@@ -20,15 +20,17 @@ else
 		return typeid(T).getHash(&value);
 	}
 
+	/**
+	 * A variant of the FNV-1a (64) hashing algorithm.
+	 */
 	hash_t generateHash(T)(T value) pure nothrow @nogc @trusted if (is(T == string))
 	{
-		immutable ulong fullIterCount = value.length >>> 3;
-		immutable ulong remainderStart = fullIterCount << 3;
-		ulong h;
-		foreach (c; (cast(ulong*) value.ptr)[0 .. fullIterCount])
-			h = (h ^ c) ^ (h >>> 4);
-		foreach (c; value[remainderStart .. $])
-			h += (h << 7) + c;
+		hash_t h = 0xcbf29ce484222325;
+		foreach (const ubyte c; cast(ubyte[]) value)
+		{
+			h ^= ((c - ' ') * 13);
+			h *= 0x100000001b3;
+		}
 		return h;
 	}
 }

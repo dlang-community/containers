@@ -19,3 +19,4 @@ __test__*__
 .directory
 *.userprefs
 .vscode
+emsi_containers-test-unittest

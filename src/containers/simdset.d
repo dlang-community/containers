@@ -49,7 +49,15 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 
 	~this()
 	{
+		scope (failure) assert(false);
+		clear();
+	}
+
+	void clear()
+	{
 		allocator.deallocate(cast(void[]) storage);
+		_length = 0;
+		storage = [];
 	}
 
 	/**
@@ -58,7 +66,7 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 	 * Returns:
 	 *     true if the set contains the given item
 	 */
-	bool contains(T item) const pure nothrow @nogc
+	bool contains(T item) const pure nothrow @nogc @trusted
 	{
 		if (_length == 0)
 			return false;
@@ -81,6 +89,12 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 		mixin(asmSearch());
 	end:
 		return retVal;
+	}
+
+	/// ditto
+	bool opBinaryRight(string op)(T item) const pure nothrow @nogc @safe if (op == "in")
+	{
+		return contains(item);
 	}
 
 	/**
@@ -109,6 +123,18 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 		_length++;
 		return true;
 	}
+
+	/// ditto
+	bool opOpAssign(string op)(T item) if (op == "~")
+	{
+		return insert(item);
+	}
+
+	/// ditto
+	alias insertAnywhere = insert;
+
+	/// ditto
+	alias put = insert;
 
 	/**
 	 * Removes the given item from the set.
@@ -218,7 +244,7 @@ private:
 }
 
 ///
-version (D_InlineAsm_X86_64) unittest
+version (D_InlineAsm_X86_64) version(emsi_containers_unittest) unittest
 {
 	import std.string : format;
 

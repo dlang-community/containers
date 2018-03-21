@@ -9,5 +9,11 @@
     ],
     "dependencies": {
         "stdx-allocator": "~>2.77.0"
-    }
+    },
+    "configurations": [
+        {
+            "name": "unittest",
+            "versions": ["emsi_containers_unittest"]
+        }
+    ]
 }

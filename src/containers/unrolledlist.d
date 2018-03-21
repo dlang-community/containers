@@ -78,7 +78,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	/**
 	 * Inserts the given item into the end of the list.
 	 *
-	 * Returns a pointer to the inserted item.
+	 * Returns: a pointer to the inserted item.
 	 */
 	T* insertBack(T item)
 	{
@@ -111,7 +111,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		}
 		_length++;
 		assert (_back.registry <= fullBitPattern);
-		return cast(T*)result;
+		return cast(T*) result;
 	}
 
 	/**
@@ -124,7 +124,14 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 
 	/// ditto
+	T* opOpAssign(string op)(T item) if (op == "~")
+	{
+		return insertBack(item);
+	}
+
+	/// ditto
 	alias put = insertBack;
+
 	/// ditto
 	alias insert = insertBack;
 
@@ -132,17 +139,22 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 * Inserts the given item in the frontmost available cell, which may put the
 	 * item anywhere in the list as removal may leave gaps in list nodes. Use
 	 * this only if the order of elements is not important.
+	 *
+	 * Returns: a pointer to the inserted item.
 	 */
-	void insertAnywhere(T item)
+	T* insertAnywhere(T item) @trusted
 	{
 		Node* n = _front;
-		while (_front !is null)
+		while (n !is null)
 		{
 			size_t i = n.nextAvailableIndex();
 			if (i >= nodeCapacity)
 			{
 				if (n.next is null)
+				{
+					assert (n is _back);
 					break;
+				}
 				n = n.next;
 				continue;
 			}
@@ -150,14 +162,23 @@ struct UnrolledList(T, Allocator = Mallocator,
 			n.markUsed(i);
 			_length++;
 			assert (n.registry <= fullBitPattern);
-			return;
+			return cast(T*) &n.items[i];
 		}
-		assert (n is _back);
 		n = allocateNode(item);
-		_back.next = n;
-		_back = n;
+		n.items[0] = item;
+		n.markUsed(0);
 		_length++;
+		auto retVal = cast(T*) &n.items[0];
+		if (_front is null)
+		{
+			assert(_back is null);
+			_front = n;
+		}
+		else
+			_back.next = n;
+		_back = n;
 		assert (_back.registry <= fullBitPattern);
+		return retVal;
 	}
 
 	/// Returns: the length of the list
@@ -173,7 +194,8 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 
 	/**
-	 * Removes the given item from the list.
+	 * Removes the first instance of the given item from the list.
+	 *
 	 * Returns: true if something was removed.
 	 */
 	bool remove(T item)
@@ -181,7 +203,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		import containers.internal.backwards : popcnt;
 		if (_front is null)
 			return false;
-		bool retVal = false;
+		bool retVal;
 		loop: for (Node* n = _front; n !is null; n = n.next)
 		{
 			foreach (i; 0 .. nodeCapacity)
@@ -262,7 +284,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 * Time complexity is O(1)
 	 * Returns: the item at the front of the list
 	 */
-	ref inout(T) front() inout @property
+	ref inout(T) front() inout nothrow @property
 	in
 	{
 		assert (!empty);
@@ -271,9 +293,8 @@ struct UnrolledList(T, Allocator = Mallocator,
 	body
 	{
 		import containers.internal.backwards : bsf;
-		import std.string: format;
-		size_t index = bsf(_front.registry);
-		assert (index < nodeCapacity, format("%d", index));
+
+		immutable size_t index = bsf(_front.registry);
 		return *(cast(typeof(return)*) &_front.items[index]);
 	}
 
@@ -283,7 +304,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 * related to the cache line size.
 	 * Returns: the item at the back of the list
 	 */
-	ref inout(T) back() inout @property
+	ref inout(T) back() inout nothrow @property
 	in
 	{
 		assert (!empty);
@@ -336,26 +357,22 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 
 	/// Returns: a range over the list
-	auto range(this This)() const nothrow pure @nogc @trusted @property
+	auto opSlice(this This)() const nothrow pure @nogc @trusted
 	{
-		return Range!(This)(_front, _length);
+		return Range!(This)(_front);
 	}
-
-	/// ditto
-	alias opSlice = range;
 
 	static struct Range(ThisT)
 	{
 		@disable this();
 
-		this(inout(Node)* current, size_t l)
+		this(inout(Node)* current)
 		{
 			import containers.internal.backwards : bsf;
 			import std.format:format;
 
 			this.current = current;
-			this.length = l;
-			if (current !is null && l > 0)
+			if (current !is null)
 			{
 				index = bsf(current.registry);
 				assert (index < nodeCapacity);
@@ -364,27 +381,27 @@ struct UnrolledList(T, Allocator = Mallocator,
 				current = null;
 		}
 
-		ref ET front() const @property @trusted @nogc
+		ref ET front() const nothrow @property @trusted @nogc
 		{
 			return *(cast(ET*) &current.items[index]);
 			//return cast(T) current.items[index];
 		}
 
-		void popFront() nothrow pure @safe
+		void popFront() nothrow pure @safe @nogc
 		{
 			index++;
 			while (true)
 			{
-				if (current is null)
-					return;
+
 				if (index >= nodeCapacity)
 				{
 					current = current.next;
+					if (current is null)
+						return;
 					index = 0;
 				}
 				else
 				{
-
 					if (current.isFree(index))
 						index++;
 					else
@@ -408,7 +425,6 @@ struct UnrolledList(T, Allocator = Mallocator,
 		alias ET = ContainerElementType!(ThisT, T);
 		const(Node)* current;
 		size_t index;
-		size_t length;
 	}
 
 private:
@@ -418,7 +434,7 @@ private:
 		fullBits, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
-	private import containers.internal.mixins : AllocatorState;
+	import containers.internal.mixins : AllocatorState;
 
 	alias N = FatNodeInfo!(T.sizeof, 2, cacheLineSize);
 	enum size_t nodeCapacity = N[0];
@@ -548,7 +564,7 @@ private:
 	}
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	import std.algorithm : equal;
 	import std.range : iota;
@@ -608,7 +624,7 @@ unittest
 	assert (l3.empty);
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	struct A { int a; int b; }
 	UnrolledList!(const(A)) objs;
@@ -617,7 +633,7 @@ unittest
 	static assert (is (typeof(objs[].front) == const));
 }
 
-unittest
+version(emsi_containers_unittest) unittest
 {
 	static class A
 	{
@@ -636,7 +652,7 @@ unittest
 }
 
 // Issue #52
-unittest
+version(emsi_containers_unittest) unittest
 {
 	UnrolledList!int list;
 	list.insert(0);
@@ -653,7 +669,7 @@ unittest
 }
 
 // Issue #53
-unittest
+version(emsi_containers_unittest) unittest
 {
 	UnrolledList!int ints;
 	ints.insertBack(0);
