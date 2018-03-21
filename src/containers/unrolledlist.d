@@ -292,9 +292,8 @@ struct UnrolledList(T, Allocator = Mallocator,
 	body
 	{
 		import containers.internal.backwards : bsf;
-		import std.string: format;
-		size_t index = bsf(_front.registry);
-		//assert (index < nodeCapacity, format("%d", index));
+
+		immutable size_t index = bsf(_front.registry);
 		return *(cast(typeof(return)*) &_front.items[index]);
 	}
 
