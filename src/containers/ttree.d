@@ -160,7 +160,11 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	alias put = insert;
 
 	/**
-	 * Removes a value from the tree.
+	 * Removes a single value from the tree, or does nothing.
+	 *
+	 * If `allowDuplicates` is true only a single element that is equivalent to
+	 * the given `value` will be removed. Which of these elements is removed is
+	 * not defined.
 	 *
 	 * Params:
 	 *     value = a value equal to the one to be removed
@@ -1325,4 +1329,24 @@ version(emsi_containers_unittest) unittest
 	f = new Foo("bar");
 	tt.insert(f);
 	auto r = tt[];
+}
+
+version(emsi_containers_unittest) unittest
+{
+	import std.range : walkLength;
+	import std.stdio;
+
+	TTree!(int, Mallocator, true) tt;
+	tt.insert(10);
+	tt.insert(11);
+	tt.insert(12);
+	writeln(tt[]);
+	assert(tt.length == 3);
+	tt.insert(11);
+	writeln(tt[]);
+	assert(tt.length == 4);
+	tt.remove(11);
+	writeln(tt[]);
+	assert(tt.length == 3);
+	assert(tt[].walkLength == tt.length);
 }

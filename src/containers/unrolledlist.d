@@ -194,7 +194,8 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 
 	/**
-	 * Removes the given item from the list.
+	 * Removes the first instance of the given item from the list.
+	 *
 	 * Returns: true if something was removed.
 	 */
 	bool remove(T item)
