@@ -462,14 +462,14 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 private:
 
-	import std.range : ElementType, isInputRange;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.internal.node : FatNodeInfo, fullBits, shouldAddGCRange, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;
 	import std.algorithm : sort;
-	import stdx.allocator.common : stateSize;
 	import std.functional: binaryFun;
+	import std.range : ElementType, isInputRange;
 	import std.traits: isPointer, PointerTarget;
+	import stdx.allocator.common : stateSize;
 
 	alias N = FatNodeInfo!(T.sizeof, 3, cacheLineSize, ulong.sizeof);
 	alias Value = ContainerStorageType!T;
@@ -488,7 +488,13 @@ private:
 	// that is almost certainly not what the user intended.
 	static if (is(typeof(less) == string ))
 	{
-
+		// Everything inside of this `static if` is dumb. `binaryFun` does not
+		// correctly infer nothrow and @nogc attributes, among other things, so
+		// we need to declare a function here that has its attributes properly
+		// inferred. It's not currently possible, however, to use this function
+		// with std.algorithm.sort because of symbol visibility issues. Because
+		// of this problem, keep a duplicate of the sorting predicate in string
+		// form in the `_lessStr` alias.
 		static if (less == "a < b" && isPointer!T
 				&& __traits(hasMember, PointerTarget!T, "opCmp"))
 		{
