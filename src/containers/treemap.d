@@ -75,7 +75,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	 *
 	 * Throws: RangeError if the key does not exist.
 	 */
-	auto opIndex(this This)(K key) inout
+	auto opIndex(this This)(const K key) inout
 	{
 		alias CET = ContainerElementType!(This, V);
 		auto tme = TreeMapElement(key);
@@ -257,12 +257,12 @@ version(emsi_containers_unittest) @system unittest
 
 version(emsi_containers_unittest) unittest
 {
-	import stdx.allocator.building_blocks.free_list : FreeList;
+	import std.algorithm.iteration : walkLength;
+	import std.stdio : stdout;
 	import stdx.allocator.building_blocks.allocator_list : AllocatorList;
+	import stdx.allocator.building_blocks.free_list : FreeList;
 	import stdx.allocator.building_blocks.region : Region;
 	import stdx.allocator.building_blocks.stats_collector : StatsCollector;
-	import std.stdio : stdout;
-	import std.algorithm.iteration : walkLength;
 
 	StatsCollector!(FreeList!(AllocatorList!(a => Region!(Mallocator)(1024 * 1024)),
 		64)) allocator;
@@ -278,8 +278,8 @@ version(emsi_containers_unittest) unittest
 
 version(emsi_containers_unittest) unittest
 {
-	import std.algorithm.iteration : each;
 	import std.algorithm.comparison : equal;
+	import std.algorithm.iteration : each;
 	import std.range : repeat, take;
 
 	TreeMap!(int, int) tm;
