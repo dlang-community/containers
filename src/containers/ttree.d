@@ -1340,13 +1340,10 @@ version(emsi_containers_unittest) unittest
 	tt.insert(10);
 	tt.insert(11);
 	tt.insert(12);
-	writeln(tt[]);
 	assert(tt.length == 3);
 	tt.insert(11);
-	writeln(tt[]);
 	assert(tt.length == 4);
 	tt.remove(11);
-	writeln(tt[]);
 	assert(tt.length == 3);
 	assert(tt[].walkLength == tt.length);
 }

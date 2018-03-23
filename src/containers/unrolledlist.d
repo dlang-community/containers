@@ -184,7 +184,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		else
 		{
 			n.prev = _back;
-			_back.next = n
+			_back.next = n;
 		}
 		_back = n;
 		assert (_back.registry <= fullBitPattern);
