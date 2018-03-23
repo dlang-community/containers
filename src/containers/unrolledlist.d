@@ -61,18 +61,25 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 */
 	void clear()
 	{
-		Node* prev;
-		Node* cur = _front;
-		while (cur !is null)
+		Node* previous;
+		Node* current = _front;
+		while (current !is null)
 		{
-			prev = cur;
-			cur = cur.next;
+			previous = current;
+			current = current.next;
 			static if (!(is(T == class) || is(T == interface)))
-				foreach (ref item; cur.items)
+				foreach (ref item; previous.items)
 					typeid(T).destroy(&item);
-			deallocateNode(prev);
+			allocator.dispose(previous);
+			static if (useGC)
+			{
+				import core.memory: GC;
+				GC.removeRange(previous);
+			}
 		}
 		_length = 0;
+		_front = null;
+		_back = null;
 	}
 
 	/**
@@ -175,7 +182,10 @@ struct UnrolledList(T, Allocator = Mallocator,
 			_front = n;
 		}
 		else
-			_back.next = n;
+		{
+			n.prev = _back;
+			_back.next = n
+		}
 		_back = n;
 		assert (_back.registry <= fullBitPattern);
 		return retVal;

@@ -97,9 +97,9 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	{
 		import stdx.allocator : dispose;
 
+		allocator.dispose(buckets);
 		static if (useGC)
 			GC.removeRange(buckets.ptr);
-		allocator.dispose(buckets);
 		buckets = null;
 		_length = 0;
 	}
