@@ -8,10 +8,11 @@ FLAGS32:=$(FLAGS) -m32
 
 all: all_32 all_64
 
-all_64: test compile_test external_allocator_test
+all_64: test compile_test external_allocator_test hashmap_gc_test
 	./tests
 	./compile_test
 	./external_allocator_test
+	./hashmap_gc_test
 
 all_32: test_32 compile_test_32 external_allocator_test_32
 	./tests_32
@@ -39,6 +40,13 @@ looptest: looptest.d
 		../src/containers/ttree.d \
 		../src/containers/internal/node.d \
 		-I../src/ \
+
+hashmap_gc_test: hashmap_gc_test.d $(SRC)
+	$(DC) -g -inline -O -release \
+		-I../src/ -I../stdx-allocator/source -debug -wi \
+		$(SRC) \
+		hashmap_gc_test.d \
+		-ofhashmap_gc_test
 
 clean:
 	rm -f tests

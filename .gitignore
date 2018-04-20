@@ -13,6 +13,8 @@ test/compile_test
 test/compile_test_32
 test/external_allocator_test
 test/external_allocator_test_32
+test/openhashset
+test/hashmap_gc_test
 .gdb_history
 __test__*__
 *.exe
