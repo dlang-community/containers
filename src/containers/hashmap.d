@@ -97,9 +97,12 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	{
 		import stdx.allocator : dispose;
 
-		allocator.dispose(buckets);
+		// always remove ranges from GC first before disposing of buckets, to
+		// prevent segfaults when the GC collects at an unfortunate time
 		static if (useGC)
 			GC.removeRange(buckets.ptr);
+		allocator.dispose(buckets);
+
 		buckets = null;
 		_length = 0;
 	}
