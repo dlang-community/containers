@@ -70,12 +70,13 @@ struct UnrolledList(T, Allocator = Mallocator,
 			static if (!(is(T == class) || is(T == interface)))
 				foreach (ref item; previous.items)
 					typeid(T).destroy(&item);
-			allocator.dispose(previous);
+
 			static if (useGC)
 			{
 				import core.memory: GC;
 				GC.removeRange(previous);
 			}
+			allocator.dispose(previous);
 		}
 		_length = 0;
 		_front = null;
@@ -481,12 +482,12 @@ private:
 		if (_back is n)
 			_back = n.prev;
 
-		allocator.dispose(n);
 		static if (useGC)
 		{
 			import core.memory: GC;
 			GC.removeRange(n);
 		}
+		allocator.dispose(n);
 	}
 
 	static bool shouldMerge(const Node* first, const Node* second)
