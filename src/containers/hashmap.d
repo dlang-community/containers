@@ -549,7 +549,7 @@ private:
 unittest
 {
 	import std.uuid : randomUUID;
-	import std.algorithm.iteration : walkLength;
+	import std.range.primitives : walkLength;
 
 	auto hm = HashMap!(string, int)(16);
 	assert (hm.length == 0);

@@ -148,7 +148,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			else
 				(() @trusted => memcpy(arr.ptr + l, init.ptr, T.sizeof))();
 		}
-		arr[l++] = value;
+		emplace(arr[l++], value);
 	}
 
 	/// ditto
@@ -189,29 +189,8 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		import std.traits: hasElaborateAssign, hasElaborateDestructor;
 		static if (is(T == struct) && (hasElaborateAssign!T || hasElaborateDestructor!T))
 		{
-			// If a destructor is run before blit or assignment involves
-			// more than just a blit, ensure that arr[l] is in a valid
-			// state before assigning to it.
-			import core.stdc.string : memcpy, memset;
-			const init = typeid(T).initializer();
-			if (init.ptr is null) // null pointer means initialize to 0s
-			{
-				foreach (ref value; rhs)
-				{
-					// We could call memset just once for the entire range
-					// but this way has better memory locality.
-					(() @trusted => memset(arr.ptr + l, 0, T.sizeof))();
-					arr[l++] = value;
-				}
-			}
-			else
-			{
-				foreach (ref value; rhs)
-				{
-					(() @trusted => memcpy(arr.ptr + l, init.ptr, T.sizeof))();
-					arr[l++] = value;
-				}
-			}
+			foreach (ref value; rhs)
+				emplace(arr[l++], value);
 		}
 		else
 		{
@@ -286,6 +265,51 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 				GC.addRange(arr.ptr, arr.length * T.sizeof);
 			}
 		}
+	}
+
+	static if (is(typeof({T value;}))) // default construction is allowed
+	{
+		/**
+		 * Change the array length.
+		 * When growing, initialize new elements to the default value.
+		 */
+		void resize(size_t n)
+		{
+			resize(n, T.init);
+		}
+	}
+
+	/**
+	 * Change the array length.
+	 * When growing, initialize new elements to the given value.
+	 */
+	void resize(size_t n, T value)
+	{
+		if (arr.length < n)
+			reserve(n);
+
+		if (l < n) // Growing?
+		{
+			import std.traits: hasElaborateAssign, hasElaborateDestructor;
+			static if (is(T == struct) && (hasElaborateAssign!T || hasElaborateDestructor!T))
+			{
+				foreach (i; l..n)
+					emplace(arr[l], value);
+			}
+			else
+				arr[l..n] = value;
+		}
+		else
+		{
+			static if ((is(T == struct) || is(T == union))
+				&& __traits(hasMember, T, "__xdtor"))
+			{
+				foreach (i; n..l)
+					arr[i].__xdtor();
+			}
+		}
+
+		l = n;
 	}
 
 	/**
@@ -376,6 +400,13 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	}
 
 private:
+
+	static void emplace(ref ContainerStorageType!T target, ref AppendT source)
+	{
+		(cast(void[])((&target)[0..1]))[] = cast(void[])((&source)[0..1]);
+		static if (__traits(hasMember, T, "__xpostblit"))
+			target.__xpostblit();
+	}
 
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
@@ -587,4 +618,51 @@ version(emsi_containers_unittest) @nogc unittest
 	assert(a[] == "abcdef");
 	a ~= a;
 	assert(a[] == "abcdefabcdef");
+}
+
+version(emsi_containers_unittest) unittest
+{
+	static struct S
+	{
+		bool initialized;
+		@nogc:
+		@disable this();
+		this(int) { initialized = true; }
+		~this() { assert(initialized); }
+	}
+
+	auto s = S(0);
+
+	DynamicArray!S arr;
+	arr.insertBack(s);
+	arr ~= [s];
+}
+
+version(emsi_containers_unittest) @nogc unittest
+{
+	DynamicArray!int a;
+	a.resize(5, 42);
+	assert(a.length == 5);
+	assert(a[2] == 42);
+	a.resize(3, 17);
+	assert(a.length == 3);
+	assert(a[2] == 42);
+
+	struct Counter
+	{
+		@nogc:
+		static int count;
+		@disable this();
+		this(int) { count++; }
+		this(this) { count++; }
+		~this() { count--; }
+	}
+
+	DynamicArray!Counter b;
+	assert(Counter.count == 0);
+	static assert(!is(typeof(b.resize(5))));
+	b.resize(5, Counter(0));
+	assert(Counter.count == 5);
+	b.resize(3, Counter(0));
+	assert(Counter.count == 3);
 }
