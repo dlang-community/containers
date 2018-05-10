@@ -267,6 +267,51 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		}
 	}
 
+	static if (is(typeof({T value;}))) // default construction is allowed
+	{
+		/**
+		 * Change the array length.
+		 * When growing, initialize new elements to the default value.
+		 */
+		void resize(size_t n)
+		{
+			resize(n, T.init);
+		}
+	}
+
+	/**
+	 * Change the array length.
+	 * When growing, initialize new elements to the given value.
+	 */
+	void resize(size_t n, T value)
+	{
+		if (arr.length < n)
+			reserve(n);
+
+		if (l < n) // Growing?
+		{
+			import std.traits: hasElaborateAssign, hasElaborateDestructor;
+			static if (is(T == struct) && (hasElaborateAssign!T || hasElaborateDestructor!T))
+			{
+				foreach (i; l..n)
+					emplace(arr[l], value);
+			}
+			else
+				arr[l..n] = value;
+		}
+		else
+		{
+			static if ((is(T == struct) || is(T == union))
+				&& __traits(hasMember, T, "__xdtor"))
+			{
+				foreach (i; n..l)
+					arr[i].__xdtor();
+			}
+		}
+
+		l = n;
+	}
+
 	/**
 	 * Remove the item at the given index from the array.
 	 */
@@ -591,4 +636,33 @@ version(emsi_containers_unittest) unittest
 	DynamicArray!S arr;
 	arr.insertBack(s);
 	arr ~= [s];
+}
+
+version(emsi_containers_unittest) @nogc unittest
+{
+	DynamicArray!int a;
+	a.resize(5, 42);
+	assert(a.length == 5);
+	assert(a[2] == 42);
+	a.resize(3, 17);
+	assert(a.length == 3);
+	assert(a[2] == 42);
+
+	struct Counter
+	{
+		@nogc:
+		static int count;
+		@disable this();
+		this(int) { count++; }
+		this(this) { count++; }
+		~this() { count--; }
+	}
+
+	DynamicArray!Counter b;
+	assert(Counter.count == 0);
+	static assert(!is(typeof(b.resize(5))));
+	b.resize(5, Counter(0));
+	assert(Counter.count == 5);
+	b.resize(3, Counter(0));
+	assert(Counter.count == 3);
 }
