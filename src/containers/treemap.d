@@ -257,7 +257,7 @@ version(emsi_containers_unittest) @system unittest
 
 version(emsi_containers_unittest) unittest
 {
-	import std.algorithm.iteration : walkLength;
+	import std.range.primitives : walkLength;
 	import std.stdio : stdout;
 	import stdx.allocator.building_blocks.allocator_list : AllocatorList;
 	import stdx.allocator.building_blocks.free_list : FreeList;
@@ -305,7 +305,7 @@ version(emsi_containers_unittest) unittest
 version(emsi_containers_unittest) unittest
 {
 	import std.uuid : randomUUID;
-	import std.algorithm.iteration : walkLength;
+	import std.range.primitives : walkLength;
 
 	auto hm = TreeMap!(string, int)();
 	assert (hm.length == 0);
@@ -398,7 +398,7 @@ version(emsi_containers_unittest) unittest
 version(emsi_containers_unittest) unittest
 {
 	import std.uuid : randomUUID;
-	import std.algorithm.iteration : walkLength;
+	import std.range.primitives : walkLength;
 	import std.stdio;
 
 	auto hm = TreeMap!(string, int)();
