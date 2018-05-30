@@ -8,7 +8,7 @@
         "DLang Community"
     ],
     "dependencies": {
-        "stdx-allocator": "~>2.77.0"
+        "stdx-allocator": "~>2.77.2"
     },
     "configurations": [
         {
