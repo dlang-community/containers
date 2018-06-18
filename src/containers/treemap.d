@@ -54,9 +54,9 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Inserts or overwrites the given key-value pair.
 	 */
-	void insert(const K key, V value) @safe
+	void insert(const K key, V value) @trusted
 	{
-		auto tme = TreeMapElement(key, value);
+		auto tme = TreeMapElement(cast(ContainerStorageType!K) key, value);
 		auto r = tree.equalRange(tme);
 		if (r.empty)
 			tree.insert(tme, true);
@@ -78,7 +78,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	auto opIndex(this This)(const K key) inout
 	{
 		alias CET = ContainerElementType!(This, V);
-		auto tme = TreeMapElement(key);
+		auto tme = TreeMapElement(cast(ContainerStorageType!K) key);
 		return cast(CET) tree.equalRange(tme).front.value;
 	}
 
@@ -126,16 +126,16 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	 */
 	bool remove(const K key)
 	{
-		auto tme = TreeMapElement(key);
+		auto tme = TreeMapElement(cast(ContainerStorageType!K) key);
 		return tree.remove(tme);
 	}
 
 	/**
 	 * Returns: true if the mapping contains the given key
 	 */
-	bool containsKey(const K key) inout pure nothrow @nogc @safe
+	bool containsKey(const K key) inout pure nothrow @nogc @trusted
 	{
-		auto tme = TreeMapElement(key);
+		auto tme = TreeMapElement(cast(ContainerStorageType!K) key);
 		return tree.contains(tme);
 	}
 

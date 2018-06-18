@@ -252,7 +252,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		foreach (ref const bucket; buckets)
 		{
 			foreach (item; bucket)
-				app.put(item.key);
+				app.put(cast(K) item.key);
 		}
 		return app.data;
 	}
@@ -437,7 +437,7 @@ private:
 			}
 		}
 		Node* n;
-		n = buckets[index].insertAnywhere(Node(hash, key, value));
+		n = buckets[index].insertAnywhere(Node(hash, cast(ContainerStorageType!K) key, value));
 		if (modifyLength)
 			_length++;
 		if (shouldRehash())
@@ -481,7 +481,7 @@ private:
 		foreach (ref bucket; oldBuckets)
 		{
 			foreach (node; bucket)
-				insert(node.key, node.value, node.hash, false);
+				insert(cast(K) node.key, node.value, node.hash, false);
 			typeid(typeof(bucket)).destroy(&bucket);
 		}
 		static if (useGC)

@@ -69,6 +69,45 @@ private void testContainerDouble(alias Container)()
 {
 	testContainerDoubleVal!(Container)();
 	testContainerDoubleRef!(Container)();
+	testContainerDoubleAggregateKey!(Container)();
+}
+
+private void testContainerDoubleAggregateKey(alias Container)()
+{
+	static struct KeyType
+	{
+		int a;
+		string[] c;
+
+		int opCmp(ref const KeyType other) const
+		{
+			if (other.a < a)
+				return -1;
+			return other.a > a;
+		}
+
+		size_t toHash() const
+		{
+			return 10;
+		}
+
+		bool opEquals(ref const KeyType other) const
+		{
+			return a == other.a;
+		}
+	}
+
+	Container!(const KeyType, int) cm;
+
+	Container!(immutable KeyType, int) im;
+
+	checkIndexFunctionality!(int, const KeyType)(cm);
+
+	checkIndexFunctionality!(int, const KeyType)(im);
+
+	checkSliceFunctionality!(int)(cm);
+
+	checkSliceFunctionality!(int)(im);
 }
 
 private void testContainerDoubleVal(alias Container)()
