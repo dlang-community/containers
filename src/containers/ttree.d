@@ -73,6 +73,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	 */
 	void clear()
 	{
+		_length = 0;
 		if (root is null)
 			return;
 		static if (stateSize!Allocator > 0)
