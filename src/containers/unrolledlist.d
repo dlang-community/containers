@@ -211,7 +211,6 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 */
 	bool remove(T item)
 	{
-		import containers.internal.backwards : popcnt;
 		if (_front is null)
 			return false;
 		bool retVal;
@@ -344,7 +343,6 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 	body
 	{
-		import containers.internal.backwards : popcnt;
 		size_t i = nodeCapacity - 1;
 		while (_back.isFree(i))
 		{
