@@ -10,10 +10,10 @@
     "dependencies": {
         "stdx-allocator": "~>2.77.2"
     },
-    "configurations": [
-        {
-            "name": "unittest",
+    "buildTypes" : {
+        "unittest" : {
+            "buildOptions": ["unittests", "debugMode", "debugInfo"],
             "versions": ["emsi_containers_unittest"]
         }
-    ]
+    }
 }
