@@ -8,16 +8,16 @@ module containers.internal.hash;
 
 static if (hash_t.sizeof == 4)
 {
-	hash_t generateHash(T)(T value) nothrow @trusted
+	hash_t generateHash(T)(const T value)
 	{
-		return typeid(T).getHash(&value);
+		return hashOf(value);
 	}
 }
 else
 {
-	hash_t generateHash(T)(T value) nothrow @trusted if (!is(T == string))
+	hash_t generateHash(T)(T value) if (!is(T == string))
 	{
-		return typeid(T).getHash(&value);
+		return hashOf(value);
 	}
 
 	/**
