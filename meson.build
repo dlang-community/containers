@@ -65,6 +65,12 @@ dcontainers_dep = declare_dependency(
 #
 # Tests
 #
+if meson.get_compiler('d').get_id() == 'llvm'
+  extra_args = ['-main', '-link-defaultlib-shared']
+else
+  extra_args = ['-main']
+endif
+
 dcontainers_test_exe = executable('test_dcontainers',
     [dcontainers_src,
     'test/compile_test.d',
@@ -72,7 +78,7 @@ dcontainers_test_exe = executable('test_dcontainers',
     include_directories: [src_dir],
     dependencies: [allocator_dep],
     d_unittest: true,
-    link_args: '-main'
+    link_args: extra_args
 )
 test('test_dcontainers', dcontainers_test_exe)
 
