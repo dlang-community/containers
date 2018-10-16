@@ -299,6 +299,52 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		return MapRange!(This, IterType.both)(cast(Unqual!(This)*) &this);
 	}
 
+	/**
+	 * Support for $(D foreach(key, value; aa) { ... }) syntax;
+	 */
+	int opApply(int delegate(in ref K, ref V) del)
+	{
+		int result = 0;
+		foreach (ref bucket; buckets)
+			foreach (ref node; bucket[])
+				if ((result = del(*cast(K*)&node.key, *cast(V*)&node.value)) != 0)
+					return result;
+		return result;
+	}
+
+	/// ditto
+	int opApply(int delegate(in ref K, in ref V) del) const
+	{
+		int result = 0;
+		foreach (const ref bucket; buckets)
+			foreach (const ref node; bucket[])
+				if ((result = del(*cast(K*)&node.key, *cast(V*)&node.value)) != 0)
+					return result;
+		return result;
+	}
+
+	/// ditto
+	int opApply(int delegate(ref V) del)
+	{
+		int result = 0;
+		foreach (ref bucket; buckets)
+			foreach (ref node; bucket[])
+				if ((result = del(*cast(V*)&node.value)) != 0)
+					return result;
+		return result;
+	}
+
+	/// ditto
+	int opApply(int delegate(in ref V) del) const
+	{
+		int result = 0;
+		foreach (const ref bucket; buckets)
+			foreach (const ref node; bucket[])
+				if ((result = del(*cast(V*)&node.value)) != 0)
+					return result;
+		return result;
+	}
+
 	mixin AllocatorState!Allocator;
 
 private:
@@ -688,4 +734,43 @@ version(emsi_containers_unittest) unittest
 {
 	HashMap!(size_t, size_t, Mallocator, (size_t n) { return n; }, false, false) aa;
 	static assert(aa.Node.sizeof == 2 * size_t.sizeof);
+}
+
+version(emsi_containers_unittest) unittest
+{
+	auto hm = HashMap!(string, int)(16);
+
+	foreach (v; hm) {}
+	foreach (ref v; hm) {}
+	foreach (int v; hm) {}
+	foreach (ref int v; hm) {}
+	foreach (const ref int v; hm) {}
+
+	foreach (k, v; hm) {}
+	foreach (k, ref v; hm) {}
+	foreach (k, int v; hm) {}
+	foreach (k, ref int v; hm) {}
+	foreach (k, const ref int v; hm) {}
+
+	foreach (ref k, v; hm) {}
+	foreach (ref k, ref v; hm) {}
+	foreach (ref k, int v; hm) {}
+	foreach (ref k, ref int v; hm) {}
+	foreach (ref k, const ref int v; hm) {}
+
+	foreach (const string k, v; hm) {}
+	foreach (const string k, ref v; hm) {}
+	foreach (const string k, int v; hm) {}
+	foreach (const string k, ref int v; hm) {}
+	foreach (const string k, const ref int v; hm) {}
+
+	foreach (const ref string k, v; hm) {}
+	foreach (const ref string k, ref v; hm) {}
+	foreach (const ref string k, int v; hm) {}
+	foreach (const ref string k, ref int v; hm) {}
+	foreach (const ref string k, const ref int v; hm) {}
+
+	hm["a"] = 1;
+	foreach (k, ref v; hm) { v++; }
+	assert(hm["a"] == 2);
 }
