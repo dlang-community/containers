@@ -208,7 +208,11 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		auto n = find(key, i);
 		if (n is null)
 			return false;
-		immutable bool removed = buckets[i].remove(Node(n.hash, n.key));
+		static if (storeHash)
+			auto node = Node(n.hash, n.key);
+		else
+			auto node = Node(n.key);
+		immutable bool removed = buckets[i].remove(node);
 		if (removed)
 			_length--;
 		return removed;
@@ -686,6 +690,7 @@ version(emsi_containers_unittest) unittest
 // storeHash == false
 version(emsi_containers_unittest) unittest
 {
-	HashMap!(size_t, size_t, Mallocator, (size_t n) { return n; }, false, false) aa;
-	static assert(aa.Node.sizeof == 2 * size_t.sizeof);
+	static struct S { size_t v; }
+	HashMap!(S, S, Mallocator, (S s) { return s.v; }, false, false) aa;
+	static assert(aa.Node.sizeof == 2 * S.sizeof);
 }
