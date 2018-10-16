@@ -23,7 +23,8 @@ private import std.traits : isBasicType, Unqual;
  *         GC-allocated memory.
  */
 struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K,
-	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V)
+	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V,
+	bool storeHash = true)
 {
 	this(this) @disable;
 
@@ -436,8 +437,11 @@ private:
 				return &item;
 			}
 		}
-		Node* n;
-		n = buckets[index].insertAnywhere(Node(hash, cast(ContainerStorageType!K) key, value));
+		static if (storeHash)
+			Node node = Node(hash, cast(ContainerStorageType!K) key, value);
+		else
+			Node node = Node(cast(ContainerStorageType!K) key, value);
+		Node* n = buckets[index].insertAnywhere(node);
 		if (modifyLength)
 			_length++;
 		if (shouldRehash())
@@ -535,7 +539,11 @@ private:
 			return this.hash == n.hash && this.key == n.key;
 		}
 
-		Hash hash;
+		static if (storeHash)
+			Hash hash;
+		else
+			@property Hash hash() const { return hashFunction(key); }
+
 		ContainerStorageType!K key;
 		ContainerStorageType!V value;
 	}
@@ -673,4 +681,11 @@ version(emsi_containers_unittest) unittest
 	aa["b"] = 0;
 	++aa["b"];
 	assert(aa["b"] == 1);
+}
+
+// storeHash == false
+version(emsi_containers_unittest) unittest
+{
+	HashMap!(size_t, size_t, Mallocator, (size_t n) { return n; }, false, false) aa;
+	static assert(aa.Node.sizeof == 2 * size_t.sizeof);
 }
