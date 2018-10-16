@@ -167,8 +167,8 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	{
 		alias CET = ContainerElementType!(This, V);
 
-		Hash hash = hashFunction(key);
-		auto n = find(key, hash);
+		size_t i;
+		auto n = find(key, i);
 		if (n is null)
 			return cast(CET*) &insert(key, defaultValue).value;
 		else
@@ -642,7 +642,7 @@ version(emsi_containers_unittest) unittest
 
 version(emsi_containers_unittest) unittest
 {
-	HashMap!(int, int) map;
+	HashMap!(int, int, Mallocator, (int i) => i) map;
 	auto p = map.getOrAdd(1, 1);
 	assert(*p == 1);
 	*p = 2;
