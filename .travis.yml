@@ -8,6 +8,10 @@ addons:
       - pkg-config
       - gcc-multilib
 
+branches:
+  only:
+  - master
+
 install:
   - pyenv global system 3.6
   - pip3 install 'meson==0.47.2'
