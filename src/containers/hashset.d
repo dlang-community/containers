@@ -329,19 +329,13 @@ private:
 					static if (storeHash)
 					{
 						immutable Hash hash = node.items[i].hash;
-						version (BITMASK)
-							size_t index = (hash, Mask);
-						else
-							size_t index = hashToIndex(hash, buckets.length);
+						size_t index = hashToIndex(hash, buckets.length);
 						buckets[index].insert(ItemNode(hash, node.items[i].value));
 					}
 					else
 					{
 						immutable Hash hash = hashFunction(node.items[i].value);
-						version (BITMASK)
-							size_t index = (hash, mask);
-						else
-							size_t index = hashToIndex(hash, buckets.length);
+						size_t index = hashToIndex(hash, buckets.length);
 						buckets[index].insert(ItemNode(node.items[i].value));
 					}
 				}

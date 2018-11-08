@@ -6,8 +6,6 @@
  */
 module containers.internal.hash;
 
-import std.conv : to;
-
 static if (hash_t.sizeof == 4)
 {
 	hash_t generateHash(T)(const T value)
