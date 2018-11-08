@@ -6,6 +6,8 @@
  */
 module containers.internal.hash;
 
+import std.conv : to;
+
 static if (hash_t.sizeof == 4)
 {
 	hash_t generateHash(T)(const T value)
@@ -34,3 +36,27 @@ else
 		return h;
 	}
 }
+
+/**
+ * Convert a hash code into a valid array index.
+ *
+ * Prams:
+ *     hash = the hash code to be mapped
+ *     len = the length of the array that backs the hash container.
+ */
+size_t hashToIndex(const size_t hash, const size_t len) pure nothrow @nogc @safe
+{
+	import core.bitop : bsr;
+
+	// This magic number taken from
+	// https://probablydance.com/2018/06/16/fibonacci-hashing-the-optimization-that-the-world-forgot-or-a-better-alternative-to-integer-modulo/
+	//
+	// It's amazing how much faster this makes the hash data structures
+	// when faced with low quality hash functions.
+	static if (size_t.sizeof == 8)
+		return (hash * 11_400_714_819_323_198_485UL) >>> (64 - bsr(len));
+	else
+		return (hash * 2_654_435_769U) >>> (32 - bsr(len));
+}
+
+enum size_t DEFAULT_BUCKET_COUNT = 8;
