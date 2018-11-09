@@ -62,7 +62,7 @@ template ContainerElementType(ContainerType, ElementType)
 	}
 }
 
-unittest
+@safe unittest
 {
 	static struct Container {}
 	static struct Data1 { int* x; }

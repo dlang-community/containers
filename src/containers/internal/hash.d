@@ -8,14 +8,14 @@ module containers.internal.hash;
 
 static if (hash_t.sizeof == 4)
 {
-	hash_t generateHash(T)(const T value)
+	hash_t generateHash(T)(const T value) @safe
 	{
 		return hashOf(value);
 	}
 }
 else
 {
-	hash_t generateHash(T)(T value) if (!is(T == string))
+	hash_t generateHash(T)(T value) @safe if (!is(T == string))
 	{
 		return hashOf(value);
 	}

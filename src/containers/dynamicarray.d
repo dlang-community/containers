@@ -48,7 +48,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		/**
 		 * Use the given `allocator` for allocations.
 		 */
-		this(Allocator allocator)
+		this(Allocator allocator) @safe
 		in
 		{
 			assert(allocator !is null, "Allocator must not be null");
@@ -59,7 +59,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		}
 	}
 
-	~this()
+	~this() @trusted
 	{
 		import stdx.allocator.mallocator : Mallocator;
 		import containers.internal.node : shouldAddGCRange;
@@ -85,14 +85,14 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 
 	/// Slice operator overload
 	pragma(inline, true)
-	auto opSlice(this This)() @nogc
+	auto opSlice(this This)() @nogc @safe
 	{
 		return opSlice!(This)(0, l);
 	}
 
 	/// ditto
 	pragma(inline, true)
-	auto opSlice(this This)(size_t a, size_t b) @nogc
+	auto opSlice(this This)(size_t a, size_t b) @nogc @safe
 	{
 		alias ET = ContainerElementType!(This, T);
 		return cast(ET[]) arr[a .. b];
@@ -100,7 +100,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 
 	/// Index operator overload
 	pragma(inline, true)
-	auto opIndex(this This)(size_t i) @nogc
+	auto opIndex(this This)(size_t i) @nogc @safe
 	{
 		return opSlice!(This)(i, i + 1)[0];
 	}
@@ -108,7 +108,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/**
 	 * Inserts the given value into the end of the array.
 	 */
-	void insertBack(T value)
+	void insertBack(T value) @trusted
 	{
 		import stdx.allocator.mallocator : Mallocator;
 		import containers.internal.node : shouldAddGCRange;
@@ -163,7 +163,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/**
 	 * ~= operator overload
 	 */
-	scope ref typeof(this) opOpAssign(string op)(T value) if (op == "~")
+	scope ref typeof(this) opOpAssign(string op)(T value) @safe if (op == "~")
 	{
 		insert(value);
 		return this;
@@ -172,7 +172,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/**
 	* ~= operator overload for an array of items
 	*/
-	scope ref typeof(this) opOpAssign(string op, bool checkForOverlap = true)(AppendT[] rhs)
+	scope ref typeof(this) opOpAssign(string op, bool checkForOverlap = true)(AppendT[] rhs) @safe
 		if (op == "~" && !is(T == AppendT[]))
 	{
 		// Disabling checkForOverlap when this function is called from opBinary!"~"
@@ -201,7 +201,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	}
 
 	/// ditto
-	scope ref typeof(this) opOpAssign(string op)(ref AppendTypeOfThis rhs)
+	scope ref typeof(this) opOpAssign(string op)(ref AppendTypeOfThis rhs) @safe
 		if (op == "~")
 	{
 		return this ~= rhs.arr[0 .. rhs.l];
@@ -210,7 +210,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/**
 	 * ~ operator overload
 	 */
-	typeof(this) opBinary(string op)(ref AppendTypeOfThis other) if (op == "~")
+	typeof(this) opBinary(string op)(ref AppendTypeOfThis other) @safe if (op == "~")
 	{
 		typeof(this) ret;
 		ret.reserve(l + other.l);
@@ -220,7 +220,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	}
 
 	/// ditto
-	typeof(this) opBinary(string op)(AppendT[] values) if (op == "~")
+	typeof(this) opBinary(string op)(AppendT[] values) @safe if (op == "~")
 	{
 		typeof(this) ret;
 		ret.reserve(l + values.length);
@@ -232,7 +232,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/**
 	 * Ensures sufficient capacity to accommodate `n` elements.
 	 */
-	void reserve(size_t n)
+	void reserve(size_t n) @trusted
 	{
 		if (arr.length >= n)
 			return;
@@ -273,7 +273,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		 * Change the array length.
 		 * When growing, initialize new elements to the default value.
 		 */
-		void resize(size_t n)
+		void resize(size_t n) @safe
 		{
 			resize(n, T.init);
 		}
@@ -283,7 +283,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	 * Change the array length.
 	 * When growing, initialize new elements to the given value.
 	 */
-	void resize(size_t n, T value)
+	void resize(size_t n, T value) @trusted
 	{
 		if (arr.length < n)
 			reserve(n);
@@ -315,7 +315,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/**
 	 * Remove the item at the given index from the array.
 	 */
-	void remove(const size_t i)
+	void remove(const size_t i) @trusted
 	{
 		if (i < this.l)
 		{
@@ -343,25 +343,25 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/**
 	 * Removes the last element from the array.
 	 */
-	void removeBack()
+	void removeBack() @safe
 	{
 		this.remove(this.length - 1);
 	}
 
 	/// Index assignment support
-	void opIndexAssign(T value, size_t i) @nogc
+	void opIndexAssign(T value, size_t i) @nogc @trusted
 	{
 		arr[i] = value;
 	}
 
 	/// Slice assignment support
-	void opSliceAssign(T value) @nogc
+	void opSliceAssign(T value) @nogc @trusted
 	{
 		arr[0 .. l] = value;
 	}
 
 	/// ditto
-	void opSliceAssign(T value, size_t i, size_t j) @nogc
+	void opSliceAssign(T value, size_t i, size_t j) @nogc @trusted
 	{
 		arr[i .. j] = value;
 	}
@@ -381,27 +381,27 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	 * As the memory of the array may be freed, access to this array is
 	 * highly unsafe.
 	 */
-	auto ptr(this This)() @nogc @property
+	auto ptr(this This)() @nogc @property @trusted
 	{
 		alias ET = ContainerElementType!(This, T);
 		return cast(ET*) arr.ptr;
 	}
 
 	/// Returns: the front element of the DynamicArray.
-	auto ref T front() pure @property
+	auto ref T front() pure @property @safe
 	{
 		return arr[0];
 	}
 
 	/// Returns: the back element of the DynamicArray.
-	auto ref T back() pure @property
+	auto ref T back() pure @property @safe
 	{
 		return arr[l - 1];
 	}
 
 private:
 
-	static void emplace(ref ContainerStorageType!T target, ref AppendT source)
+	static void emplace(ref ContainerStorageType!T target, ref AppendT source) @trusted
 	{
 		(cast(void[])((&target)[0..1]))[] = cast(void[])((&source)[0..1]);
 		static if (__traits(hasMember, T, "__xpostblit"))
@@ -454,12 +454,12 @@ version(emsi_containers_unittest)
 	{
 		int* a;
 
-		this(int* a)
+		this(int* a) @safe
 		{
 			this.a = a;
 		}
 
-		~this()
+		~this() @trusted
 		{
 			++(*a);
 		}
@@ -528,7 +528,7 @@ version(emsi_containers_unittest) unittest
 	assert(a == 0); // Destructor not called.
 }
 
-version(emsi_containers_unittest) unittest
+version(emsi_containers_unittest) @safe unittest
 {
 	DynamicArray!(int*, Mallocator, true) arr;
 
@@ -543,7 +543,7 @@ version(emsi_containers_unittest) unittest
 	assert (*slice[1] == 2);
 }
 
-version(emsi_containers_unittest) unittest
+version(emsi_containers_unittest) @safe unittest
 {
 	import std.format : format;
 
@@ -563,7 +563,7 @@ version(emsi_containers_unittest) unittest
 
 }
 
-version(emsi_containers_unittest) @system unittest
+version(emsi_containers_unittest) unittest
 {
 	DynamicArray!int a;
 	a.reserve(1000);
@@ -599,7 +599,7 @@ version(emsi_containers_unittest) unittest
 	assert(a == 1);
 }
 
-version(emsi_containers_unittest) @nogc unittest
+version(emsi_containers_unittest) @safe @nogc unittest
 {
 	struct HStorage
 	{
@@ -609,7 +609,7 @@ version(emsi_containers_unittest) @nogc unittest
 	auto hs = HStorage();
 }
 
-version(emsi_containers_unittest) @nogc unittest
+version(emsi_containers_unittest) @safe @nogc unittest
 {
 	DynamicArray!char a;
 	const DynamicArray!char b = a ~ "def";
@@ -620,7 +620,7 @@ version(emsi_containers_unittest) @nogc unittest
 	assert(a[] == "abcdefabcdef");
 }
 
-version(emsi_containers_unittest) unittest
+version(emsi_containers_unittest) @safe unittest
 {
 	static struct S
 	{
@@ -638,7 +638,7 @@ version(emsi_containers_unittest) unittest
 	arr ~= [s];
 }
 
-version(emsi_containers_unittest) @nogc unittest
+version(emsi_containers_unittest) @safe @nogc unittest
 {
 	DynamicArray!int a;
 	a.resize(5, 42);

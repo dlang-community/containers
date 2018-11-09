@@ -70,14 +70,14 @@ template ContainerStorageType(T)
 }
 
 ///
-unittest
+@safe unittest
 {
 	static assert (is (ContainerStorageType!(int) == int));
 	static assert (is (ContainerStorageType!(const int) == int));
 }
 
 ///
-unittest
+@safe unittest
 {
 	import std.typecons : Rebindable;
 	static assert (is (ContainerStorageType!(Object) == Object));
@@ -85,7 +85,7 @@ unittest
 }
 
 ///
-unittest
+@safe unittest
 {
 	struct A { int foo; }
 	struct B { void opAssign(typeof(this)) { this.foo *= 2; }  int foo;}
