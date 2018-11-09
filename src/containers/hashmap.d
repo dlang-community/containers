@@ -7,7 +7,7 @@
 
 module containers.hashmap;
 
-private import containers.internal.hash : generateHash;
+private import containers.internal.hash;
 private import containers.internal.node : shouldAddGCRange;
 private import stdx.allocator.mallocator : Mallocator;
 private import std.traits : isBasicType, Unqual;
@@ -370,7 +370,7 @@ private:
 
 	static struct MapRange(MapType, IterType Type)
 	{
-	static if (Type == IterType.both)
+		static if (Type == IterType.both)
 		{
 			struct FrontType
 			{
@@ -452,7 +452,7 @@ private:
 		bool _empty;
 	}
 
-	void initialize(size_t bucketCount = 4)
+	void initialize(size_t bucketCount = DEFAULT_BUCKET_COUNT)
 	{
 		import std.conv : emplace;
 		assert((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
@@ -478,7 +478,7 @@ private:
 	{
 		if (buckets.length == 0)
 			initialize();
-		immutable size_t index = hashToIndex(hash);
+		immutable size_t index = hashToIndex(hash, buckets.length);
 		foreach (ref item; buckets[index])
 		{
 			if (item.hash == hash && item.key == key)
@@ -543,20 +543,6 @@ private:
 		allocator.deallocate(cast(void[]) oldBuckets);
 	}
 
-	size_t hashToIndex(Hash hash) const pure nothrow @safe @nogc
-	in
-	{
-		assert (buckets.length > 0);
-	}
-	out (result)
-	{
-		assert (result < buckets.length);
-	}
-	body
-	{
-		return cast(size_t)hash & (buckets.length - 1);
-	}
-
 	inout(Node)* find(const K key, ref size_t index) inout
 	{
 		return find(key, index, hashFunction(key));
@@ -568,7 +554,7 @@ private:
 
 		if (buckets.empty)
 			return null;
-		index = hashToIndex(hash);
+		index = hashToIndex(hash, buckets.length);
 		foreach (ref r; buckets[index])
 		{
 			if (r.hash == hash && r == key)

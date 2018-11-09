@@ -7,7 +7,7 @@
 
 module containers.hashset;
 
-private import containers.internal.hash : generateHash;
+private import containers.internal.hash : generateHash, hashToIndex;
 private import containers.internal.node : shouldAddGCRange;
 private import stdx.allocator.mallocator : Mallocator;
 private import std.traits : isBasicType;
@@ -108,8 +108,8 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	 */
 	bool remove(T value)
 	{
-		Hash hash = hashFunction(value);
-		size_t index = hashToIndex(hash);
+		immutable Hash hash = hashFunction(value);
+		immutable size_t index = hashToIndex(hash, buckets.length);
 		static if (storeHash)
 			immutable bool removed = buckets[index].remove(ItemNode(hash, value));
 		else
@@ -134,8 +134,8 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	{
 		if (buckets.length == 0 || _length == 0)
 			return null;
-		Hash hash = hashFunction(value);
-		immutable size_t index = hashToIndex(hash);
+		immutable Hash hash = hashFunction(value);
+		immutable index = hashToIndex(hash, buckets.length);
 		return buckets[index].get(value, hash);
 	}
 
@@ -150,7 +150,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 		if (buckets.length == 0)
 			initialize(4);
 		Hash hash = hashFunction(value);
-		immutable size_t index = hashToIndex(hash);
+		immutable size_t index = hashToIndex(hash, buckets.length);
 		static if (storeHash)
 			auto r = buckets[index].insert(ItemNode(hash, value));
 		else
@@ -200,12 +200,12 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 
 private:
 
-	import containers.internal.node : shouldAddGCRange, FatNodeInfo;
-	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.internal.mixins : AllocatorState;
-	import containers.unrolledlist : UnrolledList;
+	import containers.internal.node : shouldAddGCRange, FatNodeInfo;
+	import containers.internal.storage_type : ContainerStorageType;
 	import std.traits : isPointer;
+	import core.bitop : bsf;
 
 	alias LengthType = ubyte;
 	alias N = FatNodeInfo!(ItemNode.sizeof, 1, 64, LengthType.sizeof);
@@ -216,8 +216,8 @@ private:
 
 	void initialize(size_t bucketCount)
 	{
-		import stdx.allocator : makeArray;
 		import core.memory : GC;
+		import stdx.allocator : makeArray;
 
 		makeBuckets(bucketCount);
 		static if (useGC)
@@ -329,13 +329,13 @@ private:
 					static if (storeHash)
 					{
 						immutable Hash hash = node.items[i].hash;
-						immutable size_t index = hashToIndex(hash);
+						size_t index = hashToIndex(hash, buckets.length);
 						buckets[index].insert(ItemNode(hash, node.items[i].value));
 					}
 					else
 					{
 						immutable Hash hash = hashFunction(node.items[i].value);
-						immutable size_t index = hashToIndex(hash);
+						size_t index = hashToIndex(hash, buckets.length);
 						buckets[index].insert(ItemNode(node.items[i].value));
 					}
 				}
@@ -344,21 +344,6 @@ private:
 		static if (useGC)
 			GC.removeRange(oldBuckets.ptr);
 		allocator.dispose(oldBuckets);
-	}
-
-	size_t hashToIndex(Hash hash) const pure nothrow @safe
-	in
-	{
-		assert (buckets.length > 0);
-	}
-	out (result)
-	{
-		import std.string : format;
-		assert (result < buckets.length, "%d, %d".format(result, buckets.length));
-	}
-	body
-	{
-		return hash & (buckets.length - 1);
 	}
 
 	static struct Bucket

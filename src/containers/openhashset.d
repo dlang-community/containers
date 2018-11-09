@@ -6,14 +6,13 @@
  */
 module containers.openhashset;
 
-private import containers.internal.hash : generateHash;
+private import containers.internal.hash;
 private import containers.internal.node : shouldAddGCRange;
-private import stdx.allocator.mallocator : Mallocator;
 private import stdx.allocator.common : stateSize;
+private import stdx.allocator.mallocator : Mallocator;
 
 /**
- * Simple open-addressed hash set. Use this instead of HashSet when the size and
- * quantity of the data to be inserted is small.
+ * Simple open-addressed hash set that uses linear probing to resolve sollisions.
  *
  * Params:
  *     T = the element type of the hash set
@@ -149,7 +148,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 	bool insert(T item)
 	{
 		if (nodes.length == 0)
-			initialize(DEFAULT_INITIAL_CAPACITY);
+			initialize(DEFAULT_BUCKET_COUNT);
 		immutable size_t hash = hashFunction(item);
 		size_t index = toIndex(nodes, item, hash);
 		if (index == size_t.max)
@@ -211,12 +210,11 @@ struct OpenHashSet(T, Allocator = Mallocator,
 
 private:
 
-	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
 	import containers.internal.mixins : AllocatorState;
+	import containers.internal.storage_type : ContainerStorageType;
 	import core.memory : GC;
 
-	enum DEFAULT_INITIAL_CAPACITY = 8;
 	enum bool useGC = supportGC && shouldAddGCRange!T;
 
 	static struct Range(ThisT)
@@ -286,9 +284,10 @@ private:
 	// Returns: size_t.max if the item was not found
 	static size_t toIndex(const Node[] n, T item, size_t hash)
 	{
-		immutable size_t bucketMask = (n.length - 1);
-		immutable size_t index = hash & bucketMask;
+		assert (n.length > 0);
+		immutable size_t index = hashToIndex(hash, n.length);
 		size_t i = index;
+		immutable bucketMask = n.length - 1;
 		while (n[i].used && n[i].data != item)
 		{
 			i = (i + 1) & bucketMask;
