@@ -7,6 +7,8 @@
 
 module containers.treemap;
 
+@trusted:
+
 private import containers.internal.node : shouldAddGCRange;
 private import stdx.allocator.mallocator : Mallocator;
 
@@ -54,7 +56,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Inserts or overwrites the given key-value pair.
 	 */
-	void insert(const K key, V value) @trusted
+	void insert(const K key, V value)
 	{
 		auto tme = TreeMapElement(cast(ContainerStorageType!K) key, value);
 		auto r = tree.equalRange(tme);
@@ -85,7 +87,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Returns: the value associated with the given key, or the given `defaultValue`.
 	 */
-	auto get(this This)(const K key, lazy V defaultValue) inout @trusted
+	auto get(this This)(const K key, lazy V defaultValue) inout
 	{
 		alias CET = ContainerElementType!(This, V);
 		auto tme = TreeMapElement(key);
@@ -133,7 +135,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Returns: true if the mapping contains the given key
 	 */
-	bool containsKey(const K key) inout pure nothrow @nogc @trusted
+	bool containsKey(const K key) inout pure nothrow @nogc
 	{
 		auto tme = TreeMapElement(cast(ContainerStorageType!K) key);
 		return tree.contains(tme);
@@ -158,7 +160,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Returns: a GC-allocated array of the keys in the map
 	 */
-	auto keys(this This)() inout pure @property @trusted
+	auto keys(this This)() inout pure @property
 	{
 		import std.array : array;
 
@@ -168,7 +170,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Returns: a range of the keys in the map
 	 */
-	auto byKey(this This)() inout pure @trusted @nogc
+	auto byKey(this This)() inout pure @nogc
 	{
 		import std.algorithm.iteration : map;
 		alias CETK = ContainerElementType!(This, K);
@@ -179,7 +181,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Returns: a GC-allocated array of the values in the map
 	 */
-	auto values(this This)() inout pure @property @trusted
+	auto values(this This)() inout pure @property
 	{
 		import std.array : array;
 
@@ -189,7 +191,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	/**
 	 * Returns: a range of the values in the map
 	 */
-	auto byValue(this This)() inout pure @trusted @nogc
+	auto byValue(this This)() inout pure @nogc
 	{
 		import std.algorithm.iteration : map;
 		alias CETV = ContainerElementType!(This, V);
@@ -204,7 +206,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	 * Returns: a range of the kev/value pairs in this map. The element type of
 	 *     this range is a struct with `key` and `value` fields.
 	 */
-	auto byKeyValue(this This)() inout pure @trusted
+	auto byKeyValue(this This)() inout pure
 	{
 		import std.algorithm.iteration : map;
 		alias CETV = ContainerElementType!(This, V);
@@ -241,7 +243,7 @@ private:
 	TreeType tree;
 }
 
-version(emsi_containers_unittest) @system unittest
+version(emsi_containers_unittest) unittest
 {
 	TreeMap!(string, string) tm;
 	tm["test1"] = "hello";

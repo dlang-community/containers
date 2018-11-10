@@ -7,6 +7,8 @@
 
 module containers.dynamicarray;
 
+@trusted:
+
 private import containers.internal.node : shouldAddGCRange;
 private import stdx.allocator.mallocator : Mallocator;
 
@@ -563,7 +565,7 @@ version(emsi_containers_unittest) unittest
 
 }
 
-version(emsi_containers_unittest) @system unittest
+version(emsi_containers_unittest) unittest
 {
 	DynamicArray!int a;
 	a.reserve(1000);

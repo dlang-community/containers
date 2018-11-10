@@ -6,6 +6,8 @@
  */
 module containers.simdset;
 
+@trusted:
+
 private import stdx.allocator.mallocator : Mallocator;
 
 /**
@@ -66,7 +68,7 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 	 * Returns:
 	 *     true if the set contains the given item
 	 */
-	bool contains(T item) const pure nothrow @nogc @trusted
+	bool contains(T item) const pure nothrow @nogc
 	{
 		if (_length == 0)
 			return false;

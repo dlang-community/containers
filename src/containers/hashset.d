@@ -7,6 +7,8 @@
 
 module containers.hashset;
 
+@trusted:
+
 private import containers.internal.hash : generateHash, hashToIndex;
 private import containers.internal.node : shouldAddGCRange;
 private import stdx.allocator.mallocator : Mallocator;
@@ -193,7 +195,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	/**
 	 * Forward range interface
 	 */
-	auto opSlice(this This)() nothrow @nogc @trusted
+	auto opSlice(this This)() nothrow @nogc
 	{
 		return Range!(This)(&this);
 	}
@@ -250,7 +252,7 @@ private:
 			return cast(ET) currentNode.items[nodeIndex].value;
 		}
 
-		void popFront() nothrow @trusted @nogc
+		void popFront() nothrow @nogc
 		{
 			if (nodeIndex + 1 < currentNode.l)
 			{
@@ -308,7 +310,7 @@ private:
 		return (numberOfNodes / cast(float) buckets.length) > 0.75f;
 	}
 
-	void rehash() @trusted
+	void rehash()
 	{
 		import stdx.allocator : makeArray, dispose;
 		import core.memory : GC;

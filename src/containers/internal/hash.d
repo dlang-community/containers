@@ -23,7 +23,7 @@ else
 	/**
 	 * A variant of the FNV-1a (64) hashing algorithm.
 	 */
-	hash_t generateHash(T)(T value) pure nothrow @nogc @trusted if (is(T == string))
+	hash_t generateHash(T)(T value) pure nothrow @nogc if (is(T == string))
 	{
 		hash_t h = 0xcbf29ce484222325;
 		foreach (const ubyte c; cast(ubyte[]) value)

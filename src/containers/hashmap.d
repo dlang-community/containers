@@ -7,6 +7,8 @@
 
 module containers.hashmap;
 
+@trusted:
+
 private import containers.internal.hash;
 private import containers.internal.node : shouldAddGCRange;
 private import stdx.allocator.mallocator : Mallocator;
@@ -189,7 +191,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 * Returns: pointer to the value corresponding to the given key,
 	 * or null if the key is not present in the HashMap.
 	 */
-	inout(V)* opBinaryRight(string op)(const K key) inout nothrow @trusted if (op == "in")
+	inout(V)* opBinaryRight(string op)(const K key) inout nothrow if (op == "in")
 	{
 		size_t i;
 		auto n = find(key, i);
@@ -237,7 +239,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	/**
 	 * Returns: a range of the keys in this map.
 	 */
-	auto byKey(this This)() inout @trusted
+	auto byKey(this This)() inout
 	{
 		return MapRange!(This, IterType.key)(cast(Unqual!(This)*) &this);
 	}
@@ -266,7 +268,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	/**
 	 * Returns: a range of the values in this map.
 	 */
-	auto byValue(this This)() inout @trusted
+	auto byValue(this This)() inout
 	{
 		return MapRange!(This, IterType.value)(cast(Unqual!(This)*) &this);
 	}
@@ -298,7 +300,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 * Returns: a range of the kev/value pairs in this map. The element type of
 	 *     this range is a struct with `key` and `value` fields.
 	 */
-	auto byKeyValue(this This)() inout @trusted
+	auto byKeyValue(this This)() inout
 	{
 		return MapRange!(This, IterType.both)(cast(Unqual!(This)*) &this);
 	}
@@ -512,7 +514,7 @@ private:
 	/**
 	 * Rehash the map.
 	 */
-	void rehash() @trusted
+	void rehash()
 	{
 		import std.conv : emplace;
 		immutable size_t newLength = buckets.length << 1;

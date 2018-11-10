@@ -7,6 +7,8 @@
 
 module containers.unrolledlist;
 
+@trusted:
+
 private import containers.internal.node : shouldAddGCRange;
 private import stdx.allocator.mallocator : Mallocator;
 
@@ -150,7 +152,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 *
 	 * Returns: a pointer to the inserted item.
 	 */
-	T* insertAnywhere(T item) @trusted
+	T* insertAnywhere(T item)
 	{
 		Node* n = _front;
 		while (n !is null)
@@ -366,7 +368,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 
 	/// Returns: a range over the list
-	auto opSlice(this This)() const nothrow pure @nogc @trusted
+	auto opSlice(this This)() const nothrow pure @nogc
 	{
 		return Range!(This)(_front);
 	}
@@ -390,7 +392,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 				current = null;
 		}
 
-		ref ET front() const nothrow @property @trusted @nogc
+		ref ET front() const nothrow @property @nogc
 		{
 			return *(cast(ET*) &current.items[index]);
 			//return cast(T) current.items[index];

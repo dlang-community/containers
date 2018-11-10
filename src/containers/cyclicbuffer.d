@@ -7,6 +7,8 @@
 
 module containers.cyclicbuffer;
 
+@trusted:
+
 private import core.exception : onRangeError;
 private import stdx.allocator.mallocator : Mallocator;
 private import std.range.primitives : empty, front, back, popFront, popBack;

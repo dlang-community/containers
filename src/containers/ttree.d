@@ -7,6 +7,8 @@
 
 module containers.ttree;
 
+@trusted:
+
 private import containers.internal.node : shouldAddGCRange;
 private import containers.internal.mixins : AllocatorState;
 private import stdx.allocator.mallocator : Mallocator;
@@ -62,7 +64,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	else
 		private alias AllocatorType = void*;
 
-	~this() @trusted
+	~this()
 	{
 		scope(failure) assert(false);
 		clear();
@@ -221,7 +223,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	 *     iterating because you may iterate over the same value multiple times
 	 *     or skip some values entirely.
 	 */
-	auto opSlice(this This)() inout @trusted @nogc
+	auto opSlice(this This)() inout @nogc
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.all, T.init);
 	}
@@ -229,7 +231,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: a range of elements which are less than value.
 	 */
-	auto lowerBound(this This)(inout T value) inout @trusted
+	auto lowerBound(this This)(inout T value) inout
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.lower, value);
 	}
@@ -238,7 +240,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	 * Returns: a range of elements which are equivalent (though not necessarily
 	 *     equal) to value.
 	 */
-	auto equalRange(this This)(inout T value) inout @trusted
+	auto equalRange(this This)(inout T value) inout
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.equal, value);
 	}
@@ -246,7 +248,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: a range of elements which are greater than value.
 	 */
-	auto upperBound(this This)(inout T value) inout @trusted
+	auto upperBound(this This)(inout T value) inout
 	{
 		return Range!(This)(cast(const(Node)*) root, RangeType.upper, value);
 	}
@@ -254,7 +256,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: the first element in the tree.
 	 */
-	inout(T) front(this This)() inout pure @trusted @property
+	inout(T) front(this This)() inout pure @property
 	{
 		import std.exception : enforce;
 
@@ -269,7 +271,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: the last element in the tree.
 	 */
-	inout(T) back(this This)() inout pure @trusted @property
+	inout(T) back(this This)() inout pure @property
 	{
 		import std.exception : enforce;
 
@@ -331,7 +333,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		// when comparing nodes. Normal users of the containers library cannot
 		// get a reference to the elements because modifying them will violate
 		// the ordering invariant of the tree.
-		T* _containersFront() const @property @nogc @trusted
+		T* _containersFront() const @property @nogc
 		{
 			return cast(T*) &current.values[index];
 		}
@@ -518,7 +520,7 @@ private:
 	else
 		alias _less = binaryFun!less;
 
-	static Node* allocateNode(Value value, Node* parent, AllocatorType allocator) @trusted
+	static Node* allocateNode(Value value, Node* parent, AllocatorType allocator)
 	out (result)
 	{
 		assert (result.left is null);
@@ -601,7 +603,7 @@ private:
 			return (registry & fullBitPattern) == 0;
 		}
 
-		bool contains(Value value) const @trusted
+		bool contains(Value value) const
 		{
 			import std.range : assumeSorted;
 			size_t i = nextAvailableIndex();
@@ -644,7 +646,7 @@ private:
 			return 0;
 		}
 
-		bool insert(T value, ref Node* root, AllocatorType allocator, bool overwrite) @trusted
+		bool insert(T value, ref Node* root, AllocatorType allocator, bool overwrite)
 		in
 		{
 			static if (isPointer!T || is (T == class) || is (T == interface))
@@ -975,7 +977,7 @@ private:
 			newRoot.calcHeight();
 		}
 
-		void fillFromChildren(ref Node* root, AllocatorType allocator) @trusted
+		void fillFromChildren(ref Node* root, AllocatorType allocator)
 		{
 			while (!isFull())
 			{

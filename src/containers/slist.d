@@ -7,6 +7,8 @@
 
 module containers.slist;
 
+@trusted:
+
 private import containers.internal.node : shouldAddGCRange;
 private import stdx.allocator.mallocator : Mallocator;
 
@@ -164,7 +166,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	 * Complexity: O(1)
 	 * Params: t = the item to insert into the list
 	 */
-	void insertFront(T t) @trusted
+	void insertFront(T t)
 	{
 		_front = make!Node(allocator, _front, t);
 		static if (useGC)
@@ -200,7 +202,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	 * Complexity: O(length)
 	 * Returns: true if a value was removed.
 	 */
-	bool remove(V)(V value) @trusted
+	bool remove(V)(V value)
 	{
 		Node* prev = null;
 		Node* cur = _front;
@@ -271,7 +273,7 @@ private:
 	static struct Range(ThisT)
 	{
 	public:
-		ET front() pure nothrow @property @trusted @nogc
+		ET front() pure nothrow @property @nogc
 		{
 			return cast(typeof(return)) current.value;
 		}

@@ -6,6 +6,8 @@
  */
 module containers.openhashset;
 
+@trusted:
+
 private import containers.internal.hash;
 private import containers.internal.node : shouldAddGCRange;
 private import stdx.allocator.common : stateSize;

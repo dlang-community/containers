@@ -7,6 +7,8 @@
 
 module containers.immutablehashset;
 
+@trusted:
+
 /**
  * The immutable hash set is useful for constructing a read-only collection that
  * supports quickly determining if an element is present.
