@@ -9,10 +9,10 @@ module containers.hashmap;
 
 @trusted:
 
-private import containers.internal.hash;
-private import containers.internal.node : shouldAddGCRange;
-private import stdx.allocator.mallocator : Mallocator;
-private import std.traits : isBasicType, Unqual;
+import containers.internal.hash;
+import containers.internal.node : shouldAddGCRange;
+import stdx.allocator.mallocator : Mallocator;
+import std.traits : isBasicType, Unqual;
 
 /**
  * Associative array / hash map.
@@ -30,7 +30,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 {
 	this(this) @disable;
 
-	private import stdx.allocator.common : stateSize;
+	import stdx.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{

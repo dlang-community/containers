@@ -9,8 +9,8 @@ module containers.treemap;
 
 @trusted:
 
-private import containers.internal.node : shouldAddGCRange;
-private import stdx.allocator.mallocator : Mallocator;
+import containers.internal.node : shouldAddGCRange;
+import stdx.allocator.mallocator : Mallocator;
 
 /**
  * A key→value mapping where the keys are guaranteed to be sorted.
@@ -27,7 +27,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 {
 	this(this) @disable;
 
-	private import stdx.allocator.common : stateSize;
+	import stdx.allocator.common : stateSize;
 
 	auto allocator()
 	{

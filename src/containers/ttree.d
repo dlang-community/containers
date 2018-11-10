@@ -9,9 +9,9 @@ module containers.ttree;
 
 @trusted:
 
-private import containers.internal.node : shouldAddGCRange;
-private import containers.internal.mixins : AllocatorState;
-private import stdx.allocator.mallocator : Mallocator;
+import containers.internal.node : shouldAddGCRange;
+import containers.internal.mixins : AllocatorState;
+import stdx.allocator.mallocator : Mallocator;
 
 /**
  * Implements a binary search tree with multiple items per tree node.

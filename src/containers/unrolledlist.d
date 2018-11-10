@@ -9,8 +9,8 @@ module containers.unrolledlist;
 
 @trusted:
 
-private import containers.internal.node : shouldAddGCRange;
-private import stdx.allocator.mallocator : Mallocator;
+import containers.internal.node : shouldAddGCRange;
+import stdx.allocator.mallocator : Mallocator;
 
 /**
  * Unrolled Linked List.
@@ -31,7 +31,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 {
 	this(this) @disable;
 
-	private import stdx.allocator.common : stateSize;
+	import stdx.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{

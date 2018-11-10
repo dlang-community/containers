@@ -9,10 +9,10 @@ module containers.cyclicbuffer;
 
 @trusted:
 
-private import core.exception : onRangeError;
-private import stdx.allocator.mallocator : Mallocator;
-private import std.range.primitives : empty, front, back, popFront, popBack;
-private import containers.internal.node : shouldAddGCRange;
+import core.exception : onRangeError;
+import stdx.allocator.mallocator : Mallocator;
+import std.range.primitives : empty, front, back, popFront, popBack;
+import containers.internal.node : shouldAddGCRange;
 
 /**
  * Array that provides constant time (amortized) appending and popping
@@ -27,9 +27,9 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 {
 	@disable this(this);
 
-	private import std.conv : emplace;
-	private import stdx.allocator.common : stateSize;
-	private import std.traits : isImplicitlyConvertible, hasElaborateDestructor;
+	import std.conv : emplace;
+	import stdx.allocator.common : stateSize;
+	import std.traits : isImplicitlyConvertible, hasElaborateDestructor;
 
 	static if (stateSize!Allocator != 0)
 	{

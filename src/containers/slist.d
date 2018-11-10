@@ -9,8 +9,8 @@ module containers.slist;
 
 @trusted:
 
-private import containers.internal.node : shouldAddGCRange;
-private import stdx.allocator.mallocator : Mallocator;
+import containers.internal.node : shouldAddGCRange;
+import stdx.allocator.mallocator : Mallocator;
 
 /**
  * Single-linked allocator-backed list.
@@ -25,7 +25,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	/// Disable copying.
 	this(this) @disable;
 
-	private import stdx.allocator.common : stateSize;
+	import stdx.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{

@@ -8,10 +8,10 @@ module containers.openhashset;
 
 @trusted:
 
-private import containers.internal.hash;
-private import containers.internal.node : shouldAddGCRange;
-private import stdx.allocator.common : stateSize;
-private import stdx.allocator.mallocator : Mallocator;
+import containers.internal.hash;
+import containers.internal.node : shouldAddGCRange;
+import stdx.allocator.common : stateSize;
+import stdx.allocator.mallocator : Mallocator;
 
 /**
  * Simple open-addressed hash set that uses linear probing to resolve sollisions.

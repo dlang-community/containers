@@ -8,7 +8,7 @@ module containers.simdset;
 
 @trusted:
 
-private import stdx.allocator.mallocator : Mallocator;
+import stdx.allocator.mallocator : Mallocator;
 
 /**
  * Set implementation that is well suited for small sets and simple items.
@@ -28,7 +28,7 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 {
 	this(this) @disable;
 
-	private import stdx.allocator.common : stateSize;
+	import stdx.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{
@@ -187,7 +187,7 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 private:
 
 	import containers.internal.storage_type : ContainerStorageType;
-	private import containers.internal.mixins : AllocatorState;
+	import containers.internal.mixins : AllocatorState;
 
 	static string asmSearch()
 	{

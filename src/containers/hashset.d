@@ -9,10 +9,10 @@ module containers.hashset;
 
 @trusted:
 
-private import containers.internal.hash : generateHash, hashToIndex;
-private import containers.internal.node : shouldAddGCRange;
-private import stdx.allocator.mallocator : Mallocator;
-private import std.traits : isBasicType;
+import containers.internal.hash : generateHash, hashToIndex;
+import containers.internal.node : shouldAddGCRange;
+import stdx.allocator.mallocator : Mallocator;
+import std.traits : isBasicType;
 
 /**
  * Hash Set.
@@ -29,7 +29,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 {
 	this(this) @disable;
 
-	private import stdx.allocator.common : stateSize;
+	import stdx.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{
