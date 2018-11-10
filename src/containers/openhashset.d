@@ -40,10 +40,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 		 * Use the given `allocator` for allocations.
 		 */
 		this(Allocator allocator)
-		in
-		{
-			assert(allocator !is null, "Allocator must not be null");
-		}
+		in(allocator !is null, "Allocator must not be null")
 		do
 		{
 			this.allocator = allocator;
@@ -56,11 +53,8 @@ struct OpenHashSet(T, Allocator = Mallocator,
 		 *     initialCapacity = the initial capacity for the hash set
 		 */
 		this(size_t initialCapacity, Allocator allocator)
-		in
-		{
-			assert(allocator !is null, "Allocator must not be null");
-			assert ((initialCapacity & initialCapacity - 1) == 0, "initialCapacity must be a power of 2");
-		}
+    in(allocator !is null, "Allocator must not be null")
+    in((initialCapacity & initialCapacity - 1) == 0, "initialCapacity must be a power of 2")
 		do
 		{
 			this.allocator = allocator;
@@ -76,10 +70,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 		 *     initialCapacity = the initial capacity for the hash set
 		 */
 		this(size_t initialCapacity)
-		in
-		{
-			assert ((initialCapacity & initialCapacity - 1) == 0, "initialCapacity must be a power of 2");
-		}
+		in((initialCapacity & initialCapacity - 1) == 0, "initialCapacity must be a power of 2")
 		do
 		{
 			initialize(initialCapacity);

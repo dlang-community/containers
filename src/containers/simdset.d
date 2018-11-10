@@ -39,10 +39,7 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 		 * Use the given `allocator` for allocations.
 		 */
 		this(Allocator allocator)
-		in
-		{
-			assert(allocator !is null, "Allocator must not be null");
-		}
+		in(allocator !is null, "Allocator must not be null")
 		do
 		{
 			this.allocator = allocator;

@@ -39,10 +39,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 		 * Use the given `allocator` for allocations.
 		 */
 		this(Allocator allocator)
-		in
-		{
-			assert(allocator !is null, "Allocator must not be null");
-		}
+		in(allocator !is null, "Allocator must not be null")
 		do
 		{
 			this.allocator = allocator;
@@ -53,11 +50,8 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 		 * bucketCount must be a power of two.
 		 */
 		this(size_t bucketCount, Allocator allocator)
-		in
-		{
-			assert(allocator !is null, "Allocator must not be null");
-			assert ((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
-		}
+		in(allocator !is null, "Allocator must not be null")
+		in((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two")
 		do
 		{
 			this.allocator = allocator;
@@ -71,10 +65,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 		 * bucketCount must be a power of two.
 		 */
 		this(size_t bucketCount)
-		in
-		{
-			assert ((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
-		}
+		in((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two")
 		do
 		{
 			initialize(bucketCount);

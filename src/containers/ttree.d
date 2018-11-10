@@ -50,10 +50,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		 * Use `allocator` to allocate and free nodes in the tree.
 		 */
 		this(Allocator allocator)
-		in
-		{
-			assert(allocator !is null, "Allocator must not be null");
-		}
+		in(allocator !is null, "Allocator must not be null")
 		do
 		{
 			this.allocator = allocator;
@@ -423,10 +420,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		}
 
 		void _popFront() @nogc
-		in
-		{
-			assert (!empty);
-		}
+		in(!empty)
 		do
 		{
 			index++;
@@ -521,11 +515,7 @@ private:
 		alias _less = binaryFun!less;
 
 	static Node* allocateNode(Value value, Node* parent, AllocatorType allocator)
-	out (result)
-	{
-		assert (result.left is null);
-		assert (result.right is null);
-	}
+	out (result; result.left is null && result.right is null)
 	do
 	{
 		import core.memory : GC;
@@ -544,10 +534,7 @@ private:
 	}
 
 	static void deallocateNode(ref Node* n, AllocatorType allocator)
-	in
-	{
-		assert (n !is null);
-	}
+	in(n !is null)
 	do
 	{
 		import stdx.allocator : dispose;
@@ -826,10 +813,7 @@ private:
 		}
 
 		Value removeSmallest(AllocatorType allocator)
-		in
-		{
-			assert (!isEmpty());
-		}
+		in(!isEmpty())
 		do
 		{
 			if (left is null && right is null)
@@ -859,10 +843,7 @@ private:
 		}
 
 		Value removeLargest(AllocatorType allocator)
-		in
-		{
-			assert (!isEmpty());
-		}
+		in(!isEmpty())
 		out (result)
 		{
 			static if (isPointer!T || is (T == class) || is(T == interface))

@@ -40,10 +40,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		 * Use the given `allocator` for allocations.
 		 */
 		this(Allocator allocator) pure nothrow @nogc @safe
-		in
-		{
-			assert(allocator !is null, "Allocator must not be null");
-		}
+		in(allocator !is null, "Allocator must not be null")
 		do
 		{
 			this.allocator = allocator;
@@ -54,11 +51,8 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		 * must be a power of two.
 		 */
 		this(size_t bucketCount, Allocator allocator)
-		in
-		{
-			assert(allocator !is null, "Allocator must not be null");
-			assert((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
-		}
+		in(allocator !is null, "Allocator must not be null")
+		in((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two")
 		do
 		{
 			this.allocator = allocator;
@@ -77,10 +71,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		 * must be a power of two.
 		 */
 		this(size_t bucketCount)
-		in
-		{
-			assert((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
-		}
+		in((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two")
 		do
 		{
 			initialize(bucketCount);
@@ -248,10 +239,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 * Returns: a GC-allocated array filled with the keys contained in this map.
 	 */
 	K[] keys() const @property
-	out(result)
-	{
-		assert (result.length == _length);
-	}
+	out(result; result.length == _length)
 	do
 	{
 		import std.array : appender;
@@ -280,10 +268,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 * Returns: a GC-allocated array containing the values contained in this map.
 	 */
 	auto values(this This)() const @property
-	out(result)
-	{
-		assert (result.length == _length);
-	}
+	out(result; result.length == _length)
 	do
 	{
 		import std.array : appender;

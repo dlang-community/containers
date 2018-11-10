@@ -40,10 +40,7 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		 * Use the given `allocator` for allocations.
 		 */
 		this(Allocator allocator) nothrow pure @safe @nogc
-		in
-		{
-			assert(allocator !is null, "Allocator must not be null");
-		}
+		in(allocator !is null, "Allocator must not be null")
 		do
 		{
 			this.allocator = allocator;

@@ -19,6 +19,9 @@ module containers.immutablehashset;
  */
 struct ImmutableHashSet(T, alias hashFunction)
 {
+  import std.algorithm : sort, uniq;
+  import std.array : array;
+
 	///
 	@disable this();
 	///
@@ -29,12 +32,7 @@ struct ImmutableHashSet(T, alias hashFunction)
 	 * not have any duplicates.
 	 */
 	this(const T[] values) immutable
-	in
-	{
-		import std.algorithm : sort, uniq;
-		import std.array : array;
-		assert (values.dup.sort().uniq().array().length == values.length);
-	}
+	in(values.dup.sort().uniq().array().length == values.length)
 	do
 	{
 		empty = values.length == 0;

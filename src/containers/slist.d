@@ -36,10 +36,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 		 * Use the given `allocator` for allocations.
 		 */
 		this(Allocator allocator)
-		in
-		{
-			assert(allocator !is null, "Allocator must not be null");
-		}
+		in(allocator !is null, "Allocator must not be null")
 		do
 		{
 			this.allocator = allocator;
@@ -70,10 +67,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	 * Returns: the most recently inserted item
 	 */
 	auto front(this This)() inout @property
-	in
-	{
-		assert (!empty);
-	}
+	in(!empty)
 	do
 	{
 		alias ET = ContainerElementType!(This, T);
@@ -85,10 +79,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	 * Returns: the least recently inserted item.
 	 */
 	auto back(this This)() inout @property
-	in
-	{
-		assert (!empty);
-	}
+	in(!empty)
 	do
 	{
 		alias ET = ContainerElementType!(This, T);
@@ -105,10 +96,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	 * Returns: the first item in the list.
 	 */
 	T moveFront()
-	in
-	{
-		assert (!empty);
-	}
+	in(!empty)
 	do
 	{
 		Node* f = _front;

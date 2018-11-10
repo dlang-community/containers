@@ -42,10 +42,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		 * Use the given `allocator` for allocations.
 		 */
 		this(Allocator allocator)
-		in
-		{
-			assert(allocator !is null);
-		}
+		in(allocator !is null)
 		do
 		{
 			this.allocator = allocator;
@@ -247,11 +244,8 @@ struct UnrolledList(T, Allocator = Mallocator,
 
 	/// Pops the front item off of the list and returns it
 	T moveFront()
-	in
-	{
-		assert (!empty());
-		assert (_front.registry != 0);
-	}
+	in(!empty())
+  in(_front.registry != 0)
 	do
 	{
 		import containers.internal.backwards : bsf;
@@ -297,11 +291,8 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 * Returns: the item at the front of the list
 	 */
 	ref inout(T) front() inout nothrow @property
-	in
-	{
-		assert (!empty);
-		assert (_front.registry != 0);
-	}
+	in(!empty)
+	in(_front.registry != 0)
 	do
 	{
 		import containers.internal.backwards : bsf;
@@ -317,11 +308,8 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 * Returns: the item at the back of the list
 	 */
 	ref inout(T) back() inout nothrow @property
-	in
-	{
-		assert (!empty);
-		assert (!_back.empty);
-	}
+	in(!empty)
+  in(!_back.empty)
 	do
 	{
 		size_t i = nodeCapacity - 1;
@@ -338,11 +326,8 @@ struct UnrolledList(T, Allocator = Mallocator,
 
 	/// Removes an item from the back of the list and returns it.
 	T moveBack()
-	in
-	{
-		assert (!empty);
-		assert (!_back.empty);
-	}
+	in(!empty)
+  in(!_back.empty)
 	do
 	{
 		size_t i = nodeCapacity - 1;
@@ -502,12 +487,9 @@ private:
 	}
 
 	void mergeNodes(Node* first, Node* second)
-	in
-	{
-		assert (first !is null);
-		assert (second !is null);
-		assert (second is first.next);
-	}
+	in(first !is null)
+	in(second !is null)
+	in(second is first.next)
 	do
 	{
 		import containers.internal.backwards : bsf;
