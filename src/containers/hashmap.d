@@ -44,7 +44,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		{
 			assert(allocator !is null, "Allocator must not be null");
 		}
-		body
+		do
 		{
 			this.allocator = allocator;
 		}
@@ -59,7 +59,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 			assert(allocator !is null, "Allocator must not be null");
 			assert((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
 		}
-		body
+		do
 		{
 			this.allocator = allocator;
 			initialize(bucketCount);
@@ -81,7 +81,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		{
 			assert((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
 		}
-		body
+		do
 		{
 			initialize(bucketCount);
 		}
@@ -252,7 +252,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	{
 		assert (result.length == _length);
 	}
-	body
+	do
 	{
 		import std.array : appender;
 		auto app = appender!(K[])();
@@ -284,7 +284,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	{
 		assert (result.length == _length);
 	}
-	body
+	do
 	{
 		import std.array : appender;
 		auto app = appender!(ContainerElementType!(This, V)[])();

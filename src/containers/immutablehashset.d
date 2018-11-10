@@ -35,7 +35,7 @@ struct ImmutableHashSet(T, alias hashFunction)
 		import std.array : array;
 		assert (values.dup.sort().uniq().array().length == values.length);
 	}
-	body
+	do
 	{
 		empty = values.length == 0;
 		length = values.length;

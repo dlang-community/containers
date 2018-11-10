@@ -43,7 +43,7 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 		{
 			assert(allocator !is null, "Allocator must not be null");
 		}
-		body
+		do
 		{
 			this.allocator = allocator;
 		}

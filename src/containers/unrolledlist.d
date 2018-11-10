@@ -46,7 +46,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		{
 			assert(allocator !is null);
 		}
-		body
+		do
 		{
 			this.allocator = allocator;
 		}
@@ -252,7 +252,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		assert (!empty());
 		assert (_front.registry != 0);
 	}
-	body
+	do
 	{
 		import containers.internal.backwards : bsf;
 		size_t index = bsf(_front.registry);
@@ -302,7 +302,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		assert (!empty);
 		assert (_front.registry != 0);
 	}
-	body
+	do
 	{
 		import containers.internal.backwards : bsf;
 
@@ -322,7 +322,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		assert (!empty);
 		assert (!_back.empty);
 	}
-	body
+	do
 	{
 		size_t i = nodeCapacity - 1;
 		while (_back.isFree(i))
@@ -343,7 +343,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		assert (!empty);
 		assert (!_back.empty);
 	}
-	body
+	do
 	{
 		size_t i = nodeCapacity - 1;
 		while (_back.isFree(i))
@@ -508,7 +508,7 @@ private:
 		assert (second !is null);
 		assert (second is first.next);
 	}
-	body
+	do
 	{
 		import containers.internal.backwards : bsf;
 		size_t i;
