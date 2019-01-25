@@ -108,6 +108,8 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	 */
 	bool remove(T value)
 	{
+		if (buckets.length == 0)
+			return false;
 		immutable Hash hash = hashFunction(value);
 		immutable size_t index = hashToIndex(hash, buckets.length);
 		static if (storeHash)
@@ -594,6 +596,7 @@ version(emsi_containers_unittest) unittest
 	import std.uuid : randomUUID;
 
 	auto s = HashSet!string(16);
+	assert(s.remove("DoesNotExist") == false);
 	assert(!s.contains("nonsense"));
 	assert(s.put("test"));
 	assert(s.contains("test"));
