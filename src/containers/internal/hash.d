@@ -51,10 +51,34 @@ size_t hashToIndex(const size_t hash, const size_t len) pure nothrow @nogc @safe
 	//
 	// It's amazing how much faster this makes the hash data structures
 	// when faced with low quality hash functions.
-	static if (size_t.sizeof == 8)
-		return (hash * 11_400_714_819_323_198_485UL) >>> (64 - bsr(len));
+	version (D_InlineAsm_X86_64)
+	{
+		asm @nogc
+		{
+			naked;
+			cmp RDI, 1;
+			je one;
+			mov RAX, 11_400_714_819_323_198_485UL;
+			mul RSI;
+			tzcnt R9, RDI; // We assume here that the length is a power of two
+			mov RCX, 64;
+			sub RCX, R9;
+			shr RAX, CL;
+			ret;
+		one:
+			xor RAX, RAX;
+			ret;
+		}
+	}
 	else
-		return (hash * 2_654_435_769U) >>> (32 - bsr(len));
+	{
+		if (len <= 1)
+			return 0;
+		static if (size_t.sizeof == 8)
+			return (hash * 11_400_714_819_323_198_485UL) >>> (64 - bsr(len));
+		else
+			return (hash * 2_654_435_769U) >>> (32 - bsr(len));
+	}
 }
 
 enum size_t DEFAULT_BUCKET_COUNT = 8;
