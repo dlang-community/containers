@@ -44,17 +44,28 @@ else
  */
 size_t hashToIndex(const size_t hash, const size_t len) pure nothrow @nogc @safe
 {
-	import core.bitop : bsr;
-
 	// This magic number taken from
 	// https://probablydance.com/2018/06/16/fibonacci-hashing-the-optimization-that-the-world-forgot-or-a-better-alternative-to-integer-modulo/
 	//
 	// It's amazing how much faster this makes the hash data structures
 	// when faced with low quality hash functions.
 	static if (size_t.sizeof == 8)
-		return (hash * 11_400_714_819_323_198_485UL) >>> (64 - bsr(len));
+		enum ulong magic = 11_400_714_819_323_198_485UL;
 	else
-		return (hash * 2_654_435_769U) >>> (32 - bsr(len));
+		enum uint magic = 2_654_435_769U;
+
+	if (len <= 1)
+		return 0;
+	version(LDC)
+	{
+		import ldc.intrinsics : llvm_cttz;
+		return (hash * magic) >>> ((size_t.sizeof * 8) - llvm_cttz(len, true));
+	}
+	else
+	{
+		import core.bitop : bsf;
+		return (hash * magic) >>> ((size_t.sizeof * 8) - bsf(len));
+	}
 }
 
 enum size_t DEFAULT_BUCKET_COUNT = 8;
