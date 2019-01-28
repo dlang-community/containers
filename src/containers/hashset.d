@@ -207,7 +207,6 @@ private:
 	import containers.internal.node : shouldAddGCRange, FatNodeInfo;
 	import containers.internal.storage_type : ContainerStorageType;
 	import std.traits : isPointer;
-	import core.bitop : bsf;
 
 	alias LengthType = ubyte;
 	alias N = FatNodeInfo!(ItemNode.sizeof, 1, 64, LengthType.sizeof);

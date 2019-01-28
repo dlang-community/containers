@@ -252,8 +252,16 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 	body
 	{
-		import containers.internal.backwards : bsf;
-		size_t index = bsf(_front.registry);
+		version (LDC)
+		{
+			import ldc.intrinsics : llvm_cttz;
+			size_t index = llvm_cttz(_front.registry, true);
+		}
+		else
+		{
+			import containers.internal.backwards : bsf;
+			size_t index = bsf(_front.registry);
+		}
 		T r = _front.items[index];
 		_front.markUnused(index);
 		_length--;
@@ -302,9 +310,16 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 	body
 	{
-		import containers.internal.backwards : bsf;
-
-		immutable size_t index = bsf(_front.registry);
+		version (LDC)
+		{
+			import ldc.intrinsics : llvm_cttz;
+			immutable index = llvm_cttz(_front.registry, true);
+		}
+		else
+		{
+			import containers.internal.backwards : bsf;
+			immutable index = bsf(_front.registry);
+		}
 		return *(cast(typeof(return)*) &_front.items[index]);
 	}
 
@@ -377,13 +392,22 @@ struct UnrolledList(T, Allocator = Mallocator,
 
 		this(inout(Node)* current)
 		{
-			import containers.internal.backwards : bsf;
 			import std.format:format;
 
 			this.current = current;
 			if (current !is null)
 			{
-				index = bsf(current.registry);
+				version (LDC)
+				{
+					import ldc.intrinsics : llvm_cttz;
+					index = llvm_cttz(current.registry, true);
+				}
+				else
+				{
+					import containers.internal.backwards : bsf;
+					index = bsf(current.registry);
+				}
+
 				assert (index < nodeCapacity);
 			}
 			else
@@ -490,12 +514,22 @@ private:
 
 	static bool shouldMerge(const Node* first, const Node* second)
 	{
-		import containers.internal.backwards : popcnt;
-
 		if (first is null || second is null)
 			return false;
-		immutable f = popcnt(first.registry);
-		immutable s = popcnt(second.registry);
+		version (LDC)
+		{
+			import ldc.intrinsics : llvm_ctpop;
+
+			immutable f = llvm_ctpop(first.registry);
+			immutable s = llvm_ctpop(second.registry);
+		}
+		else
+		{
+			import containers.internal.backwards : popcnt;
+
+			immutable f = popcnt(first.registry);
+			immutable s = popcnt(second.registry);
+		}
 		return f + s <= nodeCapacity;
 	}
 
@@ -508,7 +542,6 @@ private:
 	}
 	body
 	{
-		import containers.internal.backwards : bsf;
 		size_t i;
 		ContainerStorageType!T[nodeCapacity] temp;
 		foreach (j; 0 .. nodeCapacity)
@@ -529,11 +562,20 @@ private:
 	{
 		size_t nextAvailableIndex() const nothrow pure @safe @nogc
 		{
-			import containers.internal.backwards : bsf;
 			static if (BookkeepingType.sizeof < uint.sizeof)
-				return bsf(~(cast(uint) registry));
+				immutable uint notReg = ~(cast(uint) registry);
 			else
-				return bsf(~registry);
+				immutable uint notReg = ~registry;
+			version (LDC)
+			{
+				import ldc.intrinsics : llvm_cttz;
+				return llvm_cttz(notReg, true);
+			}
+			else
+			{
+				import containers.internal.backwards : bsf;
+				return bsf(notReg);
+			}
 		}
 
 		void markUsed(size_t index) nothrow pure @safe @nogc
