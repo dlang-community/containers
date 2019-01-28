@@ -63,8 +63,8 @@ size_t hashToIndex(const size_t hash, const size_t len) pure nothrow @nogc @safe
 	}
 	else
 	{
-		import core.bitop : bsr;
-		return (hash * magic) >>> ((size_t.sizeof * 8) - bsr(len));
+		import core.bitop : bsf;
+		return (hash * magic) >>> ((size_t.sizeof * 8) - bsf(len));
 	}
 }
 
