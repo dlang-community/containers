@@ -602,10 +602,12 @@ unittest
 	hm["answer"] = 42;
 	assert (hm.length == 1);
 	assert ("answer" in hm);
+	assert (hm.containsKey("answer"));
 	hm.remove("answer");
 	assert (hm.length == 0);
 	assert ("answer" !in hm);
 	assert (hm.get("answer", 1000) == 1000);
+	assert (!hm.containsKey("answer"));
 	hm["one"] = 1;
 	hm["one"] = 1;
 	assert (hm.length == 1);
