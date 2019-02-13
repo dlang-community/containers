@@ -127,9 +127,10 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 * Returns: `true` if there is an entry in this map for the given `key`,
 	 *     false otherwise.
 	 */
-	bool containsKey(this This)(K key) inout pure @nogc @safe
+	bool containsKey(this This)(K key) inout
 	{
-		return find(key) !is null;
+		size_t i;
+		return find(key, i) !is null;
 	}
 
 	/**
@@ -557,7 +558,7 @@ private:
 		index = hashToIndex(hash, buckets.length);
 		foreach (ref r; buckets[index])
 		{
-			if (r.hash == hash && r == key)
+			if (r.hash == hash && r.key == key)
 				return cast(inout(Node)*) &r;
 		}
 		return null;
@@ -603,6 +604,8 @@ unittest
 	assert ("answer" in hm);
 	hm.remove("answer");
 	assert (hm.length == 0);
+	assert ("answer" !in hm);
+	assert (hm.get("answer", 1000) == 1000);
 	hm["one"] = 1;
 	hm["one"] = 1;
 	assert (hm.length == 1);
