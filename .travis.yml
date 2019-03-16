@@ -27,3 +27,4 @@ script:
   - ninja -j8 -C build test -v
   - git submodule update --init --recursive
   - make -B -C test/
+  - dub test
