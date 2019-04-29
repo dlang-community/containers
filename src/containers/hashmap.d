@@ -496,8 +496,21 @@ private:
 		if (modifyLength)
 			_length++;
 		if (shouldRehash())
+		{
 			rehash();
-		return n;
+			immutable newIndex = hashToIndex(hash, buckets.length);
+			foreach (ref item; buckets[newIndex])
+			{
+				if (item.hash == hash && item.key == key)
+				{
+					item.value = value;
+					return &item;
+				}
+			}
+			assert(false);
+		}
+		else
+			return n;
 	}
 
 	/**
