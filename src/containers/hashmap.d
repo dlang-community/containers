@@ -502,10 +502,7 @@ private:
 			foreach (ref item; buckets[newIndex])
 			{
 				if (item.hash == hash && item.key == key)
-				{
-					item.value = value;
 					return &item;
-				}
 			}
 			assert(false);
 		}
