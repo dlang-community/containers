@@ -10,6 +10,10 @@ module containers.unrolledlist;
 private import containers.internal.node : shouldAddGCRange;
 private import stdx.allocator.mallocator : Mallocator;
 
+version (X86_64)
+	version (LDC)
+		version = LDC_64;
+
 /**
  * Unrolled Linked List.
  *
@@ -252,7 +256,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 	body
 	{
-		version (LDC)
+		version (LDC_64)
 		{
 			import ldc.intrinsics : llvm_cttz;
 			size_t index = llvm_cttz(_front.registry, true);
@@ -310,7 +314,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	}
 	body
 	{
-		version (LDC)
+		version (LDC_64)
 		{
 			import ldc.intrinsics : llvm_cttz;
 			immutable index = llvm_cttz(_front.registry, true);
@@ -397,7 +401,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			this.current = current;
 			if (current !is null)
 			{
-				version (LDC)
+				version(LDC_64)
 				{
 					import ldc.intrinsics : llvm_cttz;
 					index = llvm_cttz(current.registry, true);
@@ -516,7 +520,7 @@ private:
 	{
 		if (first is null || second is null)
 			return false;
-		version (LDC)
+		version (LDC_64)
 		{
 			import ldc.intrinsics : llvm_ctpop;
 
@@ -566,7 +570,7 @@ private:
 				immutable uint notReg = ~(cast(uint) registry);
 			else
 				immutable uint notReg = cast(uint) (~registry);
-			version (LDC)
+			version (LDC_64)
 			{
 				import ldc.intrinsics : llvm_cttz;
 				return llvm_cttz(notReg, true);
