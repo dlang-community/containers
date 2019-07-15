@@ -262,7 +262,7 @@ private:
 			[0 .. newCapacity];
 		newNodes[] = Node.init;
 		static if (useGC)
-			GC.addRange(newNodes.ptr, newNodes.length, typeid(typeof(nodes)));
+			GC.addRange(newNodes.ptr, newNodes.length * Node.sizeof, typeid(typeof(nodes)));
 		foreach (ref node; nodes)
 		{
 			immutable size_t newIndex = toIndex(newNodes, node.data, node.hash);
