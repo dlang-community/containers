@@ -116,7 +116,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		import std.conv : text;
 		import std.exception : enforce;
 
-		alias CET = ContainerElementType!(This, V);
+		alias CET = ContainerElementType!(This, V, true);
 		size_t i;
 		auto n = find(key, i);
 		enforce(n !is null, "'" ~ text(key) ~ "' not found in HashMap");
