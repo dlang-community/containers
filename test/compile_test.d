@@ -340,8 +340,13 @@ private void checkSliceFunctionality(Type, Container)(ref Container container)
 
 private void checkIndexFunctionality(Type, KeyType, Container)(ref Container container)
 {
+	import std.traits : hasFunctionAttributes;
+
 	static assert(__traits(compiles, {container[KeyType.init];}));
-	static assert(is(typeof(container[KeyType.init]) == Type));
+	// The tests here will expect the wrong thing for opIndex implementations
+	// that return by ref.
+	static if (!hasFunctionAttributes!(Container.opIndex!Container, "ref"))
+		static assert(is(typeof(container[KeyType.init]) == Type));
 	static assert(is(typeof(container.length) == size_t));
 	assert(container.length == 0);
 }

@@ -7,7 +7,17 @@
 
 module containers.internal.element_type;
 
-template ContainerElementType(ContainerType, ElementType)
+/**
+ * Figures out the types that should be shown to users of the containers when
+ * functions such as front and opIndex are called.
+ *
+ * Params:
+ *     ContainerType = The container type, usually taken from a `this This`
+ *         template argument
+ *     ElementType = The type of the elements of the container.
+ *     isRef = If the type is being determined for a function that returns `ref`
+ */
+template ContainerElementType(ContainerType, ElementType, bool isRef = false)
 {
 	import std.traits : isMutable, hasIndirections, PointerTarget, isPointer, Unqual;
 
@@ -52,10 +62,12 @@ template ContainerElementType(ContainerType, ElementType)
 	}
 
 	static if (isMutable!ContainerType)
+	{
 		alias ContainerElementType = ElementType;
+	}
 	else
 	{
-		static if (hasIndirections!ElementType)
+		static if (isRef || hasIndirections!ElementType)
 			alias ContainerElementType = ET!(is(ContainerType == const), ElementType);
 		else
 			alias ContainerElementType = ElementType;

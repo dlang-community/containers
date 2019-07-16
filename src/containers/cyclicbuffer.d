@@ -226,7 +226,7 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	auto ref front(this This)() nothrow pure @property @safe
 	{
 		version (assert) if (empty) onRangeError();
-		alias ET = ContainerElementType!(This, T);
+		alias ET = ContainerElementType!(This, T, true);
 		return cast(ET) storage[start];
 	}
 
@@ -234,7 +234,7 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	auto ref back(this This)() nothrow pure @property @safe
 	{
 		version (assert) if (empty) onRangeError();
-		alias ET = ContainerElementType!(This, T);
+		alias ET = ContainerElementType!(This, T, true);
 		return cast(ET) storage[end];
 	}
 
@@ -242,7 +242,7 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	auto ref opIndex(this This)(size_t i) nothrow pure @safe
 	{
 		version (assert) if (i >= length) onRangeError();
-		alias ET = ContainerElementType!(This, T);
+		alias ET = ContainerElementType!(This, T, true);
 		return cast(ET) storage[(start + i) % $];
 	}
 
