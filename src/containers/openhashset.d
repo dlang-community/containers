@@ -277,7 +277,9 @@ private:
 	void initialize(size_t nodeCount)
 	{
 		nodes = (cast (Node*) allocator.allocate(nodeCount * Node.sizeof))[0 .. nodeCount];
-		nodes[] = Node.init;
+		static if (useGC)
+			GC.addRange(nodes.ptr, nodes.length * Node.sizeof, typeid(typeof(nodes)));
+        nodes[] = Node.init;
 		_length = 0;
 	}
 
