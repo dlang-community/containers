@@ -218,6 +218,26 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 		return tree[].map!(n => KeyValue(n.key, cast(CETV) n.value));
 	}
 
+    /**
+     * Returns: The value associated with the first key in the map.
+     */
+    auto front(this This)() inout pure @trusted
+    {
+        alias CETV = ContainerElementType!(This, V);
+
+        return cast(CETV) tree.front.value;
+    }
+
+    /**
+     * Returns: The value associated with the last key in the map.
+     */
+    auto back(this This)() inout pure @trusted
+    {
+        alias CETV = ContainerElementType!(This, V);
+
+        return cast(CETV) tree.back.value;
+    }
+
 private:
 
 	import containers.ttree : TTree;
