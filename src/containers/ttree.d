@@ -16,9 +16,13 @@ private import stdx.allocator.mallocator : Mallocator;
  *
  * T-tree Nodes are (by default) sized to fit within a 64-byte
  * cache line. The number of items stored per node can be read from the
- * `nodeCapacity` field. Each node has 0, 1, or 2 children. Each node has between
+ * `nodeCapacity` enum. Each node has 0, 1, or 2 children. Each node has between
  * 1 and `nodeCapacity` items, or it has `nodeCapacity` items and 0 or
  * more children.
+ *
+ * Inserting or removing items while iterating a range returned from `opSlice`,
+ * `upperBound`, `equalRange`, or other similar functions will result in
+ * unpredicable and likely invalid iteration orders.
  *
  * Params:
  *     T = the element type
@@ -254,7 +258,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: the first element in the tree.
 	 */
-	inout(T) front(this This)() inout pure @trusted @property
+	auto front(this This)() inout pure @trusted @property
 	{
 		import std.exception : enforce;
 
@@ -269,7 +273,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	/**
 	 * Returns: the last element in the tree.
 	 */
-	inout(T) back(this This)() inout pure @trusted @property
+	auto back(this This)() inout pure @trusted @property
 	{
 		import std.exception : enforce;
 
@@ -465,6 +469,9 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 	mixin AllocatorState!Allocator;
 
+	/// The number of values that can be stored in a single T-Tree node.
+	enum size_t nodeCapacity = N[0];
+
 private:
 
 	import containers.internal.element_type : ContainerElementType;
@@ -478,7 +485,6 @@ private:
 
 	alias N = FatNodeInfo!(T.sizeof, 3, cacheLineSize, ulong.sizeof);
 	alias Value = ContainerStorageType!T;
-	enum size_t nodeCapacity = N[0];
 	alias BookkeepingType = N[1];
 	enum HEIGHT_BIT_OFFSET = 48UL;
 	enum fullBitPattern = fullBits!(ulong, nodeCapacity);
