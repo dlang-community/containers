@@ -264,7 +264,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 		alias CET = ContainerElementType!(This, T);
 		enforce(!empty(), "Attepted to get the front of an empty tree.");
-		inout(Node)* current = root;
+		Node* current = cast(Node*) root;
 		while (current.left !is null)
 			current = current.left;
 		return cast(CET) current.values[0];
@@ -279,7 +279,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 		alias CET = ContainerElementType!(This, T);
 		enforce(!empty(), "Attepted to get the back of an empty tree.");
-		inout(Node)* current = root;
+		Node* current = cast(Node*) root;
 		while (current.right !is null)
 			current = current.right;
 		return cast(CET) current.values[current.nextAvailableIndex - 1];
