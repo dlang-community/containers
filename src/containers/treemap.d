@@ -103,19 +103,25 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	 * Params:
 	 *     key = the key to look up
 	 *     value = the default value
+	 *
+	 * Returns: A pointer to the existing value, or a pointer to the inserted
+	 *     value.
 	 */
-	auto getOrAdd(this This)(const K key, lazy V value) @safe
+	auto getOrAdd(this This)(const K key, lazy V defaultValue)
 	{
 		alias CET = ContainerElementType!(This, V);
 		auto tme = TreeMapElement(key);
 		auto er = tree.equalRange(tme);
 		if (er.empty)
 		{
-			insert(value, key);
-			return value;
+			// TODO: This does two lookups and should be made faster.
+			tree.insert(TreeMapElement(key, defaultValue));
+			return cast(CET*) &tree.equalRange(tme)._containersFront().value;
 		}
 		else
-			return er.front.value;
+		{
+			return cast(CET*) &er._containersFront().value;
+		}
 	}
 
 	/**
