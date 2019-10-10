@@ -418,14 +418,14 @@ version(emsi_containers_unittest) unittest
 {
 	TreeMap!(int, int) map;
 	auto p = map.getOrAdd(1, 1);
-	assert(p == 1);
+	assert(*p == 1);
 }
 
 version(emsi_containers_unittest) unittest
 {
 	import std.uuid : randomUUID;
 	import std.range.primitives : walkLength;
-	import std.stdio;
+	//import std.stdio;
 
 	auto hm = TreeMap!(string, int)();
 	foreach (i; 0 .. 1_000_000)
