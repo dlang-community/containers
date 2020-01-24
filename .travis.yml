@@ -1,23 +1,22 @@
 language: d
 sudo: false
-dist: xenial
+dist: bionic
 
 addons:
   apt:
     packages:
       - pkg-config
       - gcc-multilib
+      - ninja-build
+      - python3-pip
+      - python3-setuptools
 
 branches:
   only:
-  - master
+    - master
 
 install:
-  - sudo apt-get install python3-pip python3-setuptools
-  - pip3 install 'meson==0.48.2'
-  - mkdir .ntmp
-  - curl -L https://github.com/ninja-build/ninja/releases/download/v1.8.2/ninja-linux.zip -o .ntmp/ninja-linux.zip
-  - unzip .ntmp/ninja-linux.zip -d .ntmp
+  - pip3 install 'meson==0.53.1'
 
 before_script:
   export PATH=$PATH:$PWD/.ntmp
