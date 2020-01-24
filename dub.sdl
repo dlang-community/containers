@@ -7,4 +7,4 @@ buildType "unittest" {
 	versions "emsi_containers_unittest"
 	buildOptions "debugMode" "debugInfo" "unittests"
 }
-dependency "stdx-allocator" version="~>2.77.2"
+dependency "stdx-allocator" version="~>2.77.5"
