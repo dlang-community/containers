@@ -125,13 +125,15 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		else if (l >= arr.length)
 		{
 			immutable size_t c = arr.length > 512 ? arr.length + 1024 : arr.length << 1;
+			static if (useGC)
+				void* oldPtr = arr.ptr;
 			void[] a = cast(void[]) arr;
 			allocator.reallocate(a, c * T.sizeof);
 			arr = cast(typeof(arr)) a;
 			static if (useGC)
 			{
 				import core.memory: GC;
-				GC.removeRange(arr.ptr);
+				GC.removeRange(oldPtr);
 				GC.addRange(arr.ptr, arr.length * T.sizeof);
 			}
 		}
