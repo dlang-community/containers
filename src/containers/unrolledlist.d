@@ -48,7 +48,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		{
 			assert(allocator !is null);
 		}
-		body
+		do
 		{
 			this.allocator = allocator;
 		}
@@ -254,7 +254,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		assert (!empty());
 		assert (_front.registry != 0);
 	}
-	body
+	do
 	{
 		version (LDC_64)
 		{
@@ -312,7 +312,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		assert (!empty);
 		assert (_front.registry != 0);
 	}
-	body
+	do
 	{
 		version (LDC_64)
 		{
@@ -339,7 +339,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		assert (!empty);
 		assert (!_back.empty);
 	}
-	body
+	do
 	{
 		size_t i = nodeCapacity - 1;
 		while (_back.isFree(i))
@@ -360,7 +360,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		assert (!empty);
 		assert (!_back.empty);
 	}
-	body
+	do
 	{
 		size_t i = nodeCapacity - 1;
 		while (_back.isFree(i))
@@ -544,7 +544,7 @@ private:
 		assert (second !is null);
 		assert (second is first.next);
 	}
-	body
+	do
 	{
 		size_t i;
 		ContainerStorageType!T[nodeCapacity] temp;
