@@ -42,7 +42,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 		{
 			assert(allocator !is null, "Allocator must not be null");
 		}
-		body
+		do
 		{
 			this.allocator = allocator;
 		}
@@ -59,7 +59,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 			assert(allocator !is null, "Allocator must not be null");
 			assert ((initialCapacity & initialCapacity - 1) == 0, "initialCapacity must be a power of 2");
 		}
-		body
+		do
 		{
 			this.allocator = allocator;
 			initialize(initialCapacity);
@@ -78,7 +78,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 		{
 			assert ((initialCapacity & initialCapacity - 1) == 0, "initialCapacity must be a power of 2");
 		}
-		body
+		do
 		{
 			initialize(initialCapacity);
 		}

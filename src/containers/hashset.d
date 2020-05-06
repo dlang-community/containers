@@ -41,7 +41,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 		{
 			assert(allocator !is null, "Allocator must not be null");
 		}
-		body
+		do
 		{
 			this.allocator = allocator;
 		}
@@ -56,7 +56,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 			assert(allocator !is null, "Allocator must not be null");
 			assert ((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
 		}
-		body
+		do
 		{
 			this.allocator = allocator;
 			initialize(bucketCount);
@@ -73,7 +73,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 		{
 			assert ((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
 		}
-		body
+		do
 		{
 			initialize(bucketCount);
 		}

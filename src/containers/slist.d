@@ -38,7 +38,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 		{
 			assert(allocator !is null, "Allocator must not be null");
 		}
-		body
+		do
 		{
 			this.allocator = allocator;
 		}

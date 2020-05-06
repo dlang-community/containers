@@ -56,7 +56,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		{
 			assert(allocator !is null, "Allocator must not be null");
 		}
-		body
+		do
 		{
 			this.allocator = allocator;
 		}
@@ -429,7 +429,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		{
 			assert (!empty);
 		}
-		body
+		do
 		{
 			index++;
 			if (index >= nodeCapacity || current.isFree(index))
@@ -530,7 +530,7 @@ private:
 		assert (result.left is null);
 		assert (result.right is null);
 	}
-	body
+	do
 	{
 		import core.memory : GC;
 		import stdx.allocator : make;
@@ -552,7 +552,7 @@ private:
 	{
 		assert (n !is null);
 	}
-	body
+	do
 	{
 		import stdx.allocator : dispose;
 		import core.memory : GC;
@@ -656,7 +656,7 @@ private:
 			static if (isPointer!T || is (T == class) || is (T == interface))
 				assert (value !is null);
 		}
-		body
+		do
 		{
 			import std.algorithm : sort;
 			import std.range : assumeSorted;
@@ -834,7 +834,7 @@ private:
 		{
 			assert (!isEmpty());
 		}
-		body
+		do
 		{
 			if (left is null && right is null)
 			{
@@ -872,7 +872,7 @@ private:
 			static if (isPointer!T || is (T == class) || is(T == interface))
 				assert (result !is null);
 		}
-		body
+		do
 		{
 			if (left is null && right is null)
 			{
