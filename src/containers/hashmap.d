@@ -307,7 +307,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	/**
 	 * Support for $(D foreach(key, value; aa) { ... }) syntax;
 	 */
-	int opApply(int delegate(in ref K, ref V) del)
+	int opApply(int delegate(const ref K, ref V) del)
 	{
 		int result = 0;
 		foreach (ref bucket; buckets)
@@ -318,7 +318,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	}
 
 	/// ditto
-	int opApply(int delegate(in ref K, in ref V) del) const
+	int opApply(int delegate(const ref K, const ref V) del) const
 	{
 		int result = 0;
 		foreach (const ref bucket; buckets)
@@ -340,7 +340,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	}
 
 	/// ditto
-	int opApply(int delegate(in ref V) del) const
+	int opApply(int delegate(const ref V) del) const
 	{
 		int result = 0;
 		foreach (const ref bucket; buckets)
@@ -657,7 +657,7 @@ version(emsi_containers_unittest) unittest
 		string name;
 	}
 
-	void someFunc(ref in HashMap!(string,Foo) map) @safe
+	void someFunc(const scope ref HashMap!(string,Foo) map) @safe
 	{
 		foreach (kv; map.byKeyValue())
 		{

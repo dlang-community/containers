@@ -380,7 +380,7 @@ version(emsi_containers_unittest) unittest
 		string name;
 	}
 
-	void someFunc(ref in TreeMap!(string,Foo) map) @safe
+	void someFunc(const scope ref TreeMap!(string,Foo) map) @safe
 	{
 		foreach (kv; map.byKeyValue())
 		{
@@ -445,4 +445,3 @@ version(emsi_containers_unittest) unittest
 	//foreach (k; counts.keys.sort())
 		//writeln(k, "=>", counts[k]);
 }
-
