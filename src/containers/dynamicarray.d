@@ -296,7 +296,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			static if (is(T == struct) && (hasElaborateAssign!T || hasElaborateDestructor!T))
 			{
 				foreach (i; l..n)
-					emplace(arr[l], value);
+					emplace(arr[i], value);
 			}
 			else
 				arr[l..n] = value;
