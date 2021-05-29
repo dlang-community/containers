@@ -319,12 +319,13 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	 */
 	void remove(const size_t i)
 	{
+		import core.lifetime : move;
 		if (i < this.l)
 		{
 			auto next = i + 1;
 			while (next < this.l)
 			{
-				arr[next - 1] = arr[next];
+				arr[next - 1] = move(arr[next]);
 				++next;
 			}
 
@@ -353,9 +354,10 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/// Index assignment support
 	void opIndexAssign(T value, size_t i) @nogc
 	{
-		arr[i] = value;
+		import core.lifetime : move;
+		arr[i] = move(value);
 	}
-
+	
 	/// Slice assignment support
 	void opSliceAssign(T value) @nogc
 	{
