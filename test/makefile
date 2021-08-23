@@ -15,7 +15,19 @@ else
 endif
 FLAGS32:=$(FLAGS) -m32
 
-all: all_32 all_64
+all_arch:=
+ifeq ($(OS), Windows_NT)
+	all_arch += all_32 all_64
+else
+	UNAME_S := $(shell uname -s)
+	ifeq ($(UNAME_S), Linux)
+		all_arch += all_32 all_64
+	else
+		all_arch += all_64
+	endif
+endif
+
+all: $(all_arch)
 
 all_64: test compile_test external_allocator_test hashmap_gc_test
 	./tests
