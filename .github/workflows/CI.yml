@@ -48,6 +48,10 @@ jobs:
         with:
           compiler: ${{ matrix.d }}
 
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
       - name: Setup Meson
         run: pip install meson==${{ matrix.meson }}
 
