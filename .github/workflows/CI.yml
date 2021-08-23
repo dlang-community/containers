@@ -78,6 +78,6 @@ jobs:
         run: sudo apt-get install -y gcc-multilib
 
       - name: Make Test
-        continue-on-error: "${{ !contains(matrix.os, 'ubuntu') }}" # TODO it fails on non-linux
+        continue-on-error: "${{ contains(matrix.os, 'macos') }}" # TODO it fails on macos
         run: |
           make -B -C test/
