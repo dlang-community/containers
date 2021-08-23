@@ -28,6 +28,19 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+
+      # Cache
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.dub
+            ~/AppData/Local/dub
+            ./.dub
+            ~/.cache/pip
+            ~/AppData/Local/pip/cache
+          key: "containers-cache-OS:${{ matrix.os }}-D:${{ matrix.d }}-${{ matrix.meson }}-${{ matrix.ninja }}-deps:${{ hashFiles('./meson.build') }}-${{ hashFiles('./dub.sdl') }}"
+
       # Setup compilers and tools
 
       - name: Setup D
