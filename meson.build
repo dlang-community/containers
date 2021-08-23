@@ -65,28 +65,32 @@ dcontainers_dep = declare_dependency(
 #
 # Tests
 #
-if meson.get_compiler('d').get_id() == 'llvm'
-  extra_args = ['-main', '-link-defaultlib-shared']
+if build_machine.system() == 'windows'
+    warning('Building tests was skipped on Windows') # TODO
 else
-  extra_args = ['-main']
+    if meson.get_compiler('d').get_id() == 'llvm'
+    extra_args = ['-main', '-link-defaultlib-shared']
+    else
+    extra_args = ['-main']
+    endif
+
+    dcontainers_test_exe = executable('test_dcontainers',
+        [dcontainers_src,
+        'test/compile_test.d',
+        'test/external_allocator_test.d'],
+        include_directories: [src_dir],
+        dependencies: [allocator_dep],
+        d_unittest: true,
+        link_args: extra_args
+    )
+    test('test_dcontainers', dcontainers_test_exe)
+
+    # the looptest is a manual test, so we don't run it and only compile it
+    looptest_test_exe = executable('test_looptest',
+        ['test/looptest.d'],
+        dependencies: [dcontainers_dep]
+    )
 endif
-
-dcontainers_test_exe = executable('test_dcontainers',
-    [dcontainers_src,
-    'test/compile_test.d',
-    'test/external_allocator_test.d'],
-    include_directories: [src_dir],
-    dependencies: [allocator_dep],
-    d_unittest: true,
-    link_args: extra_args
-)
-test('test_dcontainers', dcontainers_test_exe)
-
-# the looptest is a manual test, so we don't run it and only compile it
-looptest_test_exe = executable('test_looptest',
-    ['test/looptest.d'],
-    dependencies: [dcontainers_dep]
-)
 
 #
 # Install
