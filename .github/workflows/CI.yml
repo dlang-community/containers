@@ -36,7 +36,6 @@ jobs:
           path: |
             ~/.dub
             ~/AppData/Local/dub
-            ./.dub
             ~/.cache/pip
             ~/AppData/Local/pip/cache
           key: "containers-cache-OS:${{ matrix.os }}-D:${{ matrix.d }}-${{ matrix.meson }}-${{ matrix.ninja }}-deps:${{ hashFiles('./meson.build') }}-${{ hashFiles('./dub.sdl') }}"
