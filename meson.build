@@ -42,8 +42,6 @@ dcontainers_lib = static_library('dcontainers',
         [dcontainers_src],
         include_directories: [src_dir],
         install: true,
-        version: meson.project_version(),
-        soversion: project_soversion,
         dependencies: [allocator_dep]
 )
 
