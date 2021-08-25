@@ -38,12 +38,10 @@ src_dir = include_directories('src/')
 #
 # Targets
 #
-dcontainers_lib = library('dcontainers',
+dcontainers_lib = static_library('dcontainers',
         [dcontainers_src],
         include_directories: [src_dir],
         install: true,
-        version: meson.project_version(),
-        soversion: project_soversion,
         dependencies: [allocator_dep]
 )
 
@@ -65,11 +63,7 @@ dcontainers_dep = declare_dependency(
 #
 # Tests
 #
-if meson.get_compiler('d').get_id() == 'llvm'
-  extra_args = ['-main', '-link-defaultlib-shared']
-else
-  extra_args = ['-main']
-endif
+extra_args = ['-main']
 
 dcontainers_test_exe = executable('test_dcontainers',
     [dcontainers_src,
