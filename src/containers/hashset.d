@@ -9,7 +9,7 @@ module containers.hashset;
 
 private import containers.internal.hash : generateHash, hashToIndex;
 private import containers.internal.node : shouldAddGCRange;
-private import stdx.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.mallocator : Mallocator;
 private import std.traits : isBasicType;
 
 /**
@@ -27,7 +27,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 {
 	this(this) @disable;
 
-	private import stdx.allocator.common : stateSize;
+	private import std.experimental.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{
@@ -82,7 +82,7 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 
 	~this()
 	{
-		import stdx.allocator : dispose;
+		import std.experimental.allocator : dispose;
 		import core.memory : GC;
 		static if (useGC)
 			GC.removeRange(buckets.ptr);
@@ -218,7 +218,7 @@ private:
 	void initialize(size_t bucketCount)
 	{
 		import core.memory : GC;
-		import stdx.allocator : makeArray;
+		import std.experimental.allocator : makeArray;
 
 		makeBuckets(bucketCount);
 		static if (useGC)
@@ -289,7 +289,7 @@ private:
 
 	void makeBuckets(size_t bucketCount)
 	{
-		import stdx.allocator : makeArray;
+		import std.experimental.allocator : makeArray;
 
 		static if (stateSize!Allocator == 0)
 			buckets = allocator.makeArray!Bucket(bucketCount);
@@ -311,7 +311,7 @@ private:
 
 	void rehash() @trusted
 	{
-		import stdx.allocator : makeArray, dispose;
+		import std.experimental.allocator : makeArray, dispose;
 		import core.memory : GC;
 
 		immutable size_t newLength = buckets.length << 1;
@@ -363,7 +363,7 @@ private:
 		~this()
 		{
 			import core.memory : GC;
-			import stdx.allocator : dispose;
+			import std.experimental.allocator : dispose;
 
 			BucketNode* current = root;
 			BucketNode* previous;
@@ -462,7 +462,7 @@ private:
 		bool insert(ItemNode n)
 		{
 			import core.memory : GC;
-			import stdx.allocator : make;
+			import std.experimental.allocator : make;
 
 			BucketNode* hasSpace = null;
 			for (BucketNode* current = root; current !is null; current = current.next)
@@ -489,7 +489,7 @@ private:
 		bool remove(ItemNode n)
 		{
 			import core.memory : GC;
-			import stdx.allocator : dispose;
+			import std.experimental.allocator : dispose;
 
 			BucketNode* current = root;
 			BucketNode* previous;
@@ -747,7 +747,7 @@ version(emsi_containers_unittest) unittest
 
 version(emsi_containers_unittest) unittest
 {
-	import stdx.allocator.showcase;
+	import std.experimental.allocator.showcase;
 	auto allocator = mmapRegionList(1024);
 	auto set = HashSet!(ulong, typeof(&allocator))(0x1000, &allocator);
 	set.insert(124);

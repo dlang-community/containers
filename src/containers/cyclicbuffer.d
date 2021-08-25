@@ -8,7 +8,7 @@
 module containers.cyclicbuffer;
 
 private import core.exception : onRangeError;
-private import stdx.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.mallocator : Mallocator;
 private import std.range.primitives : empty, front, back, popFront, popBack;
 private import containers.internal.node : shouldAddGCRange;
 
@@ -26,7 +26,7 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	@disable this(this);
 
 	private import std.conv : emplace;
-	private import stdx.allocator.common : stateSize;
+	private import std.experimental.allocator.common : stateSize;
 	private import std.traits : isImplicitlyConvertible, hasElaborateDestructor;
 
 	static if (stateSize!Allocator != 0)
@@ -449,8 +449,8 @@ private:
 version(emsi_containers_unittest) private
 {
 	import std.algorithm.comparison : equal;
-	import stdx.allocator.gc_allocator : GCAllocator;
-	import stdx.allocator.building_blocks.free_list : FreeList;
+	import std.experimental.allocator.gc_allocator : GCAllocator;
+	import std.experimental.allocator.building_blocks.free_list : FreeList;
 	import std.range : iota, lockstep, StoppingPolicy;
 
 	struct S

@@ -6,7 +6,7 @@
  */
 module containers.simdset;
 
-private import stdx.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.mallocator : Mallocator;
 
 /**
  * Set implementation that is well suited for small sets and simple items.
@@ -26,7 +26,7 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 {
 	this(this) @disable;
 
-	private import stdx.allocator.common : stateSize;
+	private import std.experimental.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{

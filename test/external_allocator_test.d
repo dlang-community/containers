@@ -14,11 +14,11 @@ import containers.unrolledlist;
 import std.meta : AliasSeq;
 import std.range.primitives : walkLength;
 import std.stdio : stdout;
-import stdx.allocator.building_blocks.allocator_list : AllocatorList;
-import stdx.allocator.building_blocks.free_list : FreeList;
-import stdx.allocator.building_blocks.region : Region;
-import stdx.allocator.building_blocks.stats_collector : StatsCollector;
-import stdx.allocator.mallocator : Mallocator;
+import std.experimental.allocator.building_blocks.allocator_list : AllocatorList;
+import std.experimental.allocator.building_blocks.free_list : FreeList;
+import std.experimental.allocator.building_blocks.region : Region;
+import std.experimental.allocator.building_blocks.stats_collector : StatsCollector;
+import std.experimental.allocator.mallocator : Mallocator;
 
 // Chosen for a very important and completely undocumented reason
 private enum VERY_SPECIFIC_NUMBER = 371;
