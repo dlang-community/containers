@@ -569,7 +569,7 @@ private:
 			static if (BookkeepingType.sizeof < uint.sizeof)
 				immutable uint notReg = ~(cast(uint) registry);
 			else
-				immutable uint notReg = cast(uint) (~registry);
+				immutable auto notReg = ~registry;
 			version (LDC_64)
 			{
 				import ldc.intrinsics : llvm_cttz;
