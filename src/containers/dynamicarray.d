@@ -8,7 +8,7 @@
 module containers.dynamicarray;
 
 private import containers.internal.node : shouldAddGCRange;
-private import stdx.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.mallocator : Mallocator;
 
 /**
  * Array that is able to grow itself when items are appended to it. Uses
@@ -24,7 +24,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 {
 	this(this) @disable;
 
-	private import stdx.allocator.common : stateSize;
+	private import std.experimental.allocator.common : stateSize;
 
 	static if (is(typeof((T[] a, const T[] b) => a[0 .. b.length] = b[0 .. $])))
 	{
@@ -61,7 +61,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 
 	~this()
 	{
-		import stdx.allocator.mallocator : Mallocator;
+		import std.experimental.allocator.mallocator : Mallocator;
 		import containers.internal.node : shouldAddGCRange;
 
 		if (arr is null)
@@ -110,7 +110,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	 */
 	void insertBack(T value)
 	{
-		import stdx.allocator.mallocator : Mallocator;
+		import std.experimental.allocator.mallocator : Mallocator;
 		import containers.internal.node : shouldAddGCRange;
 
 		if (arr.length == 0)
@@ -470,12 +470,12 @@ version(emsi_containers_unittest)
 
 version(emsi_containers_unittest) unittest
 {
-	int a = 0;
+	int* a = new int;
 	{
 		DynamicArray!(Cls) arr;
-		arr.insert(new Cls( & a));
+		arr.insert(new Cls(a));
 	}
-	assert(a == 0); // Destructor not called.
+	assert(*a == 0); // Destructor not called.
 }
 
 version(emsi_containers_unittest) unittest
@@ -522,12 +522,12 @@ version(emsi_containers_unittest) unittest
 
 version(emsi_containers_unittest) unittest
 {
-	int a = 0;
+	int* a = new int;
 	DynamicArray!(Cls, Mallocator, true) arr;
-	arr.insert(new Cls(&a));
+	arr.insert(new Cls(a));
 
 	arr.remove(0);
-	assert(a == 0); // Destructor not called.
+	assert(*a == 0); // Destructor not called.
 }
 
 version(emsi_containers_unittest) unittest
@@ -593,12 +593,12 @@ version(emsi_containers_unittest) unittest
 				++(*a);
 		}
 	}
-	int a = 0;
+	int* a = new int;
 	DynamicArray!S arr;
 	// This next line may segfault if destructors are called
 	// on structs in invalid states.
-	arr.insert(S(&a));
-	assert(a == 1);
+	arr.insert(S(a));
+	assert(*a == 1);
 }
 
 version(emsi_containers_unittest) @nogc unittest

@@ -8,7 +8,7 @@
 module containers.unrolledlist;
 
 private import containers.internal.node : shouldAddGCRange;
-private import stdx.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.mallocator : Mallocator;
 
 version (X86_64)
 	version (LDC)
@@ -33,7 +33,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 {
 	this(this) @disable;
 
-	private import stdx.allocator.common : stateSize;
+	private import std.experimental.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{
@@ -466,7 +466,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 
 private:
 
-	import stdx.allocator: make, dispose;
+	import std.experimental.allocator: make, dispose;
 	import containers.internal.node : FatNodeInfo, shouldAddGCRange,
 		fullBits, shouldNullSlot;
 	import containers.internal.storage_type : ContainerStorageType;

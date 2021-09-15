@@ -9,7 +9,7 @@ module containers.ttree;
 
 private import containers.internal.node : shouldAddGCRange;
 private import containers.internal.mixins : AllocatorState;
-private import stdx.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.mallocator : Mallocator;
 
 /**
  * Implements a binary search tree with multiple items per tree node.
@@ -481,7 +481,7 @@ private:
 	import std.functional: binaryFun;
 	import std.range : ElementType, isInputRange;
 	import std.traits: isPointer, PointerTarget;
-	import stdx.allocator.common : stateSize;
+	import std.experimental.allocator.common : stateSize;
 
 	alias N = FatNodeInfo!(T.sizeof, 3, cacheLineSize, ulong.sizeof);
 	alias Value = ContainerStorageType!T;
@@ -533,7 +533,7 @@ private:
 	do
 	{
 		import core.memory : GC;
-		import stdx.allocator : make;
+		import std.experimental.allocator : make;
 
 		static if (stateSize!Allocator == 0)
 			Node* n = make!Node(Allocator.instance);
@@ -554,7 +554,7 @@ private:
 	}
 	do
 	{
-		import stdx.allocator : dispose;
+		import std.experimental.allocator : dispose;
 		import core.memory : GC;
 
 		if (n.left !is null)
@@ -1299,10 +1299,10 @@ version(emsi_containers_unittest) unittest
 	}
 
 	{
-		import stdx.allocator.building_blocks.free_list : FreeList;
-		import stdx.allocator.building_blocks.allocator_list : AllocatorList;
-		import stdx.allocator.building_blocks.region : Region;
-		import stdx.allocator.building_blocks.stats_collector : StatsCollector;
+		import std.experimental.allocator.building_blocks.free_list : FreeList;
+		import std.experimental.allocator.building_blocks.allocator_list : AllocatorList;
+		import std.experimental.allocator.building_blocks.region : Region;
+		import std.experimental.allocator.building_blocks.stats_collector : StatsCollector;
 		import std.stdio : stdout;
 
 		StatsCollector!(FreeList!(AllocatorList!(a => Region!(Mallocator)(1024 * 1024)),

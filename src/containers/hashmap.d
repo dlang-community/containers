@@ -9,7 +9,7 @@ module containers.hashmap;
 
 private import containers.internal.hash;
 private import containers.internal.node : shouldAddGCRange;
-private import stdx.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.mallocator : Mallocator;
 private import std.traits : isBasicType, Unqual;
 
 /**
@@ -28,7 +28,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 {
 	this(this) @disable;
 
-	private import stdx.allocator.common : stateSize;
+	private import std.experimental.allocator.common : stateSize;
 
 	static if (stateSize!Allocator != 0)
 	{
@@ -96,7 +96,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 */
 	void clear()
 	{
-		import stdx.allocator : dispose;
+		import std.experimental.allocator : dispose;
 
 		// always remove ranges from GC first before disposing of buckets, to
 		// prevent segfaults when the GC collects at an unfortunate time
@@ -354,7 +354,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 private:
 
-	import stdx.allocator : make, makeArray;
+	import std.experimental.allocator : make, makeArray;
 	import containers.unrolledlist : UnrolledList;
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;

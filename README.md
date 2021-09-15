@@ -3,9 +3,6 @@ Containers [![CI status](https://travis-ci.org/dlang-community/containers.svg?br
 
 Containers backed by std.experimental.allocator
 
-# Dependencies
-Run `git submodule update --init --recursive` after cloning this repository.
-
 # Documentation
 Documentation is available at http://dlang-community.github.io/containers/index.html
 
