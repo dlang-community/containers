@@ -470,12 +470,12 @@ version(emsi_containers_unittest)
 
 version(emsi_containers_unittest) unittest
 {
-	int a = 0;
+	int* a = new int;
 	{
 		DynamicArray!(Cls) arr;
-		arr.insert(new Cls( & a));
+		arr.insert(new Cls(a));
 	}
-	assert(a == 0); // Destructor not called.
+	assert(*a == 0); // Destructor not called.
 }
 
 version(emsi_containers_unittest) unittest
@@ -522,12 +522,12 @@ version(emsi_containers_unittest) unittest
 
 version(emsi_containers_unittest) unittest
 {
-	int a = 0;
+	int* a = new int;
 	DynamicArray!(Cls, Mallocator, true) arr;
-	arr.insert(new Cls(&a));
+	arr.insert(new Cls(a));
 
 	arr.remove(0);
-	assert(a == 0); // Destructor not called.
+	assert(*a == 0); // Destructor not called.
 }
 
 version(emsi_containers_unittest) unittest
@@ -593,12 +593,12 @@ version(emsi_containers_unittest) unittest
 				++(*a);
 		}
 	}
-	int a = 0;
+	int* a = new int;
 	DynamicArray!S arr;
 	// This next line may segfault if destructors are called
 	// on structs in invalid states.
-	arr.insert(S(&a));
-	assert(a == 1);
+	arr.insert(S(a));
+	assert(*a == 1);
 }
 
 version(emsi_containers_unittest) @nogc unittest

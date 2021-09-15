@@ -549,27 +549,27 @@ version(emsi_containers_unittest) unittest
 
 version(emsi_containers_unittest) unittest
 {
-	int a = 0;
+	int* a = new int;
 	{
 		CyclicBuffer!S b;
 		{
-			S s = { &a };
+			S s = { a };
 			foreach (i; 0 .. 5)
 				b.insertBack(s);
-			assert(a == 5);
+			assert(*a == 5);
 			foreach (i; 0 .. 5)
-				b.insertBack(S(&a));
-			assert(a == 10);
+				b.insertBack(S(a));
+			assert(*a == 10);
 			foreach (i; 0 .. 5)
 			{
 				b.removeBack();
 				b.removeFront();
 			}
-			assert(a == 20);
+			assert(*a == 20);
 		}
-		assert(a == 21);
+		assert(*a == 21);
 	}
-	assert(a == 21);
+	assert(*a == 21);
 }
 
 version(emsi_containers_unittest) unittest
@@ -678,26 +678,26 @@ version(emsi_containers_unittest) unittest
 
 version(emsi_containers_unittest) unittest
 {
-	int a = 0;
+	int* a = new int;
 	{
 		CyclicBuffer!S b;
 		foreach (i; 0 .. 5)
-			b.insertBack(S(&a));
-		assert(a == 5);
+			b.insertBack(S(a));
+		assert(*a == 5);
 	}
-	assert(a == 10);
-	a = 0;
+	assert(*a == 10);
+	*a = 0;
 	{
 		CyclicBuffer!S b;
 		foreach (i; 0 .. 4)
-			b.insertBack(S(&a));
-		assert(a == 4);
+			b.insertBack(S(a));
+		assert(*a == 4);
 		b.removeFront();
-		assert(a == 5);
-		b.insertBack(S(&a));
-		assert(a == 6);
+		assert(*a == 5);
+		b.insertBack(S(a));
+		assert(*a == 6);
 	}
-	assert(a == 10);
+	assert(*a == 10);
 }
 
 version(emsi_containers_unittest) unittest
