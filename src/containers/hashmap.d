@@ -790,3 +790,9 @@ version(emsi_containers_unittest) unittest
 	static struct S { @disable this(this); }
 	alias HM = HashMap!(int, S);
 }
+
+version(emsi_containers_unittest) unittest
+{
+	struct S { int* a; }
+	alias HM = HashMap!(S, int);
+}

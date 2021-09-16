@@ -15,7 +15,7 @@ static if (hash_t.sizeof == 4)
 }
 else
 {
-	hash_t generateHash(T)(T value) if (!is(T == string))
+	hash_t generateHash(T)(const T value) if (!is(T == string))
 	{
 		return hashOf(value);
 	}
