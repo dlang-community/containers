@@ -8,7 +8,7 @@
 module containers.treemap;
 
 private import containers.internal.node : shouldAddGCRange;
-private import stdx.allocator.mallocator : Mallocator;
+private import std.experimental.allocator.mallocator : Mallocator;
 
 /**
  * A key→value mapping where the keys are guaranteed to be sorted.
@@ -25,7 +25,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 {
 	this(this) @disable;
 
-	private import stdx.allocator.common : stateSize;
+	private import std.experimental.allocator.common : stateSize;
 
 	auto allocator()
 	{
@@ -285,10 +285,10 @@ version(emsi_containers_unittest) unittest
 {
 	import std.range.primitives : walkLength;
 	import std.stdio : stdout;
-	import stdx.allocator.building_blocks.allocator_list : AllocatorList;
-	import stdx.allocator.building_blocks.free_list : FreeList;
-	import stdx.allocator.building_blocks.region : Region;
-	import stdx.allocator.building_blocks.stats_collector : StatsCollector;
+	import std.experimental.allocator.building_blocks.allocator_list : AllocatorList;
+	import std.experimental.allocator.building_blocks.free_list : FreeList;
+	import std.experimental.allocator.building_blocks.region : Region;
+	import std.experimental.allocator.building_blocks.stats_collector : StatsCollector;
 
 	StatsCollector!(FreeList!(AllocatorList!(a => Region!(Mallocator)(1024 * 1024)),
 		64)) allocator;

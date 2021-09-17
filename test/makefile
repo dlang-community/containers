@@ -1,15 +1,14 @@
 .PHONY: test graphs clean
 
 DC?=dmd
-SRC:=$(shell find ../src/ -name "*.d") \
-	$(shell find ../stdx-allocator/source -name "*.d")
+SRC:=$(shell find ../src/ -name "*.d")
 
 ifeq ($(DC), ldc2)
-  FLAGS:=-unittest -main -g -cov -I../src/ -I../stdx-allocator/source -d-debug -wi
+  FLAGS:=-unittest -main -g -cov -I../src/ -d-debug -wi
   hashmap_gc_test_FLAGS:=-g -O3 -d-debug -wi
   looptest_FLAGS:=-O3
 else
-  FLAGS:=-unittest -main -g -cov -I../src/ -I../stdx-allocator/source -debug -wi
+  FLAGS:=-unittest -main -g -cov -I../src/ -debug -wi
   hashmap_gc_test_FLAGS:=-g -inline -O -release -debug -wi
   looptest_FLAGS:=-inline -O -release
 endif
