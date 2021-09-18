@@ -71,9 +71,6 @@ struct UnrolledList(T, Allocator = Mallocator,
 		{
 			previous = current;
 			current = current.next;
-			static if (!(is(T == class) || is(T == interface)))
-				foreach (ref item; previous.items)
-					typeid(T).destroy(&item);
 
 			static if (useGC)
 			{
@@ -735,4 +732,18 @@ version(emsi_containers_unittest) unittest
 
 	assert(ints.front == 1);
 	assert(ints.back == 11);
+}
+
+// Issue #168 https://github.com/dlang-community/containers/issues/168
+version(emsi_containers_unittest) unittest
+{
+	import std.typecons : RefCounted;
+	alias E = RefCounted!int;
+
+	E e = E(12);
+	UnrolledList!E ints;
+	ints.insertBack(e);
+	ints.clear();
+	// crucial: no assert failure
+	assert (e == 12);
 }
