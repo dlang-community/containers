@@ -209,7 +209,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	 *
 	 * Returns: true if something was removed.
 	 */
-	bool remove(T item)
+	bool remove(ref const T item)
 	{
 		if (_front is null)
 			return false;
@@ -235,6 +235,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		}
 		return retVal;
 	}
+	bool remove(const T item) { return remove(item); }
 
 	/// Pops the front item off of the list
 	void popFront()
@@ -754,5 +755,12 @@ version(emsi_containers_unittest) unittest
 version(emsi_containers_unittest) unittest
 {
 	static struct S { @disable this(this); }
-	alias UL = UnrolledList!S;
+	UnrolledList!S list;
+
+	list.insert(S());
+	list.remove(S());
+
+	list.insert(S());
+	S s;
+	list.remove(s);
 }
