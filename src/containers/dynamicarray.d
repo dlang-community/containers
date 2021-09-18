@@ -102,7 +102,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 
 	/// Index operator overload
 	pragma(inline, true)
-	auto opIndex(this This)(size_t i) @nogc
+	ref auto opIndex(this This)(size_t i) @nogc
 	{
 		return opSlice!(This)(i, i + 1)[0];
 	}
@@ -680,4 +680,5 @@ version(emsi_containers_unittest) @nogc unittest
 	struct S { int i = 42; @disable this(this); }
 	DynamicArray!S a;
 	a.resize(1);
+	assert(a[0].i == 42);
 }
