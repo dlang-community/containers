@@ -7,6 +7,8 @@
 
 module containers.dynamicarray;
 
+private import core.lifetime : move, moveEmplace, copyEmplace;
+private import std.traits : isCopyable;
 private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
 
@@ -137,20 +139,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 				GC.addRange(arr.ptr, arr.length * T.sizeof);
 			}
 		}
-		import std.traits: hasElaborateAssign, hasElaborateDestructor;
-		static if (is(T == struct) && (hasElaborateAssign!T || hasElaborateDestructor!T))
-		{
-			// If a destructor is run before blit or assignment involves
-			// more than just a blit, ensure that arr[l] is in a valid
-			// state before assigning to it.
-			import core.stdc.string : memcpy, memset;
-			const init = typeid(T).initializer();
-			if (init.ptr is null) // null pointer means initialize to 0s
-				(() @trusted => memset(arr.ptr + l, 0, T.sizeof))();
-			else
-				(() @trusted => memcpy(arr.ptr + l, init.ptr, T.sizeof))();
-		}
-		emplace(arr[l++], value);
+		moveEmplace(*cast(ContainerStorageType!T*)&value, arr[l++]);
 	}
 
 	/// ditto
@@ -192,7 +181,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		static if (is(T == struct) && (hasElaborateAssign!T || hasElaborateDestructor!T))
 		{
 			foreach (ref value; rhs)
-				emplace(arr[l++], value);
+				copyEmplace(value, arr[l++]);
 		}
 		else
 		{
@@ -285,6 +274,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	 * Change the array length.
 	 * When growing, initialize new elements to the given value.
 	 */
+	static if (isCopyable!T)
 	void resize(size_t n, T value)
 	{
 		if (arr.length < n)
@@ -296,7 +286,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			static if (is(T == struct) && (hasElaborateAssign!T || hasElaborateDestructor!T))
 			{
 				foreach (i; l..n)
-					emplace(arr[i], value);
+					copyEmplace(value, arr[i]);
 			}
 			else
 				arr[l..n] = value;
@@ -324,7 +314,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			auto next = i + 1;
 			while (next < this.l)
 			{
-				arr[next - 1] = arr[next];
+				move(arr[next], arr[next - 1]);
 				++next;
 			}
 
@@ -353,16 +343,18 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	/// Index assignment support
 	void opIndexAssign(T value, size_t i) @nogc
 	{
-		arr[i] = value;
+		arr[i] = move(*cast(ContainerStorageType!T*)&value);
 	}
 
 	/// Slice assignment support
+	static if (isCopyable!T)
 	void opSliceAssign(T value) @nogc
 	{
 		arr[0 .. l] = value;
 	}
 
 	/// ditto
+	static if (isCopyable!T)
 	void opSliceAssign(T value, size_t i, size_t j) @nogc
 	{
 		arr[i .. j] = value;
@@ -402,13 +394,6 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	}
 
 private:
-
-	static void emplace(ref ContainerStorageType!T target, ref AppendT source)
-	{
-		(cast(void[])((&target)[0..1]))[] = cast(void[])((&source)[0..1]);
-		static if (__traits(hasMember, T, "__xpostblit"))
-			target.__xpostblit();
-	}
 
 	import containers.internal.storage_type : ContainerStorageType;
 	import containers.internal.element_type : ContainerElementType;
@@ -672,4 +657,10 @@ version(emsi_containers_unittest) @nogc unittest
 	assert(Counter.count == 5);
 	b.resize(3, Counter(0));
 	assert(Counter.count == 3);
+}
+
+version(emsi_containers_unittest) @nogc unittest
+{
+	struct S { @disable this(this); }
+	DynamicArray!S a;
 }
