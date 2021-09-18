@@ -7,6 +7,7 @@
 
 module containers.unrolledlist;
 
+private import core.lifetime : move;
 private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
 
@@ -95,7 +96,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		if (_back is null)
 		{
 			assert (_front is null);
-			_back = allocateNode(item);
+			_back = allocateNode(move(mutable(item)));
 			_front = _back;
 			result = &_back.items[0];
 		}
@@ -104,7 +105,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			size_t index = _back.nextAvailableIndex();
 			if (index >= nodeCapacity)
 			{
-				Node* n = allocateNode(item);
+				Node* n = allocateNode(move(mutable(item)));
 				n.prev = _back;
 				_back.next = n;
 				_back = n;
@@ -113,7 +114,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			}
 			else
 			{
-				_back.items[index] = item;
+				_back.items[index] = move(mutable(item));
 				_back.markUsed(index);
 				result = &_back.items[index];
 			}
@@ -167,15 +168,13 @@ struct UnrolledList(T, Allocator = Mallocator,
 				n = n.next;
 				continue;
 			}
-			n.items[i] = item;
+			n.items[i] = move(mutable(item));
 			n.markUsed(i);
 			_length++;
 			assert (n.registry <= fullBitPattern);
 			return cast(T*) &n.items[i];
 		}
-		n = allocateNode(item);
-		n.items[0] = item;
-		n.markUsed(0);
+		n = allocateNode(move(mutable(item)));
 		_length++;
 		auto retVal = cast(T*) &n.items[0];
 		if (_front is null)
@@ -263,7 +262,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			import containers.internal.backwards : bsf;
 			size_t index = bsf(_front.registry);
 		}
-		T r = _front.items[index];
+		T r = move(_front.items[index]);
 		_front.markUnused(index);
 		_length--;
 		if (_front.registry == 0)
@@ -368,7 +367,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 				i--;
 		}
 		assert (!_back.isFree(i));
-		T item = _back.items[i];
+		T item = move(_back.items[i]);
 		_back.markUnused(i);
 		_length--;
 		if (_back.registry == 0)
@@ -476,6 +475,8 @@ private:
 	enum fullBitPattern = fullBits!(BookkeepingType, nodeCapacity);
 	enum bool useGC = supportGC && shouldAddGCRange!T;
 
+	static ref ContainerStorageType!T mutable(ref T value) { return *cast(ContainerStorageType!T*)&value; }
+
 	Node* _back;
 	Node* _front;
 	size_t _length;
@@ -489,7 +490,7 @@ private:
 			import core.memory: GC;
 			GC.addRange(n, Node.sizeof);
 		}
-		n.items[0] = item;
+		n.items[0] = move(mutable(item));
 		n.markUsed(0);
 		return n;
 	}
@@ -547,11 +548,12 @@ private:
 		ContainerStorageType!T[nodeCapacity] temp;
 		foreach (j; 0 .. nodeCapacity)
 			if (!first.isFree(j))
-				temp[i++] = first.items[j];
+				temp[i++] = move(first.items[j]);
 		foreach (j; 0 .. nodeCapacity)
 			if (!second.isFree(j))
-				temp[i++] = second.items[j];
-		first.items[0 .. i] = temp[0 .. i];
+				temp[i++] = move(second.items[j]);
+		foreach (j; 0 .. i)
+			first.items[j] = move(temp[j]);
 		first.registry = 0;
 		foreach (k; 0 .. i)
 			first.markUsed(k);
@@ -734,7 +736,7 @@ version(emsi_containers_unittest) unittest
 	assert(ints.back == 11);
 }
 
-// Issue #168 https://github.com/dlang-community/containers/issues/168
+// Issue #168
 version(emsi_containers_unittest) unittest
 {
 	import std.typecons : RefCounted;
@@ -746,4 +748,11 @@ version(emsi_containers_unittest) unittest
 	ints.clear();
 	// crucial: no assert failure
 	assert (e == 12);
+}
+
+// Issue #170
+version(emsi_containers_unittest) unittest
+{
+	static struct S { @disable this(this); }
+	alias UL = UnrolledList!S;
 }
