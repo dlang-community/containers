@@ -624,16 +624,19 @@ version(emsi_containers_unittest) @nogc unittest
 
 version(emsi_containers_unittest) unittest
 {
+	enum initialValue = 0x69FF5705DAD1AB6CUL;
+	enum payloadValue = 0x495343303356D18CUL;
+
 	static struct S
 	{
-		bool initialized;
+		ulong value = initialValue;
 		@nogc:
 		@disable this();
-		this(int) { initialized = true; }
-		~this() { assert(initialized); }
+		this(ulong value) { this.value = value; }
+		~this() { assert(value == initialValue || value == payloadValue); }
 	}
 
-	auto s = S(0);
+	auto s = S(payloadValue);
 
 	DynamicArray!S arr;
 	arr.insertBack(s);
