@@ -594,10 +594,12 @@ version(emsi_containers_unittest) unittest
 		}
 	}
 	int* a = new int;
-	DynamicArray!S arr;
-	// This next line may segfault if destructors are called
-	// on structs in invalid states.
-	arr.insert(S(a));
+	{
+		DynamicArray!S arr;
+		// This next line may segfault if destructors are called
+		// on structs in invalid states.
+		arr.insert(S(a));
+	}
 	assert(*a == 1);
 }
 
