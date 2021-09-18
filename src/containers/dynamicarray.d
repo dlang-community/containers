@@ -7,7 +7,7 @@
 
 module containers.dynamicarray;
 
-private import core.lifetime : move, moveEmplace, copyEmplace;
+private import core.lifetime : move, moveEmplace, copyEmplace, emplace;
 private import std.traits : isCopyable;
 private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
@@ -258,16 +258,22 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		}
 	}
 
-	static if (is(typeof({T value;}))) // default construction is allowed
+	/**
+	 * Change the array length.
+	 * When growing, initialize new elements to the default value.
+	 */
+	static if (is(typeof({static T value;}))) // default construction is allowed
+	void resize(size_t n)
 	{
-		/**
-		 * Change the array length.
-		 * When growing, initialize new elements to the default value.
-		 */
-		void resize(size_t n)
+		import std.traits: hasElaborateAssign, hasElaborateDestructor;
+		auto toFill = resizeStorage(n);
+		static if (is(T == struct) && hasElaborateDestructor!T)
 		{
-			resize(n, T.init);
+			foreach (ref target; toFill)
+				emplace(&target);
 		}
+		else
+			toFill[] = T.init;
 	}
 
 	/**
@@ -277,19 +283,28 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	static if (isCopyable!T)
 	void resize(size_t n, T value)
 	{
+		import std.traits: hasElaborateAssign, hasElaborateDestructor;
+		auto toFill = resizeStorage(n);
+		static if (is(T == struct) && (hasElaborateAssign!T || hasElaborateDestructor!T))
+		{
+			foreach (ref target; toFill)
+				copyEmplace(value, target);
+		}
+		else
+			toFill[] = value;
+	}
+
+	// Resizes storage only, and returns slice of new memory to fill.
+	private ContainerStorageType!T[] resizeStorage(size_t n)
+	{
+		ContainerStorageType!T[] toFill = null;
+
 		if (arr.length < n)
 			reserve(n);
 
 		if (l < n) // Growing?
 		{
-			import std.traits: hasElaborateAssign, hasElaborateDestructor;
-			static if (is(T == struct) && (hasElaborateAssign!T || hasElaborateDestructor!T))
-			{
-				foreach (i; l..n)
-					copyEmplace(value, arr[i]);
-			}
-			else
-				arr[l..n] = value;
+			toFill = arr[l..n];
 		}
 		else
 		{
@@ -302,6 +317,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		}
 
 		l = n;
+		return toFill;
 	}
 
 	/**
@@ -661,6 +677,7 @@ version(emsi_containers_unittest) @nogc unittest
 
 version(emsi_containers_unittest) @nogc unittest
 {
-	struct S { @disable this(this); }
+	struct S { int i = 42; @disable this(this); }
 	DynamicArray!S a;
+	a.resize(1);
 }
