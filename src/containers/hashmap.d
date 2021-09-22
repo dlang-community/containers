@@ -66,7 +66,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 		invariant
 		{
-			assert(allocator !is null);
+			assert(allocator !is null, "Allocator must not be null");
 		}
 	}
 	else
@@ -88,7 +88,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 	~this() nothrow
 	{
-		scope (failure) assert(false);
+		scope (failure) assert(false, "HashMap destructor threw an exception");
 		clear();
 	}
 
@@ -250,7 +250,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	K[] keys() const @property
 	out(result)
 	{
-		assert (result.length == _length);
+		assert (result.length == _length, "Length mismatch");
 	}
 	do
 	{
@@ -282,7 +282,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	auto values(this This)() const @property
 	out(result)
 	{
-		assert (result.length == _length);
+		assert (result.length == _length, "Length mismatch");
 	}
 	do
 	{
@@ -507,7 +507,7 @@ private:
 				if (item.hash == hash && item.key == key)
 					return &item;
 			}
-			assert(false);
+			assert(false, "Inserted item not found after rehash");
 		}
 		else
 			return n;
@@ -532,13 +532,12 @@ private:
 		immutable size_t newLength = buckets.length << 1;
 		immutable size_t newSize = newLength * Bucket.sizeof;
 		Bucket[] oldBuckets = buckets;
-		assert (oldBuckets.ptr == buckets.ptr);
 		buckets = cast(Bucket[]) allocator.allocate(newSize);
+		if (newLength)
+			assert (buckets, "Bucket reallocation failed");
 		static if (useGC)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
-		if (newLength)
-			assert (buckets);
-		assert (buckets.length == newLength);
+		assert (buckets.length == newLength, "Bucket reallocation length mismatch");
 		foreach (ref bucket; buckets)
 		{
 			static if (stateSize!Allocator == 0)

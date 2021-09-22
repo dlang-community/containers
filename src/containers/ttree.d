@@ -68,7 +68,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 	~this() @trusted
 	{
-		scope(failure) assert(false);
+		scope(failure) assert(false, "TTree destructor threw an exception");
 		clear();
 	}
 
@@ -88,7 +88,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 
 	debug(EMSI_CONTAINERS) invariant()
 	{
-		assert (root is null || _length != 0);
+		assert (root is null || _length != 0, "Empty tree with non-null root");
 	}
 
 	/**
@@ -358,7 +358,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 				return;
 			while (current !is null)
 			{
-				assert(current.registry != 0);
+				assert(current.registry != 0, "Empty node");
 				auto first = current.values[0];
 				auto last = current.values[current.nextAvailableIndex - 1];
 				immutable bool valLessFirst = _less(val, first);
@@ -427,7 +427,7 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		void _popFront() @nogc
 		in
 		{
-			assert (!empty);
+			assert (!empty, "Calling .popFront with empty TTree");
 		}
 		do
 		{
@@ -626,7 +626,7 @@ private:
 			immutable ulong l = left !is null ? left.height() : 0;
 			immutable ulong r = right !is null ? right.height() : 0;
 			immutable ulong h = 1 + (l > r ? l : r);
-			assert (h < ushort.max);
+			assert (h < ushort.max, "Height overflow");
 			registry &= fullBitPattern;
 			registry |= (h << HEIGHT_BIT_OFFSET);
 			return h;
@@ -654,7 +654,7 @@ private:
 		in
 		{
 			static if (isPointer!T || is (T == class) || is (T == interface))
-				assert (value !is null);
+				assert (value !is null, "Inserting null values is not allowed");
 		}
 		do
 		{
@@ -771,7 +771,7 @@ private:
 			void delegate(T) cleanup = null)
 		{
 			import std.range : assumeSorted;
-			assert (!isEmpty());
+			assert (!isEmpty(), "Calling .remove on an empty TTree.Node");
 			if (isFull() && _less(value, values[0]))
 			{
 				immutable bool r = left !is null && left.remove(value, left, allocator, cleanup);
@@ -832,7 +832,7 @@ private:
 		Value removeSmallest(AllocatorType allocator)
 		in
 		{
-			assert (!isEmpty());
+			assert (!isEmpty(), "Calling .removeSmallest on an empty TTree.Node");
 		}
 		do
 		{
@@ -865,12 +865,12 @@ private:
 		Value removeLargest(AllocatorType allocator)
 		in
 		{
-			assert (!isEmpty());
+			assert (!isEmpty(), "Calling .removeLargest on an empty TTree.Node");
 		}
 		out (result)
 		{
 			static if (isPointer!T || is (T == class) || is(T == interface))
-				assert (result !is null);
+				assert (result !is null, "Removed a null value");
 		}
 		do
 		{
@@ -1005,7 +1005,7 @@ private:
 		debug(EMSI_CONTAINERS) invariant()
 		{
 			import std.string : format;
-			assert (&this !is null);
+			assert (&this !is null, "Null this");
 			assert (left !is &this, "%x, %x".format(left, &this));
 			assert (right !is &this, "%x, %x".format(right, &this));
 			if (left !is null)
@@ -1018,7 +1018,7 @@ private:
 			{
 				assert (right.left !is &this, "%s".format(values));
 				assert (right.right !is &this, "%s".format(values));
-				assert (right.parent is &this);
+				assert (right.parent is &this, "%x, %x, %x".format(right, right.parent, &this));
 			}
 		}
 

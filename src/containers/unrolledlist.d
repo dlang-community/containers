@@ -47,7 +47,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		this(Allocator allocator)
 		in
 		{
-			assert(allocator !is null);
+			assert(allocator !is null, "Allocator must not be null");
 		}
 		do
 		{
@@ -57,7 +57,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 
 	~this() nothrow
 	{
-		scope (failure) assert(false);
+		scope (failure) assert(false, "UnrolledList destructor threw an exception");
 		clear();
 	}
 
@@ -95,7 +95,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		ContainerStorageType!T* result;
 		if (_back is null)
 		{
-			assert (_front is null);
+			assert (_front is null, "front/back nullness mismatch");
 			_back = allocateNode(move(mutable(item)));
 			_front = _back;
 			result = &_back.items[0];
@@ -120,7 +120,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			}
 		}
 		_length++;
-		assert (_back.registry <= fullBitPattern);
+		assert (_back.registry <= fullBitPattern, "Overflow");
 		return cast(T*) result;
 	}
 
@@ -162,7 +162,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			{
 				if (n.next is null)
 				{
-					assert (n is _back);
+					assert (n is _back, "Wrong _back");
 					break;
 				}
 				n = n.next;
@@ -171,7 +171,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			n.items[i] = move(mutable(item));
 			n.markUsed(i);
 			_length++;
-			assert (n.registry <= fullBitPattern);
+			assert (n.registry <= fullBitPattern, "Overflow");
 			return cast(T*) &n.items[i];
 		}
 		n = allocateNode(move(mutable(item)));
@@ -179,7 +179,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 		auto retVal = cast(T*) &n.items[0];
 		if (_front is null)
 		{
-			assert(_back is null);
+			assert(_back is null, "front/back nullness mismatch");
 			_front = n;
 		}
 		else
@@ -188,7 +188,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			_back.next = n;
 		}
 		_back = n;
-		assert (_back.registry <= fullBitPattern);
+		assert (_back.registry <= fullBitPattern, "Overflow");
 		return retVal;
 	}
 
@@ -241,15 +241,15 @@ struct UnrolledList(T, Allocator = Mallocator,
 	void popFront()
 	{
 		moveFront();
-		assert (_front is null || _front.registry != 0);
+		assert (_front is null || _front.registry != 0, "Node is non-null but empty");
 	}
 
 	/// Pops the front item off of the list and returns it
 	T moveFront()
 	in
 	{
-		assert (!empty());
-		assert (_front.registry != 0);
+		assert (!empty(), "Accessing .moveFront of empty UnrolledList");
+		assert (_front.registry != 0, "Empty node");
 	}
 	do
 	{
@@ -271,12 +271,12 @@ struct UnrolledList(T, Allocator = Mallocator,
 			auto f = _front;
 			if (_front.next !is null)
 				_front.next.prev = null;
-			assert (_front.next !is _front);
+			assert (_front.next !is _front, "Infinite loop");
 			_front = _front.next;
 			if (_front is null)
 				_back = null;
 			else
-				assert (_front.registry <= fullBitPattern);
+				assert (_front.registry <= fullBitPattern, "Overflow");
 			deallocateNode(f);
 			return r;
 		}
@@ -289,7 +289,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 	{
 		import std.string: format;
 		assert (_front is null || _front.registry != 0, format("%x, %b", _front, _front.registry));
-		assert (_front !is null || _back is null);
+		assert (_front !is null || _back is null, "_front/_back nullness mismatch");
 		if (_front !is null)
 		{
 			const(Node)* c = _front;
@@ -306,8 +306,8 @@ struct UnrolledList(T, Allocator = Mallocator,
 	ref inout(T) front() inout nothrow @property
 	in
 	{
-		assert (!empty);
-		assert (_front.registry != 0);
+		assert (!empty, "Accessing .front of empty UnrolledList");
+		assert (_front.registry != 0, "Empty node");
 	}
 	do
 	{
@@ -333,8 +333,8 @@ struct UnrolledList(T, Allocator = Mallocator,
 	ref inout(T) back() inout nothrow @property
 	in
 	{
-		assert (!empty);
-		assert (!_back.empty);
+		assert (!empty, "Accessing .back of empty UnrolledList");
+		assert (!_back.empty, "Empty node");
 	}
 	do
 	{
@@ -354,8 +354,8 @@ struct UnrolledList(T, Allocator = Mallocator,
 	T moveBack()
 	in
 	{
-		assert (!empty);
-		assert (!_back.empty);
+		assert (!empty, "Accessing .moveBack of empty UnrolledList");
+		assert (!_back.empty, "Empty node");
 	}
 	do
 	{
@@ -367,7 +367,7 @@ struct UnrolledList(T, Allocator = Mallocator,
 			else
 				i--;
 		}
-		assert (!_back.isFree(i));
+		assert (!_back.isFree(i), "Empty node");
 		T item = move(_back.items[i]);
 		_back.markUnused(i);
 		_length--;
@@ -539,9 +539,9 @@ private:
 	void mergeNodes(Node* first, Node* second)
 	in
 	{
-		assert (first !is null);
-		assert (second !is null);
-		assert (second is first.next);
+		assert (first !is null, "Invalid merge");
+		assert (second !is null, "Invalid merge");
+		assert (second is first.next, "Invalid merge");
 	}
 	do
 	{
@@ -558,7 +558,7 @@ private:
 		first.registry = 0;
 		foreach (k; 0 .. i)
 			first.markUsed(k);
-		assert (first.registry <= fullBitPattern);
+		assert (first.registry <= fullBitPattern, "Overflow");
 		deallocateNode(second);
 	}
 
@@ -608,8 +608,8 @@ private:
 		{
 			import std.string : format;
 			assert (registry <= fullBitPattern, format("%016b %016b", registry, fullBitPattern));
-			assert (prev !is &this);
-			assert (next !is &this);
+			assert (prev !is &this, "Infinite loop");
+			assert (next !is &this, "Infinite loop");
 		}
 
 		BookkeepingType registry;

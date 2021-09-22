@@ -70,7 +70,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	auto front(this This)() inout @property
 	in
 	{
-		assert (!empty);
+		assert (!empty, "Accessing .front of empty SList");
 	}
 	do
 	{
@@ -85,7 +85,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	auto back(this This)() inout @property
 	in
 	{
-		assert (!empty);
+		assert (!empty, "Accessing .back of empty SList");
 	}
 	do
 	{
@@ -105,7 +105,7 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 	T moveFront()
 	in
 	{
-		assert (!empty);
+		assert (!empty, "Accessing .moveFront of empty SList");
 	}
 	do
 	{

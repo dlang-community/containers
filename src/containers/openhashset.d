@@ -286,7 +286,7 @@ private:
 	// Returns: size_t.max if the item was not found
 	static size_t toIndex(const Node[] n, T item, size_t hash)
 	{
-		assert (n.length > 0);
+		assert (n.length > 0, "Empty node");
 		immutable size_t index = hashToIndex(hash, n.length);
 		size_t i = index;
 		immutable bucketMask = n.length - 1;

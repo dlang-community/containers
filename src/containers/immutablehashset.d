@@ -31,7 +31,7 @@ struct ImmutableHashSet(T, alias hashFunction)
 	{
 		import std.algorithm : sort, uniq;
 		import std.array : array;
-		assert (values.dup.sort().uniq().array().length == values.length);
+		assert (values.dup.sort().uniq().array().length == values.length, "Set values are not unique");
 	}
 	do
 	{
