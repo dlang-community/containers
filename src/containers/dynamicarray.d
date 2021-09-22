@@ -130,6 +130,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			static if (useGC)
 				void* oldPtr = arr.ptr;
 			void[] a = cast(void[]) arr;
+			import std.experimental.allocator.common : reallocate;
 			allocator.reallocate(a, c * T.sizeof);
 			arr = cast(typeof(arr)) a;
 			static if (useGC)
@@ -247,6 +248,7 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			static if (useGC)
 				void* oldPtr = arr.ptr;
 			void[] a = cast(void[]) arr;
+			import std.experimental.allocator.common : reallocate;
 			allocator.reallocate(a, c * T.sizeof);
 			arr = cast(typeof(arr)) a;
 			static if (useGC)
@@ -681,4 +683,16 @@ version(emsi_containers_unittest) @nogc unittest
 	DynamicArray!S a;
 	a.resize(1);
 	assert(a[0].i == 42);
+}
+
+version(emsi_containers_unittest) unittest
+{
+	import std.experimental.allocator.building_blocks.region : Region;
+	auto region = Region!Mallocator(1024);
+
+	auto arr = DynamicArray!(int, Region!(Mallocator)*, true)(&region);
+	// reserve and insert back call the common form of reallocate
+	arr.reserve(10);
+	arr.insertBack(1);
+	assert(arr[0] == 1);
 }
