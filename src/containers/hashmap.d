@@ -7,6 +7,7 @@
 
 module containers.hashmap;
 
+private import core.lifetime : move;
 private import containers.internal.hash;
 private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
@@ -181,7 +182,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 */
 	void opIndexAssign(V value, const K key)
 	{
-		insert(key, value);
+		insert(key, move(mutable(value)));
 	}
 
 	/**
@@ -257,7 +258,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		auto app = appender!(K[])();
 		foreach (ref const bucket; buckets)
 		{
-			foreach (item; bucket)
+			foreach (ref item; bucket)
 				app.put(cast(K) item.key);
 		}
 		return app.data;
@@ -363,6 +364,8 @@ private:
 
 	enum bool useGC = supportGC && (shouldAddGCRange!K || shouldAddGCRange!V);
 	alias Hash = typeof({ K k = void; return hashFunction(k); }());
+
+	static ref ContainerStorageType!T mutable(T)(ref T value) { return *cast(ContainerStorageType!T*)&value; }
 
 	enum IterType: ubyte
 	{
@@ -472,7 +475,7 @@ private:
 
 	Node* insert(const K key, V value)
 	{
-		return insert(key, value, hashFunction(key));
+		return insert(key, move(mutable(value)), hashFunction(key));
 	}
 
 	Node* insert(const K key, V value, const Hash hash, const bool modifyLength = true)
@@ -484,15 +487,15 @@ private:
 		{
 			if (item.hash == hash && item.key == key)
 			{
-				item.value = value;
+				item.value = move(mutable(value));
 				return &item;
 			}
 		}
 		static if (storeHash)
-			Node node = Node(hash, cast(ContainerStorageType!K) key, value);
+			Node node = Node(hash, cast(ContainerStorageType!K) key, move(mutable(value)));
 		else
-			Node node = Node(cast(ContainerStorageType!K) key, value);
-		Node* n = buckets[index].insertAnywhere(node);
+			Node node = Node(cast(ContainerStorageType!K) key, move(mutable(value)));
+		Node* n = buckets[index].insertAnywhere(move(node));
 		if (modifyLength)
 			_length++;
 		if (shouldRehash())
@@ -533,7 +536,8 @@ private:
 		buckets = cast(Bucket[]) allocator.allocate(newSize);
 		static if (useGC)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
-		assert (buckets);
+		if (newLength)
+			assert (buckets);
 		assert (buckets.length == newLength);
 		foreach (ref bucket; buckets)
 		{
@@ -545,8 +549,8 @@ private:
 
 		foreach (ref bucket; oldBuckets)
 		{
-			foreach (node; bucket)
-				insert(cast(K) node.key, node.value, node.hash, false);
+			foreach (ref node; bucket)
+				insert(cast(K) node.key, move(node.value), node.hash, false);
 			typeid(typeof(bucket)).destroy(&bucket);
 		}
 		static if (useGC)
@@ -779,4 +783,10 @@ version(emsi_containers_unittest) unittest
 	hm["a"] = 1;
 	foreach (k, ref v; hm) { v++; }
 	assert(hm["a"] == 2);
+}
+
+version(emsi_containers_unittest) unittest
+{
+	static struct S { @disable this(this); }
+	alias HM = HashMap!(int, S);
 }
