@@ -40,7 +40,8 @@ struct OpenHashSet(T, Allocator = Mallocator,
 		this(Allocator allocator)
 		in
 		{
-			assert(allocator !is null, "Allocator must not be null");
+			static if (is(typeof(allocator is null)))
+				assert(allocator !is null, "Allocator must not be null");
 		}
 		do
 		{
@@ -56,7 +57,8 @@ struct OpenHashSet(T, Allocator = Mallocator,
 		this(size_t initialCapacity, Allocator allocator)
 		in
 		{
-			assert(allocator !is null, "Allocator must not be null");
+			static if (is(typeof(allocator is null)))
+				assert(allocator !is null, "Allocator must not be null");
 			assert ((initialCapacity & initialCapacity - 1) == 0, "initialCapacity must be a power of 2");
 		}
 		do

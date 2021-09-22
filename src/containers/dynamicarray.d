@@ -53,7 +53,8 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		this(Allocator allocator)
 		in
 		{
-			assert(allocator !is null, "Allocator must not be null");
+			static if (is(typeof(allocator is null)))
+				assert(allocator !is null, "Allocator must not be null");
 		}
 		do
 		{
@@ -718,4 +719,10 @@ version(emsi_containers_unittest) unittest
 	arr[] = [1, 2, 3, 4, 5];
 	arr[1 .. 4] = [12, 13, 14];
 	assert(arr[] == [1, 12, 13, 14, 5]);
+}
+
+version(emsi_containers_unittest) unittest
+{
+	import std.experimental.allocator : RCIAllocator;
+	auto a = DynamicArray!(int, RCIAllocator)(RCIAllocator.init);
 }

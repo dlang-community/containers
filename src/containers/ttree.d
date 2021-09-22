@@ -54,7 +54,8 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 		this(Allocator allocator)
 		in
 		{
-			assert(allocator !is null, "Allocator must not be null");
+			static if (is(typeof(allocator is null)))
+				assert(allocator !is null, "Allocator must not be null");
 		}
 		do
 		{

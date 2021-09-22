@@ -39,7 +39,8 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 		this(Allocator allocator)
 		in
 		{
-			assert(allocator !is null, "Allocator must not be null");
+			static if (is(typeof(allocator is null)))
+				assert(allocator !is null, "Allocator must not be null");
 		}
 		do
 		{

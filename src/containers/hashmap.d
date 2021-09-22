@@ -41,7 +41,8 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		this(Allocator allocator) pure nothrow @nogc @safe
 		in
 		{
-			assert(allocator !is null, "Allocator must not be null");
+			static if (is(typeof(allocator is null)))
+				assert(allocator !is null, "Allocator must not be null");
 		}
 		do
 		{
@@ -55,7 +56,8 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 		this(size_t bucketCount, Allocator allocator)
 		in
 		{
-			assert(allocator !is null, "Allocator must not be null");
+			static if (is(typeof(allocator is null)))
+				assert(allocator !is null, "Allocator must not be null");
 			assert((bucketCount & (bucketCount - 1)) == 0, "bucketCount must be a power of two");
 		}
 		do
@@ -66,7 +68,8 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 
 		invariant
 		{
-			assert(allocator !is null, "Allocator must not be null");
+			static if (is(typeof(allocator is null)))
+				assert(allocator !is null, "Allocator must not be null");
 		}
 	}
 	else
