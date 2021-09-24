@@ -38,7 +38,7 @@ template FatNodeInfo(size_t bytesPerItem, size_t pointerCount, size_t cacheLineS
 			alias FatNodeInfo = AliasSeq!(fatNodeCapacity!(uint.sizeof), uint);
 		else static if (__traits(compiles, fatNodeCapacity!(ulong.sizeof)))
 			alias FatNodeInfo = AliasSeq!(fatNodeCapacity!(ulong.sizeof), ulong);
-		else static assert(false, "aaargh" ~ extraSpace.stringof);
+		else static assert(false, "No type big enough to store " ~ extraSpace.stringof);
 	}
 	else
 		alias FatNodeInfo = AliasSeq!(fatNodeCapacity!(extraSpace, false), void);

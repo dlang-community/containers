@@ -49,7 +49,7 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 
 	~this()
 	{
-		scope (failure) assert(false);
+		scope (failure) assert(false, "SimdSet destructor threw an exception");
 		clear();
 	}
 
@@ -179,7 +179,7 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 
 	invariant
 	{
-		assert((storage.length * T.sizeof) % 16 == 0);
+		assert((storage.length * T.sizeof) % 16 == 0, "Bad storage length");
 	}
 
 private:

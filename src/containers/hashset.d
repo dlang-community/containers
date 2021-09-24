@@ -274,7 +274,7 @@ private:
 				else
 				{
 					currentNode = currentNode.next;
-					assert(currentNode.l > 0);
+					assert(currentNode.l > 0, "Empty node");
 				}
 			}
 		}
@@ -317,8 +317,8 @@ private:
 		immutable size_t newLength = buckets.length << 1;
 		Bucket[] oldBuckets = buckets;
 		makeBuckets(newLength);
-		assert (buckets);
-		assert (buckets.length == newLength);
+		assert (buckets, "Bucket reallocation failed");
+		assert (buckets.length == newLength, "Bucket reallocation size mismatch");
 		static if (useGC)
 			GC.addRange(buckets.ptr, buckets.length * Bucket.sizeof);
 		foreach (ref const bucket; oldBuckets)
