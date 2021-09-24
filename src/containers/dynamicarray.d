@@ -378,6 +378,20 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		arr[i .. j] = value;
 	}
 
+	/// ditto
+	static if (isCopyable!T)
+	void opSliceAssign(T[] values) @nogc
+	{
+		arr[0 .. l] = values[];
+	}
+
+	/// ditto
+	static if (isCopyable!T)
+	void opSliceAssign(T[] values, size_t i, size_t j) @nogc
+	{
+		arr[i .. j] = values[];
+	}
+
 	/// Returns: the number of items in the array
 	size_t length() const nothrow pure @property @safe @nogc { return l; }
 
@@ -695,4 +709,13 @@ version(emsi_containers_unittest) unittest
 	arr.reserve(10);
 	arr.insertBack(1);
 	assert(arr[0] == 1);
+}
+
+version(emsi_containers_unittest) unittest
+{
+	auto arr = DynamicArray!int();
+	arr.resize(5);
+	arr[] = [1, 2, 3, 4, 5];
+	arr[1 .. 4] = [12, 13, 14];
+	assert(arr[] == [1, 12, 13, 14, 5]);
 }
