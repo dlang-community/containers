@@ -61,6 +61,11 @@ jobs:
 
       # Build and Test
 
+      - name: Build documentation
+        run: |
+          dub build --build=ddox
+          dub build --build=docs
+
       - name: Build
         run: |
           meson setup ./build
