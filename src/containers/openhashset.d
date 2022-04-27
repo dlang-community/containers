@@ -53,6 +53,7 @@ struct OpenHashSet(T, Allocator = Mallocator,
 		 *
 		 * Params:
 		 *     initialCapacity = the initial capacity for the hash set
+		 *     allocator = allocator to use for allocations
 		 */
 		this(size_t initialCapacity, Allocator allocator)
 		in

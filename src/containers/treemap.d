@@ -102,7 +102,7 @@ struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	 *
 	 * Params:
 	 *     key = the key to look up
-	 *     value = the default value
+	 *     defaultValue = the default value
 	 *
 	 * Returns: A pointer to the existing value, or a pointer to the inserted
 	 *     value.
