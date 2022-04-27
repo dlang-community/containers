@@ -143,7 +143,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 *
 	 * Params:
 	 *     key = the key to look up
-	 *     value = the default value
+	 *     defaultValue = the default value
 	 * Returns: the value indexed by `key`, if present, or `defaultValue` otherwise.
 	 */
 	auto get(this This)(K key, lazy V defaultValue)
@@ -163,7 +163,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 *
 	 * Params:
 	 *     key = the key to look up
-	 *     value = the default value
+	 *     defaultValue = the default value
 	 * Returns: a pointer to the value stored in the HashMap with the given key.
 	 *     The pointer is guaranteed to be valid only until the next HashMap
 	 *     modification.
