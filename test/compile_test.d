@@ -40,6 +40,15 @@ private void testContainerSingleVal(alias Container)()
 	checkSliceFunctionality!(int)(im);
 	checkSliceFunctionality!(const int)(ic);
 	checkSliceFunctionality!(immutable int)(ii);
+
+	static struct NC { @disable this(this); }
+	debug(check_compliance) static if (!is(Container!NC)) pragma(msg, __traits(identifier, Container) ~ " does not support non-copyable types");
+
+	static struct NI { @disable this(); }
+	debug(check_compliance) static if (!is(Container!NI)) pragma(msg, __traits(identifier, Container) ~ " does not support non-constructable types");
+
+	static struct ND { @disable ~this() {} }
+	debug(check_compliance) static if (!is(Container!ND)) pragma(msg, __traits(identifier, Container) ~ " does not support non-destructible types");
 }
 
 private void testContainerSingleRef(alias Container)()
@@ -225,6 +234,18 @@ private void testContainerDoubleVal(alias Container)()
 		checkSliceFunctionality!(const int)(iic);
 		checkSliceFunctionality!(immutable int)(iii);
 	}
+
+	static struct NC { @disable this(this); }
+	debug(check_compliance) static if (!is(Container!(NC, int))) pragma(msg, __traits(identifier, Container) ~ " does not support non-copyable keys");
+	debug(check_compliance) static if (!is(Container!(int, NC))) pragma(msg, __traits(identifier, Container) ~ " does not support non-copyable values");
+
+	static struct NI { @disable this(); }
+	debug(check_compliance) static if (!is(Container!(NI, int))) pragma(msg, __traits(identifier, Container) ~ " does not support non-constructable keys");
+	debug(check_compliance) static if (!is(Container!(int, NI))) pragma(msg, __traits(identifier, Container) ~ " does not support non-constructable values");
+
+	static struct ND { @disable ~this() {} }
+	debug(check_compliance) static if (!is(Container!(ND, int))) pragma(msg, __traits(identifier, Container) ~ " does not support non-destructable keys");
+	debug(check_compliance) static if (!is(Container!(int, ND))) pragma(msg, __traits(identifier, Container) ~ " does not support non-destructable values");
 }
 
 private void testContainerDoubleRef(alias Container)()
