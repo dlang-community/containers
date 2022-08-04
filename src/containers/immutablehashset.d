@@ -13,7 +13,7 @@ module containers.immutablehashset;
  *
  * Because the set does not support inserting, it only takes up as much memory
  * as is necessary to contain the elements provided at construction. Memory is
- * managed my malloc/free.
+ * managed by malloc/free.
  */
 struct ImmutableHashSet(T, alias hashFunction)
 {
