@@ -1,10 +1,13 @@
 project('dcontainers', 'd',
-    meson_version: '>=0.44',
+    meson_version: '>=0.46',
     license: 'BSL-1.0',
     version: '0.8.0'
 )
 
 project_soversion = '0'
+stdx_allocator_dep = dependency('stdx-allocator', fallback : ['stdx-allocator', 'stdx_allocator_dep'])
+
+required_deps = [stdx_allocator_dep]
 
 #
 # Sources
@@ -35,10 +38,13 @@ src_dir = include_directories('src/')
 #
 # Targets
 #
-dcontainers_lib = static_library('dcontainers',
+dcontainers_lib = both_libraries('dcontainers',
         [dcontainers_src],
         include_directories: [src_dir],
         install: true,
+        version: meson.project_version(),
+        soversion: project_soversion,
+        dependencies: required_deps
 )
 
 pkgc = import('pkgconfig')
