@@ -1,5 +1,5 @@
 project('dcontainers', 'd',
-    meson_version: '>=0.44',
+    meson_version: '>=0.52',
     license: 'BSL-1.0',
     version: '0.8.0'
 )
@@ -30,6 +30,7 @@ dcontainers_src = [
     'src/containers/unrolledlist.d'
 ]
 
+dc = meson.get_compiler('d')
 src_dir = include_directories('src/')
 
 #
@@ -58,15 +59,25 @@ dcontainers_dep = declare_dependency(
 #
 # Tests
 #
-extra_args = ['-main']
+if dc.get_id() == 'gcc'
+    test_link_args = []
+    test_main_file = configure_file(capture: true,
+                                    command: ['echo', 'int main(string[] args) { return 0; }'],
+                                    output: 'unittest_main.d'
+	)
+else
+    test_link_args = ['-main']
+    test_main_file = []
+endif
 
 dcontainers_test_exe = executable('test_dcontainers',
     [dcontainers_src,
     'test/compile_test.d',
-    'test/external_allocator_test.d'],
+    'test/external_allocator_test.d',
+    test_main_file],
     include_directories: [src_dir],
     d_unittest: true,
-    link_args: extra_args
+    link_args: test_link_args
 )
 test('test_dcontainers', dcontainers_test_exe)
 
