@@ -242,9 +242,9 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	/**
 	 * Returns: a range of the keys in this map.
 	 */
-	auto byKey(this This)() inout @trusted
+	auto byKey(this This)() inout @safe return scope
 	{
-		return MapRange!(This, IterType.key)(cast(Unqual!(This)*) &this);
+		return MapRange!(This, IterType.key)((() @trusted => cast(Unqual!(This)*) &this)());
 	}
 
 	/**
@@ -271,9 +271,9 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	/**
 	 * Returns: a range of the values in this map.
 	 */
-	auto byValue(this This)() inout @trusted
+	auto byValue(this This)() inout @safe return scope
 	{
-		return MapRange!(This, IterType.value)(cast(Unqual!(This)*) &this);
+		return MapRange!(This, IterType.value)((() @trusted => cast(Unqual!(This)*) &this)());
 	}
 
 	/// ditto
@@ -303,9 +303,9 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	 * Returns: a range of the kev/value pairs in this map. The element type of
 	 *     this range is a struct with `key` and `value` fields.
 	 */
-	auto byKeyValue(this This)() inout @trusted
+	auto byKeyValue(this This)() inout @safe return scope
 	{
-		return MapRange!(This, IterType.both)(cast(Unqual!(This)*) &this);
+		return MapRange!(This, IterType.both)((() @trusted => cast(Unqual!(This)*) &this)());
 	}
 
 	/**
@@ -431,7 +431,7 @@ private:
 
 	private:
 
-		this(Unqual!(MapType)* hm)
+		this(Unqual!(MapType)* hm) @safe
 		{
 			this.hm = hm;
 			this.bucketIndex = 0;
