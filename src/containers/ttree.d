@@ -899,7 +899,7 @@ private:
 			return r;
 		}
 
-		void rotateLeft(ref Node* root, AllocatorType allocator) @safe
+		void rotateLeft(ref Node* root, AllocatorType allocator)
 		{
 			Node* newRoot;
 			if (right.left !is null && right.right is null)
@@ -927,7 +927,7 @@ private:
 			cleanup(newRoot, root, allocator);
 		}
 
-		void rotateRight(ref Node* root, AllocatorType allocator) @safe
+		void rotateRight(ref Node* root, AllocatorType allocator)
 		{
 			Node* newRoot;
 			if (left.right !is null && left.left is null)
