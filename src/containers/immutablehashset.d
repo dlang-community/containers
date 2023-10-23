@@ -7,6 +7,9 @@
 
 module containers.immutablehashset;
 
+private import containers.internal.node : shouldAddGCRange;
+
+
 /**
  * The immutable hash set is useful for constructing a read-only collection that
  * supports quickly determining if an element is present.
@@ -17,9 +20,6 @@ module containers.immutablehashset;
  */
 struct ImmutableHashSet(T, alias hashFunction)
 {
-	static if(isNoGCAllocator!(Allocator) && !supportGC){
-		@nogc:
-	}
 	///
 	@disable this();
 	///
@@ -162,7 +162,6 @@ private:
 
 	import std.experimental.allocator.mallocator : Mallocator;
 	import std.traits : isBasicType, hasMember;
-	import containers.internal.node : shouldAddGCRange;
 	import core.memory : GC;
 
 	static struct Node

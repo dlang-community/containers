@@ -7,7 +7,7 @@
 module containers.simdset;
 
 private import std.experimental.allocator.mallocator : Mallocator;
-
+private import containers.internal.node : isNoGCAllocator;
 /**
  * Set implementation that is well suited for small sets and simple items.
  *

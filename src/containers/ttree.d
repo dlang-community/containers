@@ -7,7 +7,7 @@
 
 module containers.ttree;
 
-private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.node : shouldAddGCRange,isNoGCAllocator;
 private import containers.internal.mixins : AllocatorState;
 private import std.experimental.allocator.mallocator : Mallocator;
 
@@ -906,7 +906,7 @@ private:
 			return r;
 		}
 
-		void rotateLeft(ref Node* root, AllocatorType allocator) @safe
+		void rotateLeft(ref Node* root, AllocatorType allocator) @trusted
 		{
 			Node* newRoot;
 			if (right.left !is null && right.right is null)
@@ -934,7 +934,7 @@ private:
 			cleanup(newRoot, root, allocator);
 		}
 
-		void rotateRight(ref Node* root, AllocatorType allocator) @safe
+		void rotateRight(ref Node* root, AllocatorType allocator) @trusted
 		{
 			Node* newRoot;
 			if (left.right !is null && left.left is null)
@@ -951,6 +951,7 @@ private:
 			}
 			else
 			{
+
 				newRoot = left;
 				newRoot.parent = this.parent;
 				left = newRoot.right;

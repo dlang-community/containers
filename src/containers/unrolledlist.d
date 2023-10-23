@@ -8,7 +8,7 @@
 module containers.unrolledlist;
 
 private import core.lifetime : move;
-private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.node : shouldAddGCRange,isNoGCAllocator;
 private import std.experimental.allocator.mallocator : Mallocator;
 
 version (X86_64)

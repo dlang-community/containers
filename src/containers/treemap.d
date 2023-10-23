@@ -7,7 +7,7 @@
 
 module containers.treemap;
 
-private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.node : shouldAddGCRange,isNoGCAllocator;
 private import std.experimental.allocator.mallocator : Mallocator;
 
 /**

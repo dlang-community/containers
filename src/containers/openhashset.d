@@ -7,7 +7,7 @@
 module containers.openhashset;
 
 private import containers.internal.hash;
-private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.node : shouldAddGCRange,isNoGCAllocator;
 private import std.experimental.allocator.common : stateSize;
 private import std.experimental.allocator.mallocator : Mallocator;
 

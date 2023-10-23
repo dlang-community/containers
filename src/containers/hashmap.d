@@ -9,7 +9,7 @@ module containers.hashmap;
 
 private import core.lifetime : move;
 private import containers.internal.hash;
-private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.node : shouldAddGCRange,isNoGCAllocator;
 private import std.experimental.allocator.mallocator : Mallocator;
 private import std.traits : isBasicType, Unqual,hasFunctionAttributes;
 
@@ -668,7 +668,7 @@ version(emsi_containers_unittest) unittest
 		string name;
 	}
 
-	void someFunc(const scope ref HashMap!(string,Foo) map) @safe
+	void someFunc(const ref HashMap!(string,Foo) map) @safe
 	{
 		foreach (kv; map.byKeyValue())
 		{

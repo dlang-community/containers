@@ -8,7 +8,7 @@
 module containers.hashset;
 
 private import containers.internal.hash : generateHash, hashToIndex;
-private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.node : shouldAddGCRange,isNoGCAllocator;
 private import std.experimental.allocator.mallocator : Mallocator;
 private import std.traits : isBasicType;
 
