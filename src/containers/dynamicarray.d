@@ -8,8 +8,8 @@
 module containers.dynamicarray;
 
 private import core.lifetime : move, moveEmplace, copyEmplace, emplace;
-private import std.traits : isCopyable;
-private import containers.internal.node : shouldAddGCRange;
+private import std.traits : isCopyable,hasFunctionAttributes;
+private import containers.internal.node : shouldAddGCRange, isNoGCAllocator;
 private import std.experimental.allocator.mallocator : Mallocator;
 
 /**
@@ -24,9 +24,14 @@ private import std.experimental.allocator.mallocator : Mallocator;
  */
 struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
 	this(this) @disable;
 
 	private import std.experimental.allocator.common : stateSize;
+
+
 
 	static if (is(typeof((T[] a, const T[] b) => a[0 .. b.length] = b[0 .. $])))
 	{
@@ -346,8 +351,8 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		}
 		else
 		{
-			import core.exception : RangeError;
-			throw new RangeError("Out of range index used to remove element");
+			import core.exception : onRangeError;
+			onRangeError("Out of range index used to remove element");
 		}
 	}
 

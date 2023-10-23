@@ -32,6 +32,10 @@ version (X86_64)
 struct UnrolledList(T, Allocator = Mallocator,
 	bool supportGC = shouldAddGCRange!T, size_t cacheLineSize = 64)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
+
 	this(this) @disable;
 
 	private import std.experimental.allocator.common : stateSize;

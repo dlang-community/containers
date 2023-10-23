@@ -25,6 +25,9 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	bool supportGC = shouldAddGCRange!T,
 	bool storeHash = !isBasicType!T)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
 	this(this) @disable;
 
 	private import std.experimental.allocator.common : stateSize;

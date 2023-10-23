@@ -11,7 +11,7 @@ private import core.lifetime : move;
 private import containers.internal.hash;
 private import containers.internal.node : shouldAddGCRange;
 private import std.experimental.allocator.mallocator : Mallocator;
-private import std.traits : isBasicType, Unqual;
+private import std.traits : isBasicType, Unqual,hasFunctionAttributes;
 
 /**
  * Associative array / hash map.
@@ -27,6 +27,9 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V,
 	bool storeHash = true)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
 	this(this) @disable;
 
 	private import std.experimental.allocator.common : stateSize;
@@ -71,9 +74,7 @@ struct HashMap(K, V, Allocator = Mallocator, alias hashFunction = generateHash!K
 			static if (is(typeof(allocator is null)))
 				assert(allocator !is null, "Allocator must not be null");
 		}
-	}
-	else
-	{
+	} else {
 		/**
 		 * Constructs an HashMap with an initial bucket count of bucketCount. bucketCount
 		 * must be a power of two.

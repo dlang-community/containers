@@ -28,6 +28,9 @@ struct OpenHashSet(T, Allocator = Mallocator,
 	/**
 	 * Disallow copy construction
 	 */
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
 	this(this) @disable;
 
 	static if (stateSize!Allocator != 0)

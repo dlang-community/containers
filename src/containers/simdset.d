@@ -24,9 +24,13 @@ private import std.experimental.allocator.mallocator : Mallocator;
 version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 	if (T.sizeof == 1 || T.sizeof == 2 || T.sizeof == 4 || T.sizeof == 8)
 {
+	static if(isNoGCAllocator!(Allocator)) {
+		@nogc:
+	}
 	this(this) @disable;
 
 	private import std.experimental.allocator.common : stateSize;
+
 
 	static if (stateSize!Allocator != 0)
 	{

@@ -23,6 +23,9 @@ private import std.experimental.allocator.mallocator : Mallocator;
 struct TreeMap(K, V, Allocator = Mallocator, alias less = "a < b",
 	bool supportGC = shouldAddGCRange!K || shouldAddGCRange!V, size_t cacheLineSize = 64)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC){
+		@nogc:
+	}
 	this(this) @disable;
 
 	private import std.experimental.allocator.common : stateSize;

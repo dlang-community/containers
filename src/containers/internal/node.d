@@ -53,7 +53,7 @@ version (X86_64)
 template shouldNullSlot(T)
 {
 	import std.traits;
-	enum shouldNullSlot = isPointer!T || is (T == class) || is (T == interface) || isDynamicArray!T 
+	enum shouldNullSlot = isPointer!T || is (T == class) || is (T == interface) || isDynamicArray!T
 							|| is(T == delegate); // closures or class method shoulde be null for GC recycle
 }
 
@@ -61,6 +61,14 @@ template shouldAddGCRange(T)
 {
 	import std.traits;
 	enum shouldAddGCRange = hasIndirections!T;
+}
+
+
+template isNoGCAllocator(Allocator)
+{
+	import std.traits : hasFunctionAttributes;
+	enum isNoGCAllocator = hasFunctionAttributes!(Allocator.deallocate, "@nogc")
+						&& hasFunctionAttributes!(Allocator.allocate, "@nogc");
 }
 
 static assert (shouldAddGCRange!string);

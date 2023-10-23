@@ -10,7 +10,7 @@ module containers.cyclicbuffer;
 private import core.exception : onRangeError;
 private import std.experimental.allocator.mallocator : Mallocator;
 private import std.range.primitives : empty, front, back, popFront, popBack;
-private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.node : shouldAddGCRange,isNoGCAllocator;
 
 /**
  * Array that provides constant time (amortized) appending and popping
@@ -23,11 +23,15 @@ private import containers.internal.node : shouldAddGCRange;
  */
 struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 {
+
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
 	@disable this(this);
 
 	private import std.conv : emplace;
 	private import std.experimental.allocator.common : stateSize;
-	private import std.traits : isImplicitlyConvertible, hasElaborateDestructor;
+	private import std.traits : isImplicitlyConvertible, hasElaborateDestructor,hasFunctionAttributes;
 
 	static if (stateSize!Allocator != 0)
 	{

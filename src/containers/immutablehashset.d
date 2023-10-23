@@ -17,6 +17,9 @@ module containers.immutablehashset;
  */
 struct ImmutableHashSet(T, alias hashFunction)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC){
+		@nogc:
+	}
 	///
 	@disable this();
 	///

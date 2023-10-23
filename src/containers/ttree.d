@@ -37,6 +37,9 @@ private import std.experimental.allocator.mallocator : Mallocator;
 struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	alias less = "a < b", bool supportGC = shouldAddGCRange!T, size_t cacheLineSize = 64)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
 	/**
 	 * T-Trees are not copyable due to the way they manage memory and interact
 	 * with allocators.

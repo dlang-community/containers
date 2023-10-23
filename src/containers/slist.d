@@ -20,6 +20,9 @@ private import std.experimental.allocator.mallocator : Mallocator;
  */
 struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
 	/// Disable copying.
 	this(this) @disable;
 
