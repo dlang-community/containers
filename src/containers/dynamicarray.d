@@ -8,8 +8,8 @@
 module containers.dynamicarray;
 
 private import core.lifetime : move, moveEmplace, copyEmplace, emplace;
-private import std.traits : isCopyable;
-private import containers.internal.node : shouldAddGCRange;
+private import std.traits : isCopyable,hasFunctionAttributes;
+private import containers.internal.node : shouldAddGCRange, isNoGCAllocator;
 private import std.experimental.allocator.mallocator : Mallocator;
 
 /**
@@ -24,9 +24,15 @@ private import std.experimental.allocator.mallocator : Mallocator;
  */
 struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
+
 	this(this) @disable;
 
 	private import std.experimental.allocator.common : stateSize;
+
+
 
 	static if (is(typeof((T[] a, const T[] b) => a[0 .. b.length] = b[0 .. $])))
 	{
@@ -64,9 +70,6 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 
 	~this()
 	{
-		import std.experimental.allocator.mallocator : Mallocator;
-		import containers.internal.node : shouldAddGCRange;
-
 		if (arr is null)
 			return;
 
@@ -113,9 +116,6 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	 */
 	void insertBack(T value)
 	{
-		import std.experimental.allocator.mallocator : Mallocator;
-		import containers.internal.node : shouldAddGCRange;
-
 		if (arr.length == 0)
 		{
 			arr = cast(typeof(arr)) allocator.allocate(T.sizeof * 4);
@@ -275,8 +275,14 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 			foreach (ref target; toFill)
 				emplace(&target);
 		}
-		else
-			toFill[] = T.init;
+		else {
+			foreach (ref target; toFill){
+				target = T.init;
+			}
+			//it not work in 2.102.2, see:  https://issues.dlang.org/show_bug.cgi?id=24196
+			// toFill[] = T.init;
+		}
+
 	}
 
 	/**
@@ -346,8 +352,8 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 		}
 		else
 		{
-			import core.exception : RangeError;
-			throw new RangeError("Out of range index used to remove element");
+			import core.exception : onRangeError;
+			onRangeError("Out of range index used to remove element");
 		}
 	}
 
@@ -692,7 +698,7 @@ version(emsi_containers_unittest) @nogc unittest
 	assert(Counter.count == 3);
 }
 
-version(emsi_containers_unittest) @nogc unittest
+version(emsi_containers_unittest) @nogc  unittest
 {
 	struct S { int i = 42; @disable this(this); }
 	DynamicArray!S a;

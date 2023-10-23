@@ -7,7 +7,7 @@
 
 module containers.slist;
 
-private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.node : shouldAddGCRange,isNoGCAllocator;
 private import std.experimental.allocator.mallocator : Mallocator;
 
 /**
@@ -20,8 +20,15 @@ private import std.experimental.allocator.mallocator : Mallocator;
  */
 struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
 	/// Disable copying.
+static if (__VERSION__ > 2086) {
+	@disable this(ref SList);
+} else {
 	this(this) @disable;
+}
 
 	private import std.experimental.allocator.common : stateSize;
 

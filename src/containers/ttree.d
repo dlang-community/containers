@@ -7,7 +7,7 @@
 
 module containers.ttree;
 
-private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.node : shouldAddGCRange,isNoGCAllocator;
 private import containers.internal.mixins : AllocatorState;
 private import std.experimental.allocator.mallocator : Mallocator;
 
@@ -37,11 +37,18 @@ private import std.experimental.allocator.mallocator : Mallocator;
 struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	alias less = "a < b", bool supportGC = shouldAddGCRange!T, size_t cacheLineSize = 64)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
 	/**
 	 * T-Trees are not copyable due to the way they manage memory and interact
 	 * with allocators.
 	 */
+static if (__VERSION__ > 2086) {
+	@disable this(ref TTree);
+} else {
 	this(this) @disable;
+}
 
 	static if (stateSize!Allocator != 0)
 	{
@@ -899,7 +906,7 @@ private:
 			return r;
 		}
 
-		void rotateLeft(ref Node* root, AllocatorType allocator) @safe
+		void rotateLeft(ref Node* root, AllocatorType allocator) @trusted
 		{
 			Node* newRoot;
 			if (right.left !is null && right.right is null)
@@ -927,7 +934,7 @@ private:
 			cleanup(newRoot, root, allocator);
 		}
 
-		void rotateRight(ref Node* root, AllocatorType allocator) @safe
+		void rotateRight(ref Node* root, AllocatorType allocator) @trusted
 		{
 			Node* newRoot;
 			if (left.right !is null && left.left is null)
@@ -944,6 +951,7 @@ private:
 			}
 			else
 			{
+
 				newRoot = left;
 				newRoot.parent = this.parent;
 				left = newRoot.right;

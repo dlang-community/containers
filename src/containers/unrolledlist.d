@@ -8,7 +8,7 @@
 module containers.unrolledlist;
 
 private import core.lifetime : move;
-private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.node : shouldAddGCRange,isNoGCAllocator;
 private import std.experimental.allocator.mallocator : Mallocator;
 
 version (X86_64)
@@ -32,7 +32,15 @@ version (X86_64)
 struct UnrolledList(T, Allocator = Mallocator,
 	bool supportGC = shouldAddGCRange!T, size_t cacheLineSize = 64)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
+
+static if (__VERSION__ > 2086) {
+	@disable this(ref UnrolledList);
+} else {
 	this(this) @disable;
+}
 
 	private import std.experimental.allocator.common : stateSize;
 

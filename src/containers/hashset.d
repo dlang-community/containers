@@ -8,7 +8,7 @@
 module containers.hashset;
 
 private import containers.internal.hash : generateHash, hashToIndex;
-private import containers.internal.node : shouldAddGCRange;
+private import containers.internal.node : shouldAddGCRange,isNoGCAllocator;
 private import std.experimental.allocator.mallocator : Mallocator;
 private import std.traits : isBasicType;
 
@@ -25,7 +25,14 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	bool supportGC = shouldAddGCRange!T,
 	bool storeHash = !isBasicType!T)
 {
+	static if(isNoGCAllocator!(Allocator) && !supportGC) {
+		@nogc:
+	}
+static if (__VERSION__ > 2086) {
+	@disable this(ref HashSet);
+} else {
 	this(this) @disable;
+}
 
 	private import std.experimental.allocator.common : stateSize;
 

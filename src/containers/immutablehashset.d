@@ -7,6 +7,9 @@
 
 module containers.immutablehashset;
 
+private import containers.internal.node : shouldAddGCRange;
+
+
 /**
  * The immutable hash set is useful for constructing a read-only collection that
  * supports quickly determining if an element is present.
@@ -20,7 +23,11 @@ struct ImmutableHashSet(T, alias hashFunction)
 	///
 	@disable this();
 	///
-	@disable this(this);
+static if (__VERSION__ > 2086) {
+	@disable this(ref ImmutableHashSet);
+} else {
+	this(this) @disable;
+}
 
 	/**
 	 * Constructs an immutable hash set from the given values. The values must
@@ -155,7 +162,6 @@ private:
 
 	import std.experimental.allocator.mallocator : Mallocator;
 	import std.traits : isBasicType, hasMember;
-	import containers.internal.node : shouldAddGCRange;
 	import core.memory : GC;
 
 	static struct Node
