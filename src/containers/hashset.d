@@ -28,7 +28,11 @@ struct HashSet(T, Allocator = Mallocator, alias hashFunction = generateHash!T,
 	static if(isNoGCAllocator!(Allocator) && !supportGC) {
 		@nogc:
 	}
+static if (__VERSION__ > 2086) {
+	@disable this(ref HashSet);
+} else {
 	this(this) @disable;
+}
 
 	private import std.experimental.allocator.common : stateSize;
 

@@ -44,7 +44,11 @@ struct TTree(T, Allocator = Mallocator, bool allowDuplicates = false,
 	 * T-Trees are not copyable due to the way they manage memory and interact
 	 * with allocators.
 	 */
+static if (__VERSION__ > 2086) {
+	@disable this(ref TTree);
+} else {
 	this(this) @disable;
+}
 
 	static if (stateSize!Allocator != 0)
 	{

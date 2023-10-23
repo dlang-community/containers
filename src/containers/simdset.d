@@ -27,7 +27,11 @@ version (D_InlineAsm_X86_64) struct SimdSet(T, Allocator = Mallocator)
 	static if(isNoGCAllocator!(Allocator)) {
 		@nogc:
 	}
+static if (__VERSION__ > 2086) {
+	@disable this(ref SimdSet);
+} else {
 	this(this) @disable;
+}
 
 	private import std.experimental.allocator.common : stateSize;
 

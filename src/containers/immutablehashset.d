@@ -23,7 +23,11 @@ struct ImmutableHashSet(T, alias hashFunction)
 	///
 	@disable this();
 	///
-	@disable this(this);
+static if (__VERSION__ > 2086) {
+	@disable this(ref ImmutableHashSet);
+} else {
+	this(this) @disable;
+}
 
 	/**
 	 * Constructs an immutable hash set from the given values. The values must

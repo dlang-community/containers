@@ -27,7 +27,11 @@ struct CyclicBuffer(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	static if(isNoGCAllocator!(Allocator) && !supportGC) {
 		@nogc:
 	}
-	@disable this(this);
+static if (__VERSION__ > 2086) {
+	@disable this(ref CyclicBuffer);
+} else {
+	this(this) @disable;
+}
 
 	private import std.conv : emplace;
 	private import std.experimental.allocator.common : stateSize;

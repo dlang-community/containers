@@ -36,7 +36,11 @@ struct UnrolledList(T, Allocator = Mallocator,
 		@nogc:
 	}
 
+static if (__VERSION__ > 2086) {
+	@disable this(ref UnrolledList);
+} else {
 	this(this) @disable;
+}
 
 	private import std.experimental.allocator.common : stateSize;
 

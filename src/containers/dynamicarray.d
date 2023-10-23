@@ -27,7 +27,11 @@ struct DynamicArray(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange
 	static if(isNoGCAllocator!(Allocator) && !supportGC) {
 		@nogc:
 	}
+static if (__VERSION__ > 2086) {
+	@disable this(ref DynamicArray);
+} else {
 	this(this) @disable;
+}
 
 	private import std.experimental.allocator.common : stateSize;
 

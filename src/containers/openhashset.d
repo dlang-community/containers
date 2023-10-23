@@ -25,13 +25,17 @@ private import std.experimental.allocator.mallocator : Mallocator;
 struct OpenHashSet(T, Allocator = Mallocator,
 	alias hashFunction = generateHash!T, bool supportGC = shouldAddGCRange!T)
 {
-	/**
-	 * Disallow copy construction
-	 */
 	static if(isNoGCAllocator!(Allocator) && !supportGC) {
 		@nogc:
 	}
+	/**
+	 * Disallow copy construction
+	 */
+static if (__VERSION__ > 2086) {
+	@disable this(ref OpenHashSet);
+} else {
 	this(this) @disable;
+}
 
 	static if (stateSize!Allocator != 0)
 	{

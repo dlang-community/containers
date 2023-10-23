@@ -24,7 +24,11 @@ struct SList(T, Allocator = Mallocator, bool supportGC = shouldAddGCRange!T)
 		@nogc:
 	}
 	/// Disable copying.
+static if (__VERSION__ > 2086) {
+	@disable this(ref SList);
+} else {
 	this(this) @disable;
+}
 
 	private import std.experimental.allocator.common : stateSize;
 
