@@ -906,7 +906,7 @@ private:
 			{
 				newRoot = right.left;
 				newRoot.parent = this.parent;
-				newRoot.left = &this;
+				newRoot.left = (() @trusted => &this)();
 				newRoot.left.parent = newRoot;
 				newRoot.right = right;
 				newRoot.right.parent = newRoot;
@@ -920,8 +920,8 @@ private:
 				newRoot.parent = this.parent;
 				right = newRoot.left;
 				if (right !is null)
-					right.parent = &this;
-				newRoot.left = &this;
+					right.parent = (() @trusted => &this)();
+				newRoot.left = (() @trusted => &this)();
 				this.parent = newRoot;
 			}
 			cleanup(newRoot, root, allocator);
@@ -934,7 +934,7 @@ private:
 			{
 				newRoot = left.right;
 				newRoot.parent = this.parent;
-				newRoot.right = &this;
+				newRoot.right = (() @trusted => &this)();
 				newRoot.right.parent = newRoot;
 				newRoot.left = left;
 				newRoot.left.parent = newRoot;
@@ -948,8 +948,8 @@ private:
 				newRoot.parent = this.parent;
 				left = newRoot.right;
 				if (left !is null)
-					left.parent = &this;
-				newRoot.right = &this;
+					left.parent = (() @trusted => &this)();
+				newRoot.right = (() @trusted => &this)();
 				this.parent = newRoot;
 			}
 			cleanup(newRoot, root, allocator);
